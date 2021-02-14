@@ -9,6 +9,13 @@
 use xi_semantics::syntax_to_semantics;
 
 use crate::xi_semantics::{self, semantics_to_syntax};
+#[derive(Clone, PartialEq, Eq, Debug)]
+
+pub enum NatPrim {
+    NatType,
+    Nat(i32),
+    Add,
+}
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Judgment {
@@ -17,6 +24,7 @@ pub enum Judgment {
     Lam(Box<Judgment>, Box<Judgment>),
     BoundVar(u32, Box<Judgment>),
     Application(Box<Judgment>, Box<Judgment>), // we need to type check Application I think.
+    Prim(NatPrim),
 }
 
 impl Judgment {
@@ -37,9 +45,22 @@ impl Judgment {
                         elem.clone(),
                     )) // I am not sure if I want this or just instantiate(func_expr_type, elem).
                 } else {
+                    dbg!(func_type);
+                    dbg!(self);
                     panic!("func.is_type is not a Pi type.")
                 }
             }
+            Judgment::Prim(prim) => Some(match prim {
+                NatPrim::NatType => Judgment::u(),
+                NatPrim::Nat(_) => Judgment::Prim(NatPrim::NatType),
+                NatPrim::Add => Judgment::pi(
+                    Judgment::Prim(NatPrim::NatType),
+                    Judgment::pi(
+                        Judgment::Prim(NatPrim::NatType),
+                        Judgment::Prim(NatPrim::NatType),
+                    ),
+                ),
+            }),
         }
     }
 
@@ -88,18 +109,22 @@ impl Judgment {
     }
 
     ///Application constructor with normalized type check
-    // pub fn app_normalize(func: Judgment, elem: Judgment) -> Judgment {
-    //     let func_type = func.clone().type_of().unwrap();
-    //     if let Judgment::Pi(func_arg_type, _) = func_type {
-    //         if (*func_arg_type).normalize() == elem.clone().type_of().unwrap().normalize() {
-    //             Judgment::Application(Box::new(func), Box::new(elem))
-    //         } else {
-    //             panic!("elem and func's types doesn't match up")
-    //         }
-    //     } else {
-    //         panic!("func is not a Pi type")
-    //     }
-    // }
+    pub fn app_normalize(func: Judgment, elem: Judgment) -> Judgment {
+        let func_type = func.clone().type_of().unwrap().nbe();
+        if let Judgment::Pi(func_arg_type, _) = func_type {
+            if (*func_arg_type).nbe() == elem.clone().type_of().unwrap().nbe() {
+                Judgment::Application(Box::new(func), Box::new(elem))
+            } else {
+                panic!("elem and func's types doesn't match up")
+            }
+        } else {
+            panic!("func is not a Pi type")
+        }
+    }
+
+    pub fn app(func: Judgment, elem: Judgment) -> Judgment {
+        Judgment::Application(Box::new(func), Box::new(elem))
+    }
 
     //Application constructor with a exhibit path to type check
     // fn app_normalize(func:Judgment, elem:Judgment, path: id(???, ???)) -> Judgment{
@@ -137,6 +162,7 @@ impl Judgment {
                     Box::new(instantiate_rec(func, elem, depth)),
                     Box::new(instantiate_rec(arg, elem, depth)),
                 ),
+                Judgment::Prim(_) => expr.clone(),
             }
         }
         instantiate_rec(&expr, &elem, &0)

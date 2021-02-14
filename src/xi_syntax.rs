@@ -28,29 +28,21 @@ pub enum Judgment {
 }
 
 impl Judgment {
-    /// This takes a Judgment and return its type. For example, (n : Nat).is_type = (Nat: U), (Nat:U).is_type = U:None
+    /// Takes a judgment and returns its the judgment representing its type
     pub fn type_of(&self) -> Option<Judgment> {
         match self {
             Judgment::UInNone => None,
             Judgment::Pi(_var_type, expr) => expr.type_of(),
             Judgment::Lam(var_type, expr) => {
-                dbg!(expr);
-                dbg!(expr.type_of());
                 Some(Judgment::pi((**var_type).clone(), expr.type_of().unwrap()))
             }
             Judgment::BoundVar(_, var_type) => Some((**var_type).clone()),
             Judgment::Application(func, elem) => {
-                let func_type = func.clone().type_of().unwrap().nbe();
-                if let Judgment::Pi(func_arg_type, func_expr_type) = func_type {
-                    // Some(Judgment::Application(
-                    //     Box::new(Judgment::lam(*func_arg_type, *func_expr_type)),
-                    //     elem.clone())),
-                    return Some(Judgment::instantiate(*func_expr_type, *elem.clone()));
-                // I am not sure if I want this or just instantiate(func_expr_type, elem).
+                if let Some(Judgment::Pi(_func_arg_type, func_expr_type)) = func.type_of() {
+                    let new_result_type = Judgment::instantiate(*func_expr_type, *elem.clone());
+                    Some(new_result_type.normalize())
                 } else {
-                    dbg!(func_type);
-                    dbg!(self);
-                    panic!("func.is_type is not a Pi type.")
+                    panic!("type of func should be a Pi")
                 }
             }
             Judgment::Prim(prim) => Some(match prim {
@@ -72,9 +64,21 @@ impl Judgment {
         semantics_to_syntax(syntax_to_semantics(self, vec![]))
     }
 
-    /// Pass through the normalization.
-    fn is_normalized_type(self) -> Option<Judgment> {
-        todo!()
+    pub fn normalize(self) -> Judgment {
+        match self {
+            Judgment::UInNone => Judgment::UInNone,
+            Judgment::Pi(var_type, expr) => Judgment::pi(var_type.normalize(), expr.normalize()),
+            Judgment::Lam(var_type, expr) => Judgment::lam(var_type.normalize(), expr.normalize()),
+            Judgment::BoundVar(i, var_type) => {
+                // TODO: eta expand
+                Judgment::var(i, var_type.normalize())
+            }
+            Judgment::Application(func, arg) => Judgment::app(func.normalize(), arg.normalize()),
+            Judgment::Prim(prim) => {
+                // TODO: eta expand
+                Judgment::prim(prim)
+            }
+        }
     }
 
     /// U:None constructor
@@ -87,7 +91,7 @@ impl Judgment {
 
         match type_expr {
             None => Judgment::Pi(Box::new(var_type), Box::new(expr)),
-            Some(type_expr2) => match type_expr2.nbe() {
+            Some(type_expr2) => match type_expr2 {
                 Judgment::UInNone => Judgment::Pi(Box::new(var_type), Box::new(expr)),
                 _ => panic!("pi type needs a type as expr"),
             },
@@ -98,11 +102,15 @@ impl Judgment {
         Judgment::Lam(Box::new(var_type), Box::new(expr))
     }
     /// BoundVar constructor
-    pub fn boundvar(int: u32, var_type: Judgment) -> Judgment {
+    pub fn var(int: u32, var_type: Judgment) -> Judgment {
         Judgment::BoundVar(int, Box::new(var_type))
     }
 
-    pub fn app_but_fucking_works(func: Judgment, elem: Judgment) -> Judgment {
+    pub fn prim(prim: NatPrim) -> Judgment {
+        Judgment::Prim(prim)
+    }
+
+    pub fn app(func: Judgment, elem: Judgment) -> Judgment {
         let func_type = func.clone().type_of().unwrap();
         if let Judgment::Pi(func_arg_type, _) = func_type {
             if *func_arg_type != elem.clone().type_of().unwrap() {
@@ -113,74 +121,31 @@ impl Judgment {
         }
 
         if let Judgment::Lam(_var_type, func_body) = func.clone() {
-            let func_new_body = Judgment::instantiate(*func_body, elem.clone());
-            if let Judgment::Application(new_func, new_arg) = func_new_body {
-                Judgment::app_but_fucking_works(*new_func, *new_arg)
-            } else {
-                Judgment::Application(Box::new(func), Box::new(elem))
-            }
+            let new_body = Judgment::instantiate(*func_body, elem.clone());
+            new_body.normalize()
         } else {
             Judgment::Application(Box::new(func), Box::new(elem))
         }
     }
-    /// Application constructor with strict type check
-    pub fn app_strict(func: Judgment, elem: Judgment) -> Judgment {
-        Judgment::app_but_fucking_works(func, elem)
-        // let func_type = func.clone().type_of().unwrap();
-        // if let Judgment::Pi(func_arg_type, _) = func_type {
-        //     if *func_arg_type == elem.clone().type_of().unwrap() {
-        //         Judgment::Application(Box::new(func), Box::new(elem))
-        //     } else {
-        //         panic!("elem and func's types doesn't match up")
-        //     }
-        // } else {
-        //     panic!("func is not a Pi type")
-        // }
-    }
 
-    ///Application constructor with normalized type check
-    pub fn app_normalize(func: Judgment, elem: Judgment) -> Judgment {
-        Judgment::app_but_fucking_works(func, elem)
-        // let func_type = dbg!(func.clone().type_of().unwrap().nbe());
-        // if let Judgment::Pi(func_arg_type, _) = func_type {
-        //     if (*func_arg_type).nbe() == elem.clone().type_of().unwrap().nbe() {
-        //         Judgment::Application(Box::new(func), Box::new(elem))
-        //     } else {
-        //         panic!("elem and func's types doesn't match up")
-        //     }
-        // } else {
-        //     panic!("func is not a Pi type")
-        // }
-    }
-
-    pub fn app(func: Judgment, elem: Judgment) -> Judgment {
-        Judgment::app_but_fucking_works(func, elem)
-        // Judgment::Application(Box::new(func), Box::new(elem))
-    }
-
-    //Application constructor with a exhibit path to type check
-    // fn app_normalize(func:Judgment, elem:Judgment, path: id(???, ???)) -> Judgment{
-
-    // }
-
-    ///Instantiate elem to expr by replacing the correct variable in expr with elem.
-    pub fn instantiate(expr: Judgment, elem: Judgment) -> Judgment {
-        fn instantiate_rec(expr: &Judgment, elem: &Judgment, depth: &u32) -> Judgment {
+    /// Replace the outermost bound variable in expr with elem.
+    fn instantiate(expr: Judgment, elem: Judgment) -> Judgment {
+        fn instantiate_rec(expr: &Judgment, elem: &Judgment, depth: u32) -> Judgment {
             match expr {
                 Judgment::UInNone => Judgment::UInNone,
                 Judgment::Pi(var_type, expr) => Judgment::pi(
-                    instantiate_rec(var_type, elem, &(depth + &1)),
-                    instantiate_rec(expr, elem, &(depth + &1)),
+                    instantiate_rec(var_type, elem, depth + 1),
+                    instantiate_rec(expr, elem, depth + 1),
                 ),
                 Judgment::Lam(var_type, expr) => Judgment::lam(
-                    instantiate_rec(var_type, elem, &(depth + &1)),
-                    instantiate_rec(expr, elem, &(depth + &1)),
+                    instantiate_rec(var_type, elem, depth + 1),
+                    instantiate_rec(expr, elem, depth + 1),
                 ),
 
                 Judgment::BoundVar(int, var_type) => {
-                    if int < depth {
-                        Judgment::boundvar(*int, instantiate_rec(var_type, elem, depth))
-                    } else if int == depth {
+                    if *int < depth {
+                        Judgment::var(*int, instantiate_rec(var_type, elem, depth))
+                    } else if *int == depth {
                         if **var_type == elem.clone().type_of().unwrap() {
                             elem.clone()
                         } else {
@@ -197,6 +162,6 @@ impl Judgment {
                 Judgment::Prim(_) => expr.clone(),
             }
         }
-        instantiate_rec(&expr, &elem, &0)
+        instantiate_rec(&expr, &elem, 0)
     }
 }

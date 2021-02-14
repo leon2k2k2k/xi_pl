@@ -13,6 +13,7 @@ pub enum SJudgment {
     Pi(Box<SJudgment>, Rc<dyn Fn(SJudgment) -> SJudgment>),
 }
 
+#[allow(non_snake_case)]
 pub fn semantics_to_syntax(sem: SJudgment) -> Judgment {
     fn up(syn: Judgment) -> SJudgment {
         let syn_clone = syn.clone();
@@ -21,9 +22,7 @@ pub fn semantics_to_syntax(sem: SJudgment) -> Judgment {
                 Judgment::UInNone => SJudgment::Syn(syn),
                 Judgment::Pi(var_type, _expr) => SJudgment::Lam(
                     Box::new(SJudgment::Syn(*var_type)),
-                    Rc::new(move |S| {
-                        up(Judgment::app_but_fucking_works(syn_clone.clone(), down(S)))
-                    }),
+                    Rc::new(move |S| up(Judgment::app(syn_clone.clone(), down(S)))),
                 ),
 
                 Judgment::Lam(_, _) => panic!("shoudn't see Lambda on type of syn"),
@@ -43,7 +42,7 @@ pub fn semantics_to_syntax(sem: SJudgment) -> Judgment {
         fn rebind(s: Judgment, free_var: u32) -> Judgment {
             fn rebind_rec(s: Judgment, free_var: u32, depth: u32) -> Judgment {
                 match s {
-                    Judgment::UInNone => Judgment::UInNone,
+                    Judgment::UInNone => Judgment::u(),
                     Judgment::Pi(var_type, expr) => Judgment::pi(
                         rebind_rec(*var_type, free_var, depth + 1),
                         rebind_rec(*expr, free_var, depth + 1),
@@ -54,9 +53,9 @@ pub fn semantics_to_syntax(sem: SJudgment) -> Judgment {
                     ),
                     Judgment::BoundVar(i, var_type) => {
                         if i == free_var {
-                            Judgment::BoundVar(depth, var_type)
+                            Judgment::var(depth, *var_type)
                         } else {
-                            Judgment::boundvar(i, rebind_rec(*var_type, free_var, depth))
+                            Judgment::var(i, rebind_rec(*var_type, free_var, depth))
                         }
                     }
                     Judgment::Application(lhs, rhs) => Judgment::app(
@@ -73,20 +72,14 @@ pub fn semantics_to_syntax(sem: SJudgment) -> Judgment {
             SJudgment::Syn(judgment) => judgment,
             SJudgment::Lam(svar_type, func) => {
                 let free_var = FreeVar::new().0;
-                let expr = down(func(up(Judgment::boundvar(
-                    free_var,
-                    down(*svar_type.clone()),
-                ))));
+                let expr = down(func(up(Judgment::var(free_var, down(*svar_type.clone())))));
                 let expr_rebound = rebind(expr, free_var);
 
                 Judgment::lam(down(*svar_type.clone()), expr_rebound)
             }
             SJudgment::Pi(svar_type, func) => {
                 let free_var = FreeVar::new().0;
-                let expr = down(func(up(Judgment::boundvar(
-                    free_var,
-                    down(*svar_type.clone()),
-                ))));
+                let expr = down(func(up(Judgment::var(free_var, down(*svar_type.clone())))));
                 let expr_rebound = rebind(expr, free_var);
 
                 Judgment::pi(down(*svar_type.clone()), expr_rebound)
@@ -103,6 +96,7 @@ fn add_to_ctx(v: Vec<SJudgment>, x: &SJudgment) -> Vec<SJudgment> {
     v
 }
 
+#[allow(non_snake_case)]
 pub fn syntax_to_semantics(syn: Judgment, ctx: Vec<SJudgment>) -> SJudgment {
     let ctx_clone = ctx.clone();
     let ctx_clone2 = ctx.clone();
@@ -126,6 +120,7 @@ pub fn syntax_to_semantics(syn: Judgment, ctx: Vec<SJudgment>) -> SJudgment {
         ),
         Judgment::BoundVar(i, _var_type) => {
             dbg!(i);
+            dbg!(ctx.len());
             ctx[ctx.len() - 1 - i as usize].clone()
         }
         Judgment::Application(func, elem) => match syntax_to_semantics(*func, ctx.clone()) {
@@ -140,22 +135,16 @@ pub fn syntax_to_semantics(syn: Judgment, ctx: Vec<SJudgment>) -> SJudgment {
                 Box::new(SJudgment::Syn(Judgment::Prim(NatPrim::NatType))),
                 Rc::new(|a| {
                     SJudgment::Lam(
-                        Box::new(SJudgment::Syn(Judgment::Prim(NatPrim::NatType))),
+                        Box::new(SJudgment::Syn(Judgment::prim(NatPrim::NatType))),
                         Rc::new(move |b| match (a.clone(), b) {
                             (
                                 SJudgment::Syn(Judgment::Prim(NatPrim::Nat(a_))),
                                 SJudgment::Syn(Judgment::Prim(NatPrim::Nat(b_))),
                             ) => SJudgment::Syn(Judgment::Prim(NatPrim::Nat(a_ + b_))),
 
-                            (SJudgment::Syn(a_), SJudgment::Syn(b_)) => {
-                                SJudgment::Syn(Judgment::app_but_fucking_works(
-                                    Judgment::app_but_fucking_works(
-                                        Judgment::Prim(NatPrim::Add),
-                                        a_,
-                                    ),
-                                    b_,
-                                ))
-                            }
+                            (SJudgment::Syn(a_), SJudgment::Syn(b_)) => SJudgment::Syn(
+                                Judgment::app(Judgment::app(Judgment::Prim(NatPrim::Add), a_), b_),
+                            ),
                             _ => panic!("idk what to do"),
                         }),
                     )
@@ -166,21 +155,18 @@ pub fn syntax_to_semantics(syn: Judgment, ctx: Vec<SJudgment>) -> SJudgment {
 }
 
 mod test {
-    use super::*;
-
     #[test]
     fn test_nbe() {
-        let id = Judgment::lam(
-            Judgment::UInNone,
-            Judgment::BoundVar(0, Box::new(Judgment::UInNone)),
-        );
+        use super::*;
+
+        let id = Judgment::lam(Judgment::u(), Judgment::var(0, Judgment::u()));
         assert_eq!(id.clone().nbe(), id);
 
         let id_on_term = Judgment::lam(
             Judgment::u(),
             Judgment::lam(
-                Judgment::boundvar(1, Judgment::u()),
-                Judgment::boundvar(0, Judgment::boundvar(1, Judgment::u())),
+                Judgment::var(1, Judgment::u()),
+                Judgment::var(0, Judgment::var(1, Judgment::u())),
             ),
         );
         assert_eq!(id_on_term.clone().nbe(), id_on_term);
@@ -188,45 +174,57 @@ mod test {
         let unit = Judgment::pi(
             Judgment::u(),
             Judgment::pi(
-                Judgment::boundvar(1, Judgment::u()),
-                Judgment::boundvar(1, Judgment::u()),
+                Judgment::var(1, Judgment::u()),
+                Judgment::var(1, Judgment::u()),
             ),
         );
-        assert_eq!(Judgment::app_strict(id, unit.clone()).nbe(), unit);
+        assert_eq!(Judgment::app(id, unit.clone()).nbe(), unit);
 
-        let five = Judgment::app_normalize(
-            Judgment::app_normalize(
-                Judgment::Prim(NatPrim::Add),
-                Judgment::Prim(NatPrim::Nat(2)),
+        let five = Judgment::app(
+            Judgment::app(
+                Judgment::prim(NatPrim::Add),
+                Judgment::prim(NatPrim::Nat(2)),
             ),
             Judgment::Prim(NatPrim::Nat(2)),
         );
 
-        assert_eq!(five.nbe(), Judgment::Prim(NatPrim::Nat(4)));
+        assert_eq!(five.nbe(), Judgment::prim(NatPrim::Nat(4)));
 
         assert_eq!(
-            Judgment::Prim(NatPrim::Add).nbe(),
-            Judgment::Prim(NatPrim::Add).nbe()
+            Judgment::prim(NatPrim::Add).nbe(),
+            Judgment::lam(
+                Judgment::prim(NatPrim::NatType),
+                Judgment::lam(
+                    Judgment::prim(NatPrim::NatType),
+                    Judgment::app(
+                        Judgment::app(
+                            Judgment::prim(NatPrim::Add),
+                            Judgment::var(1, Judgment::Prim(NatPrim::NatType))
+                        ),
+                        Judgment::var(0, Judgment::Prim(NatPrim::NatType))
+                    )
+                )
+            ),
         );
 
         let add3 = Judgment::lam(
-            Judgment::Prim(NatPrim::NatType),
+            Judgment::prim(NatPrim::NatType),
             Judgment::app(
                 Judgment::app(
-                    Judgment::Prim(NatPrim::Add),
-                    Judgment::Prim(NatPrim::Nat(3)),
+                    Judgment::prim(NatPrim::Add),
+                    Judgment::prim(NatPrim::Nat(3)),
                 ),
-                Judgment::boundvar(0, Judgment::Prim(NatPrim::NatType)),
+                Judgment::var(0, Judgment::prim(NatPrim::NatType)),
             ),
         );
 
         assert_eq!(
-            Judgment::app_but_fucking_works(
+            Judgment::app(
                 add3.clone(),
-                Judgment::app_but_fucking_works(add3, Judgment::Prim(NatPrim::Nat(2)))
+                Judgment::app(add3, Judgment::prim(NatPrim::Nat(2)))
             )
             .nbe(),
-            Judgment::Prim(NatPrim::Nat(8))
+            Judgment::prim(NatPrim::Nat(8))
         );
     }
 }

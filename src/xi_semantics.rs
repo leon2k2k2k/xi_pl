@@ -7,16 +7,10 @@ use crate::xi_syntax::NatPrim;
 use std::rc::Rc;
 
 #[derive(Clone)]
-pub enum Prim2 {
-    NatType,
-    Nat(i32),
-}
-#[derive(Clone)]
 pub enum SJudgment {
     Syn(Judgment),
     Lam(Box<SJudgment>, Rc<dyn Fn(SJudgment) -> SJudgment>),
     Pi(Box<SJudgment>, Rc<dyn Fn(SJudgment) -> SJudgment>),
-    Prim(Prim2),
 }
 
 pub fn semantics_to_syntax(sem: SJudgment) -> Judgment {
@@ -97,10 +91,6 @@ pub fn semantics_to_syntax(sem: SJudgment) -> Judgment {
 
                 Judgment::pi(down(*svar_type.clone()), expr_rebound)
             }
-            SJudgment::Prim(prim) => match prim {
-                Prim2::NatType => Judgment::Prim(NatPrim::NatType),
-                Prim2::Nat(n) => Judgment::Prim(NatPrim::Nat(n)),
-            },
         }
     }
 
@@ -142,20 +132,21 @@ pub fn syntax_to_semantics(syn: Judgment, ctx: Vec<SJudgment>) -> SJudgment {
             SJudgment::Syn(_) => panic!("syntax_to_semantics(func) should match to Lam"),
             SJudgment::Lam(_, sfunc) => sfunc(syntax_to_semantics(*elem, ctx)),
             SJudgment::Pi(_, _) => panic!("syntax_to_semantics(func) should match to Lam"),
-            SJudgment::Prim(_) => panic!("syntax_to_semantics(func) should match to Lam"),
         },
         Judgment::Prim(prim) => match prim {
-            NatPrim::NatType => SJudgment::Prim(Prim2::NatType),
-            NatPrim::Nat(n) => SJudgment::Prim(Prim2::Nat(n)),
+            NatPrim::NatType => SJudgment::Syn(Judgment::Prim(prim)),
+            NatPrim::Nat(_n) => SJudgment::Syn(Judgment::Prim(prim)),
             NatPrim::Add => SJudgment::Lam(
-                Box::new(SJudgment::Prim(Prim2::NatType)),
+                Box::new(SJudgment::Syn(Judgment::Prim(NatPrim::NatType))),
                 Rc::new(|a| {
                     SJudgment::Lam(
-                        Box::new(SJudgment::Prim(Prim2::NatType)),
+                        Box::new(SJudgment::Syn(Judgment::Prim(NatPrim::NatType))),
                         Rc::new(move |b| match (a.clone(), b) {
-                            (SJudgment::Prim(Prim2::Nat(a_)), SJudgment::Prim(Prim2::Nat(b_))) => {
-                                SJudgment::Prim(Prim2::Nat(a_ + b_))
-                            }
+                            (
+                                SJudgment::Syn(Judgment::Prim(NatPrim::Nat(a_))),
+                                SJudgment::Syn(Judgment::Prim(NatPrim::Nat(b_))),
+                            ) => SJudgment::Syn(Judgment::Prim(NatPrim::Nat(a_ + b_))),
+
                             (SJudgment::Syn(a_), SJudgment::Syn(b_)) => {
                                 SJudgment::Syn(Judgment::app_but_fucking_works(
                                     Judgment::app_but_fucking_works(
@@ -165,22 +156,6 @@ pub fn syntax_to_semantics(syn: Judgment, ctx: Vec<SJudgment>) -> SJudgment {
                                     b_,
                                 ))
                             }
-                            (SJudgment::Prim(Prim2::Nat(a_)), SJudgment::Syn(b_)) => {
-                                SJudgment::Syn(Judgment::app(
-                                    Judgment::app(
-                                        Judgment::Prim(NatPrim::Add),
-                                        Judgment::Prim(NatPrim::Nat(a_)),
-                                    ),
-                                    b_,
-                                ))
-                            }
-                            (SJudgment::Syn(a_), SJudgment::Prim(Prim2::Nat(b_))) => {
-                                SJudgment::Syn(Judgment::app(
-                                    Judgment::app(Judgment::Prim(NatPrim::Add), a_),
-                                    Judgment::Prim(NatPrim::Nat(b_)),
-                                ))
-                            }
-
                             _ => panic!("idk what to do"),
                         }),
                     )
@@ -246,8 +221,12 @@ mod test {
         );
 
         assert_eq!(
-            Judgment::app_but_fucking_works(add3, Judgment::Prim(NatPrim::Nat(2))).nbe(),
-            Judgment::Prim(NatPrim::Nat(5))
+            Judgment::app_but_fucking_works(
+                add3.clone(),
+                Judgment::app_but_fucking_works(add3, Judgment::Prim(NatPrim::Nat(2)))
+            )
+            .nbe(),
+            Judgment::Prim(NatPrim::Nat(8))
         );
     }
 }

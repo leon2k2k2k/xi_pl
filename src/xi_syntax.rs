@@ -155,7 +155,6 @@ impl Judgment {
 
     pub fn app(func: Judgment, elem: Judgment) -> Judgment {
         Judgment::app_but_fucking_works(func, elem)
-
         // Judgment::Application(Box::new(func), Box::new(elem))
     }
 

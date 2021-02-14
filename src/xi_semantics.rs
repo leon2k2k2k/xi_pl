@@ -28,10 +28,7 @@ pub fn semantics_to_syntax(sem: SJudgment) -> Judgment {
                 Judgment::Pi(var_type, _expr) => SJudgment::Lam(
                     Box::new(SJudgment::Syn(*var_type)),
                     Rc::new(move |S| {
-                        up(Judgment::Application(
-                            Box::new(syn_clone.clone()),
-                            Box::new(down(S)),
-                        ))
+                        up(Judgment::app_but_fucking_works(syn_clone.clone(), down(S)))
                     }),
                 ),
 
@@ -160,12 +157,12 @@ pub fn syntax_to_semantics(syn: Judgment, ctx: Vec<SJudgment>) -> SJudgment {
                                 SJudgment::Prim(Prim2::Nat(a_ + b_))
                             }
                             (SJudgment::Syn(a_), SJudgment::Syn(b_)) => {
-                                SJudgment::Syn(Judgment::Application(
-                                    Box::new(Judgment::Application(
-                                        Box::new(Judgment::Prim(NatPrim::Add)),
-                                        Box::new(a_),
-                                    )),
-                                    Box::new(b_),
+                                SJudgment::Syn(Judgment::app_but_fucking_works(
+                                    Judgment::app_but_fucking_works(
+                                        Judgment::Prim(NatPrim::Add),
+                                        a_,
+                                    ),
+                                    b_,
                                 ))
                             }
                             (SJudgment::Prim(Prim2::Nat(a_)), SJudgment::Syn(b_)) => {
@@ -249,7 +246,7 @@ mod test {
         );
 
         assert_eq!(
-            Judgment::app(add3, Judgment::Prim(NatPrim::Nat(2))).nbe(),
+            Judgment::app_but_fucking_works(add3, Judgment::Prim(NatPrim::Nat(2))).nbe(),
             Judgment::Prim(NatPrim::Nat(5))
         );
     }

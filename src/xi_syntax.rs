@@ -34,16 +34,19 @@ impl Judgment {
             Judgment::UInNone => None,
             Judgment::Pi(_var_type, expr) => expr.type_of(),
             Judgment::Lam(var_type, expr) => {
+                dbg!(expr);
+                dbg!(expr.type_of());
                 Some(Judgment::pi((**var_type).clone(), expr.type_of().unwrap()))
             }
             Judgment::BoundVar(_, var_type) => Some((**var_type).clone()),
             Judgment::Application(func, elem) => {
-                let func_type = func.clone().type_of().unwrap();
+                let func_type = func.clone().type_of().unwrap().nbe();
                 if let Judgment::Pi(func_arg_type, func_expr_type) = func_type {
-                    Some(Judgment::Application(
-                        Box::new(Judgment::lam(*func_arg_type, *func_expr_type)),
-                        elem.clone(),
-                    )) // I am not sure if I want this or just instantiate(func_expr_type, elem).
+                    // Some(Judgment::Application(
+                    //     Box::new(Judgment::lam(*func_arg_type, *func_expr_type)),
+                    //     elem.clone())),
+                    return Some(Judgment::instantiate(*func_expr_type, *elem.clone()));
+                // I am not sure if I want this or just instantiate(func_expr_type, elem).
                 } else {
                     dbg!(func_type);
                     dbg!(self);
@@ -80,9 +83,14 @@ impl Judgment {
     }
     /// Pi constructor
     pub fn pi(var_type: Judgment, expr: Judgment) -> Judgment {
-        match expr.type_of() {
-            None | Some(Judgment::UInNone) => Judgment::Pi(Box::new(var_type), Box::new(expr)),
-            _ => panic!("pi type needs a type as expr"),
+        let type_expr = expr.type_of();
+
+        match type_expr {
+            None => Judgment::Pi(Box::new(var_type), Box::new(expr)),
+            Some(type_expr2) => match type_expr2.nbe() {
+                Judgment::UInNone => Judgment::Pi(Box::new(var_type), Box::new(expr)),
+                _ => panic!("pi type needs a type as expr"),
+            },
         }
     }
     /// Lambda constructor
@@ -94,36 +102,61 @@ impl Judgment {
         Judgment::BoundVar(int, Box::new(var_type))
     }
 
-    /// Application constructor with strict type check
-    pub fn app_strict(func: Judgment, elem: Judgment) -> Judgment {
+    pub fn app_but_fucking_works(func: Judgment, elem: Judgment) -> Judgment {
         let func_type = func.clone().type_of().unwrap();
         if let Judgment::Pi(func_arg_type, _) = func_type {
-            if *func_arg_type == elem.clone().type_of().unwrap() {
-                Judgment::Application(Box::new(func), Box::new(elem))
-            } else {
+            if *func_arg_type != elem.clone().type_of().unwrap() {
                 panic!("elem and func's types doesn't match up")
             }
         } else {
             panic!("func is not a Pi type")
         }
+
+        if let Judgment::Lam(_var_type, func_body) = func.clone() {
+            let func_new_body = Judgment::instantiate(*func_body, elem.clone());
+            if let Judgment::Application(new_func, new_arg) = func_new_body {
+                Judgment::app_but_fucking_works(*new_func, *new_arg)
+            } else {
+                Judgment::Application(Box::new(func), Box::new(elem))
+            }
+        } else {
+            Judgment::Application(Box::new(func), Box::new(elem))
+        }
+    }
+    /// Application constructor with strict type check
+    pub fn app_strict(func: Judgment, elem: Judgment) -> Judgment {
+        Judgment::app_but_fucking_works(func, elem)
+        // let func_type = func.clone().type_of().unwrap();
+        // if let Judgment::Pi(func_arg_type, _) = func_type {
+        //     if *func_arg_type == elem.clone().type_of().unwrap() {
+        //         Judgment::Application(Box::new(func), Box::new(elem))
+        //     } else {
+        //         panic!("elem and func's types doesn't match up")
+        //     }
+        // } else {
+        //     panic!("func is not a Pi type")
+        // }
     }
 
     ///Application constructor with normalized type check
     pub fn app_normalize(func: Judgment, elem: Judgment) -> Judgment {
-        let func_type = func.clone().type_of().unwrap().nbe();
-        if let Judgment::Pi(func_arg_type, _) = func_type {
-            if (*func_arg_type).nbe() == elem.clone().type_of().unwrap().nbe() {
-                Judgment::Application(Box::new(func), Box::new(elem))
-            } else {
-                panic!("elem and func's types doesn't match up")
-            }
-        } else {
-            panic!("func is not a Pi type")
-        }
+        Judgment::app_but_fucking_works(func, elem)
+        // let func_type = dbg!(func.clone().type_of().unwrap().nbe());
+        // if let Judgment::Pi(func_arg_type, _) = func_type {
+        //     if (*func_arg_type).nbe() == elem.clone().type_of().unwrap().nbe() {
+        //         Judgment::Application(Box::new(func), Box::new(elem))
+        //     } else {
+        //         panic!("elem and func's types doesn't match up")
+        //     }
+        // } else {
+        //     panic!("func is not a Pi type")
+        // }
     }
 
     pub fn app(func: Judgment, elem: Judgment) -> Judgment {
-        Judgment::Application(Box::new(func), Box::new(elem))
+        Judgment::app_but_fucking_works(func, elem)
+
+        // Judgment::Application(Box::new(func), Box::new(elem))
     }
 
     //Application constructor with a exhibit path to type check
@@ -132,7 +165,7 @@ impl Judgment {
     // }
 
     ///Instantiate elem to expr by replacing the correct variable in expr with elem.
-    fn instantiate(expr: Judgment, elem: Judgment) -> Judgment {
+    pub fn instantiate(expr: Judgment, elem: Judgment) -> Judgment {
         fn instantiate_rec(expr: &Judgment, elem: &Judgment, depth: &u32) -> Judgment {
             match expr {
                 Judgment::UInNone => Judgment::UInNone,

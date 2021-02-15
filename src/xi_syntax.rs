@@ -6,9 +6,7 @@
     beta-reduction and eta-conversion.
 */
 
-use xi_semantics::syntax_to_semantics;
-
-use crate::xi_semantics::{self, semantics_to_syntax};
+use crate::xi_semantics::{SJudgment, Semantics};
 #[derive(Clone, PartialEq, Eq, Debug)]
 
 pub enum NatPrim {
@@ -17,19 +15,46 @@ pub enum NatPrim {
     Add,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Judgment {
-    UInNone,
-    Pi(Box<Judgment>, Box<Judgment>),
-    Lam(Box<Judgment>, Box<Judgment>),
-    BoundVar(u32, Box<Judgment>),
-    Application(Box<Judgment>, Box<Judgment>), // we need to type check Application I think.
-    Prim(NatPrim),
+impl Primitive for NatPrim {
+    fn type_of(&self) -> Judgment<Self> {
+        match self {
+            NatPrim::NatType => Judgment::u(),
+            NatPrim::Nat(_) => Judgment::Prim(NatPrim::NatType),
+            NatPrim::Add => Judgment::pi(
+                Judgment::Prim(NatPrim::NatType),
+                Judgment::pi(
+                    Judgment::Prim(NatPrim::NatType),
+                    Judgment::Prim(NatPrim::NatType),
+                ),
+            ),
+        }
+    }
 }
 
-impl Judgment {
+fn something(a: Judgment<NatPrim>) {
+    a.type_of();
+    todo!()
+}
+pub trait Primitive
+where
+    Self: Sized,
+{
+    fn type_of(&self) -> Judgment<Self>;
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Judgment<T> {
+    UInNone,
+    Pi(Box<Judgment<T>>, Box<Judgment<T>>),
+    Lam(Box<Judgment<T>>, Box<Judgment<T>>),
+    BoundVar(u32, Box<Judgment<T>>),
+    Application(Box<Judgment<T>>, Box<Judgment<T>>), // we need to type check Application I think.
+    Prim(T),
+}
+
+impl<T: Primitive + Clone + PartialEq + Eq + 'static> Judgment<T> {
     /// Takes a judgment and returns its the judgment representing its type
-    pub fn type_of(&self) -> Option<Judgment> {
+    pub fn type_of(&self) -> Option<Judgment<T>> {
         match self {
             Judgment::UInNone => None,
             Judgment::Pi(_var_type, expr) => expr.type_of(),
@@ -45,26 +70,11 @@ impl Judgment {
                     panic!("type of func should be a Pi")
                 }
             }
-            Judgment::Prim(prim) => Some(match prim {
-                NatPrim::NatType => Judgment::u(),
-                NatPrim::Nat(_) => Judgment::Prim(NatPrim::NatType),
-                NatPrim::Add => Judgment::pi(
-                    Judgment::Prim(NatPrim::NatType),
-                    Judgment::pi(
-                        Judgment::Prim(NatPrim::NatType),
-                        Judgment::Prim(NatPrim::NatType),
-                    ),
-                ),
-            }),
+            Judgment::Prim(prim) => Some(prim.type_of()),
         }
     }
 
-    /// Normalization to beta-reduced, eta-long form. beta-reduced means that app(lam(var_type,expr), elem) is beta-reduced to expr[BoundVar(?)\elem].
-    pub fn nbe(self) -> Judgment {
-        semantics_to_syntax(syntax_to_semantics(self, vec![]))
-    }
-
-    pub fn normalize(self) -> Judgment {
+    pub fn normalize(self) -> Judgment<T> {
         match self {
             Judgment::UInNone => Judgment::UInNone,
             Judgment::Pi(var_type, expr) => Judgment::pi(var_type.normalize(), expr.normalize()),
@@ -82,11 +92,11 @@ impl Judgment {
     }
 
     /// U:None constructor
-    pub fn u() -> Judgment {
+    pub fn u() -> Judgment<T> {
         Judgment::UInNone
     }
     /// Pi constructor
-    pub fn pi(var_type: Judgment, expr: Judgment) -> Judgment {
+    pub fn pi(var_type: Judgment<T>, expr: Judgment<T>) -> Judgment<T> {
         let type_expr = expr.type_of();
 
         match type_expr {
@@ -98,19 +108,19 @@ impl Judgment {
         }
     }
     /// Lambda constructor
-    pub fn lam(var_type: Judgment, expr: Judgment) -> Judgment {
+    pub fn lam(var_type: Judgment<T>, expr: Judgment<T>) -> Judgment<T> {
         Judgment::Lam(Box::new(var_type), Box::new(expr))
     }
     /// BoundVar constructor
-    pub fn var(int: u32, var_type: Judgment) -> Judgment {
+    pub fn var(int: u32, var_type: Judgment<T>) -> Judgment<T> {
         Judgment::BoundVar(int, Box::new(var_type))
     }
 
-    pub fn prim(prim: NatPrim) -> Judgment {
+    pub fn prim(prim: T) -> Judgment<T> {
         Judgment::Prim(prim)
     }
 
-    pub fn app(func: Judgment, elem: Judgment) -> Judgment {
+    pub fn app(func: Judgment<T>, elem: Judgment<T>) -> Judgment<T> {
         let func_type = func.clone().type_of().unwrap();
         if let Judgment::Pi(func_arg_type, _) = func_type {
             if *func_arg_type != elem.clone().type_of().unwrap() {
@@ -129,8 +139,12 @@ impl Judgment {
     }
 
     /// Replace the outermost bound variable in expr with elem.
-    fn instantiate(expr: Judgment, elem: Judgment) -> Judgment {
-        fn instantiate_rec(expr: &Judgment, elem: &Judgment, depth: u32) -> Judgment {
+    fn instantiate(expr: Judgment<T>, elem: Judgment<T>) -> Judgment<T> {
+        fn instantiate_rec<T: Primitive + Clone + PartialEq + Eq + 'static>(
+            expr: &Judgment<T>,
+            elem: &Judgment<T>,
+            depth: u32,
+        ) -> Judgment<T> {
             match expr {
                 Judgment::UInNone => Judgment::UInNone,
                 Judgment::Pi(var_type, expr) => Judgment::pi(
@@ -163,5 +177,14 @@ impl Judgment {
             }
         }
         instantiate_rec(&expr, &elem, 0)
+    }
+}
+
+impl<T: Primitive + Clone + PartialEq + Eq + 'static> Judgment<T> {
+    /// Normalization to beta-reduced, eta-long form. beta-reduced means that app(lam(var_type,expr), elem) is beta-reduced to expr[BoundVar(?)\elem].
+    pub fn nbe<U: Semantics<T> + Primitive + Clone + PartialEq + Eq + 'static>(
+        self,
+    ) -> Judgment<U> {
+        SJudgment::semantics_to_syntax(SJudgment::syntax_to_semantics(self, vec![]))
     }
 }

@@ -75,6 +75,9 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static> SJudgment<T> {
             match sem {
                 SJudgment::Syn(judgment) => judgment,
                 SJudgment::Lam(svar_type, func) => {
+                    // let var_type = down(*svar_type.clone())
+                    // term!(Lam |x : $var_type| x@{|x| down(func(up(x)))})
+
                     let free_var = FreeVar::new().0;
                     let expr = down(func(up(Judgment::var(free_var, down(*svar_type.clone())))));
                     let expr_rebound = rebind(expr, free_var);
@@ -230,9 +233,12 @@ mod test {
     }
     #[test]
     fn test_nbe() {
+        // let id_on_U : Judgment<NatPrim> = term!(Lam |T : U| T)
+        // assert!(id.type_of() == id_type);
         let id: Judgment<NatPrim> = Judgment::lam(Judgment::u(), Judgment::var(0, Judgment::u()));
         assert_eq!(id.clone().nbe(), id);
 
+        // let id_polymorphic : Judgment<NatPrim> = term!(Lam |T : U, t : T| t)
         let id_on_term: Judgment<NatPrim> = Judgment::lam(
             Judgment::u(),
             Judgment::lam(
@@ -242,6 +248,7 @@ mod test {
         );
         assert_eq!(id_on_term.clone().nbe(), id_on_term);
 
+        // let unit = term!(Pi |T : U| T -> T)
         let unit: Judgment<NatPrim> = Judgment::pi(
             Judgment::u(),
             Judgment::pi(
@@ -250,7 +257,9 @@ mod test {
             ),
         );
         assert_eq!(Judgment::app(id, unit.clone()).nbe(), unit);
+        // assert_eq!(unit.type_of(), id_on_term)
 
+        // let five = term!({NatPrim::Add} {NatPrim::Nat(2)} {NatPrim::Nat(2)})
         let five = Judgment::app(
             Judgment::app(
                 Judgment::prim(NatPrim::Add),

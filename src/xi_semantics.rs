@@ -4,19 +4,23 @@ normalization by evaluation. This is attempt two after mu. */
 use crate::free_var::FreeVar;
 use crate::xi_syntax::Judgment;
 use crate::xi_syntax::Primitive;
+use std::fmt::Debug;
 use std::rc::Rc;
 
 #[derive(Clone)]
 pub enum SJudgment<T> {
+    FreeVar(FreeVar, Box<SJudgment<T>>),
     Syn(Judgment<T>),
     Lam(Box<SJudgment<T>>, Rc<dyn Fn(SJudgment<T>) -> SJudgment<T>>),
     Pi(Box<SJudgment<T>>, Rc<dyn Fn(SJudgment<T>) -> SJudgment<T>>),
 }
 
-impl<T: Primitive + Clone + PartialEq + Eq + 'static> SJudgment<T> {
+impl<T: Primitive + Clone + PartialEq + Eq + 'static + Debug> SJudgment<T> {
     #[allow(non_snake_case)]
     pub fn semantics_to_syntax(sem: SJudgment<T>) -> Judgment<T> {
-        fn up<T: Primitive + Clone + PartialEq + Eq + 'static>(syn: Judgment<T>) -> SJudgment<T> {
+        fn up<T: Primitive + Clone + PartialEq + Eq + 'static + Debug>(
+            syn: Judgment<T>,
+        ) -> SJudgment<T> {
             let syn_clone = syn.clone();
             match syn.type_of() {
                 Some(type_of_syn) => match type_of_syn {
@@ -30,117 +34,43 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static> SJudgment<T> {
                     Judgment::BoundVar(_, _) => SJudgment::Syn(syn),
                     Judgment::Application(_, _) => SJudgment::Syn(syn),
                     Judgment::Prim(_) => SJudgment::Syn(syn),
+                    Judgment::FreeVar(_, _) => SJudgment::Syn(syn),
                 },
                 None => SJudgment::Syn(syn),
             }
         }
 
-        fn down<T: Primitive + Clone + PartialEq + Eq + 'static>(sem: SJudgment<T>) -> Judgment<T> {
-            fn rebind<T: Primitive + Clone + PartialEq + Eq + 'static>(
-                s: Judgment<T>,
-                free_var: u32,
-            ) -> Judgment<T> {
-                fn rebind_rec<T: Primitive + Clone + PartialEq + Eq + 'static>(
-                    s: Judgment<T>,
-                    free_var: u32,
-                    depth: u32,
-                ) -> Judgment<T> {
-                    match s {
-                        Judgment::UInNone => Judgment::u(),
-                        Judgment::Pi(var_type, expr) => Judgment::pi(
-                            rebind_rec(*var_type, free_var, depth + 1),
-                            rebind_rec(*expr, free_var, depth + 1),
-                        ),
-                        Judgment::Lam(var_type, expr) => Judgment::lam(
-                            rebind_rec(*var_type, free_var, depth + 1),
-                            rebind_rec(*expr, free_var, depth + 1),
-                        ),
-                        Judgment::BoundVar(i, var_type) => {
-                            if i == free_var {
-                                Judgment::var(depth, *var_type)
-                            } else {
-                                Judgment::var(i, rebind_rec(*var_type, free_var, depth))
-                            }
-                        }
-                        Judgment::Application(lhs, rhs) => Judgment::app(
-                            rebind_rec(*lhs, free_var, depth),
-                            rebind_rec(*rhs, free_var, depth),
-                        ),
-                        Judgment::Prim(_) => s,
-                    }
-                }
-                rebind_rec(s, free_var, 0)
-            }
-
+        fn down<T: Primitive + Clone + PartialEq + Eq + 'static + Debug>(
+            sem: SJudgment<T>,
+        ) -> Judgment<T> {
             match sem {
                 SJudgment::Syn(judgment) => judgment,
                 SJudgment::Lam(svar_type, func) => {
                     // let var_type = down(*svar_type.clone())
                     // term!(Lam |x : $var_type| x@{|x| down(func(up(x)))})
 
-                    let free_var = FreeVar::new().0;
-                    let expr = down(func(up(Judgment::var(free_var, down(*svar_type.clone())))));
-                    let expr_rebound = rebind(expr, free_var);
+                    let free_var = FreeVar::new();
+                    let expr = down(func(up(Judgment::free(free_var, down(*svar_type.clone())))));
+                    let expr_rebound = Judgment::rebind(expr, free_var);
 
                     Judgment::lam(down(*svar_type.clone()), expr_rebound)
                 }
                 SJudgment::Pi(svar_type, func) => {
-                    let free_var = FreeVar::new().0;
-                    let expr = down(func(up(Judgment::var(free_var, down(*svar_type.clone())))));
-                    let expr_rebound = rebind(expr, free_var);
+                    let free_var = FreeVar::new();
+                    // dbg!(down(func(SJudgment::Syn(Judgment::UInNone))));
+                    let expr = down(func(up(Judgment::free(free_var, down(*svar_type.clone())))));
+                    let expr_rebound = Judgment::rebind(expr, free_var);
 
                     Judgment::pi(down(*svar_type.clone()), expr_rebound)
+                }
+                SJudgment::FreeVar(free_var, var_type) => {
+                    Judgment::FreeVar(free_var, Box::new(down(*var_type)))
                 }
             }
         }
 
         down(sem)
     }
-
-    // #[allow(non_snake_case)]
-    // pub fn syntax_to_semantics(syn: Judgment<T>, ctx: Vec<SJudgment<T>>) -> SJudgment<T> {
-    //     fn add_to_ctx<U: Clone>(v: Vec<U>, x: &U) -> Vec<U> {
-    //         let mut v = v;
-    //         v.push(x.clone());
-    //         v
-    //     }
-
-    //     let ctx_clone = ctx.clone();
-    //     let ctx_clone2 = ctx.clone();
-    //     match syn {
-    //         Judgment::UInNone => SJudgment::Syn(Judgment::UInNone),
-    //         Judgment::Pi(var_type, expr) => SJudgment::Pi(
-    //             Box::new(SJudgment::syntax_to_semantics(
-    //                 *var_type,
-    //                 add_to_ctx(ctx, &SJudgment::Syn(Judgment::UInNone)),
-    //             )),
-    //             Rc::new(move |S| {
-    //                 SJudgment::syntax_to_semantics(*expr.clone(), add_to_ctx(ctx_clone.clone(), &S))
-    //             }),
-    //         ),
-    //         Judgment::Lam(var_type, expr) => SJudgment::Lam(
-    //             Box::new(SJudgment::syntax_to_semantics(
-    //                 *var_type,
-    //                 add_to_ctx(ctx, &SJudgment::Syn(Judgment::UInNone)),
-    //             )),
-    //             Rc::new(move |S| {
-    //                 SJudgment::syntax_to_semantics(
-    //                     *expr.clone(),
-    //                     add_to_ctx(ctx_clone2.clone(), &S),
-    //                 )
-    //             }),
-    //         ),
-    //         Judgment::BoundVar(i, _var_type) => ctx[ctx.len() - 1 - i as usize].clone(),
-    //         Judgment::Application(func, elem) => {
-    //             match SJudgment::syntax_to_semantics(*func, ctx.clone()) {
-    //                 SJudgment::Syn(_) => panic!("syntax_to_semantics(func) should match to Lam"),
-    //                 SJudgment::Lam(_, sfunc) => sfunc(SJudgment::syntax_to_semantics(*elem, ctx)),
-    //                 SJudgment::Pi(_, _) => panic!("syntax_to_semantics(func) should match to Lam"),
-    //             }
-    //         }
-    //         Judgment::Prim(prim) => SJudgment::Syn(Judgment::Prim(prim)),
-    //     }
-    // }
 
     #[allow(non_snake_case)]
     pub fn syntax_to_semantics<U: Semantics<T> + Primitive + Clone + PartialEq + Eq + 'static>(
@@ -185,9 +115,19 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static> SJudgment<T> {
                     SJudgment::Syn(_) => panic!("syntax_to_semantics(func) should match to Lam"),
                     SJudgment::Lam(_, sfunc) => sfunc(SJudgment::syntax_to_semantics(*elem, ctx)),
                     SJudgment::Pi(_, _) => panic!("syntax_to_semantics(func) should match to Lam"),
+                    SJudgment::FreeVar(_, _) => {
+                        panic!("syntax_to_semantics(func) should match to Lam")
+                    }
                 }
             }
             Judgment::Prim(prim) => U::meaning(prim),
+            Judgment::FreeVar(free_var, var_type) => SJudgment::FreeVar(
+                free_var,
+                Box::new(SJudgment::syntax_to_semantics(
+                    Judgment::FreeVar(free_var, Box::new(*var_type)),
+                    ctx,
+                )),
+            ),
         }
     }
 }
@@ -199,7 +139,16 @@ where
     fn meaning(prim: T) -> SJudgment<Self>;
 }
 
+/*  NatPrim:: Add => Judgment::Lam(Judgment::Syn(Judgment::prim(NatPrim:NatType)),
+//                 Lam(Judgment::Syn(Judgment::prim(NatPrim:NatType)),
+                        ))
+
+*/
+// NatPrim = term!(Lam |a : NatPrim::NatType, b : NatPrim::NatType| match (a, b) => if a and b are )
+
 mod test {
+    use core::panic;
+
     use super::*;
     use crate::xi_syntax::NatPrim;
     impl Semantics<NatPrim> for NatPrim {
@@ -256,8 +205,8 @@ mod test {
                 Judgment::var(1, Judgment::u()),
             ),
         );
-        assert_eq!(Judgment::app(id, unit.clone()).nbe(), unit);
-        // assert_eq!(unit.type_of(), id_on_term)
+
+        assert_eq!(unit.clone().nbe(), unit);
 
         // let five = term!({NatPrim::Add} {NatPrim::Nat(2)} {NatPrim::Nat(2)})
         let five = Judgment::app(

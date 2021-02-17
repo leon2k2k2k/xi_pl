@@ -6,9 +6,12 @@
     beta-reduction and eta-conversion.
 */
 
-use crate::xi_semantics::{SJudgment, Semantics};
+use crate::{
+    free_var::FreeVar,
+    xi_semantics::{SJudgment, Semantics},
+};
+use std::fmt::Debug;
 #[derive(Clone, PartialEq, Eq, Debug)]
-
 pub enum NatPrim {
     NatType,
     Nat(i32),
@@ -16,8 +19,8 @@ pub enum NatPrim {
 }
 
 impl Primitive for NatPrim {
-    fn type_of(&self) -> Judgment<Self> {
-        match self {
+    fn type_of(&self) -> JudgmentClosed<Self> {
+        JudgmentClosed(match self {
             NatPrim::NatType => Judgment::u(),
             NatPrim::Nat(_) => Judgment::Prim(NatPrim::NatType),
             NatPrim::Add => Judgment::pi(
@@ -27,32 +30,37 @@ impl Primitive for NatPrim {
                     Judgment::Prim(NatPrim::NatType),
                 ),
             ),
-        }
+        })
     }
 }
 
-fn something(a: Judgment<NatPrim>) {
-    a.type_of();
-    todo!()
-}
 pub trait Primitive
 where
     Self: Sized,
 {
-    fn type_of(&self) -> Judgment<Self>;
+    fn type_of(&self) -> JudgmentClosed<Self>;
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
+pub struct JudgmentClosed<T>(Judgment<T>);
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Judgment<T> {
     UInNone,
+    Prim(T),
+    FreeVar(FreeVar, Box<Judgment<T>>),
     Pi(Box<Judgment<T>>, Box<Judgment<T>>),
     Lam(Box<Judgment<T>>, Box<Judgment<T>>),
     BoundVar(u32, Box<Judgment<T>>),
-    Application(Box<Judgment<T>>, Box<Judgment<T>>), // we need to type check Application I think.
-    Prim(T),
+    Application(Box<Judgment<T>>, Box<Judgment<T>>),
 }
 
-impl<T: Primitive + Clone + PartialEq + Eq + 'static> Judgment<T> {
+impl<T> From<JudgmentClosed<T>> for Judgment<T> {
+    fn from(judgment: JudgmentClosed<T>) -> Judgment<T> {
+        judgment.0
+    }
+}
+
+impl<T: Primitive + Clone + PartialEq + Eq + 'static + std::fmt::Debug> Judgment<T> {
     /// Takes a judgment and returns its the judgment representing its type
     pub fn type_of(&self) -> Option<Judgment<T>> {
         match self {
@@ -70,7 +78,8 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static> Judgment<T> {
                     panic!("type of func should be a Pi")
                 }
             }
-            Judgment::Prim(prim) => Some(prim.type_of()),
+            Judgment::Prim(prim) => Some(prim.type_of().into()),
+            Judgment::FreeVar(_free_var, var_type) => Some((**var_type).clone()),
         }
     }
 
@@ -88,6 +97,7 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static> Judgment<T> {
                 // TODO: eta expand
                 Judgment::prim(prim)
             }
+            Judgment::FreeVar(index, var_type) => Judgment::free(index, var_type.normalize()),
         }
     }
 
@@ -116,6 +126,10 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static> Judgment<T> {
         Judgment::BoundVar(int, Box::new(var_type))
     }
 
+    pub fn free(int: FreeVar, var_type: Judgment<T>) -> Judgment<T> {
+        Judgment::FreeVar(int, Box::new(var_type))
+    }
+
     pub fn prim(prim: T) -> Judgment<T> {
         Judgment::Prim(prim)
     }
@@ -140,7 +154,7 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static> Judgment<T> {
 
     /// Replace the outermost bound variable in expr with elem.
     fn instantiate(expr: Judgment<T>, elem: Judgment<T>) -> Judgment<T> {
-        fn instantiate_rec<T: Primitive + Clone + PartialEq + Eq + 'static>(
+        fn instantiate_rec<T: Primitive + Clone + PartialEq + Eq + 'static + Debug>(
             expr: &Judgment<T>,
             elem: &Judgment<T>,
             depth: u32,
@@ -174,15 +188,54 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static> Judgment<T> {
                     Box::new(instantiate_rec(arg, elem, depth)),
                 ),
                 Judgment::Prim(_) => expr.clone(),
+                Judgment::FreeVar(free_var, var_type) => {
+                    Judgment::FreeVar(*free_var, var_type.clone())
+                }
             }
         }
         instantiate_rec(&expr, &elem, 0)
     }
+
+    pub fn rebind(s: Judgment<T>, free_var: FreeVar) -> Judgment<T> {
+        fn rebind_rec<T: Primitive + Clone + PartialEq + Eq + 'static + Debug>(
+            s: Judgment<T>,
+            free_var: FreeVar,
+            depth: u32,
+        ) -> Judgment<T> {
+            match s {
+                Judgment::UInNone => Judgment::u(),
+                Judgment::Pi(var_type, expr) => Judgment::pi(
+                    rebind_rec(*var_type, free_var, depth + 1),
+                    rebind_rec(*expr, free_var, depth + 1),
+                ),
+                Judgment::Lam(var_type, expr) => Judgment::lam(
+                    rebind_rec(*var_type, free_var, depth + 1),
+                    rebind_rec(*expr, free_var, depth + 1),
+                ),
+                Judgment::BoundVar(i, var_type) => {
+                    Judgment::var(i, rebind_rec(*var_type, free_var, depth))
+                }
+                Judgment::Application(lhs, rhs) => Judgment::app(
+                    rebind_rec(*lhs, free_var, depth),
+                    rebind_rec(*rhs, free_var, depth),
+                ),
+                Judgment::Prim(_) => s,
+                Judgment::FreeVar(i, var_type) => {
+                    if i == free_var {
+                        Judgment::var(depth, *var_type)
+                    } else {
+                        Judgment::free(i, rebind_rec(*var_type, free_var, depth))
+                    }
+                }
+            }
+        }
+        rebind_rec(s, free_var, 0)
+    }
 }
 
-impl<T: Primitive + Clone + PartialEq + Eq + 'static> Judgment<T> {
+impl<T: Primitive + Clone + PartialEq + Eq + 'static + Debug> Judgment<T> {
     /// Normalization to beta-reduced, eta-long form. beta-reduced means that app(lam(var_type,expr), elem) is beta-reduced to expr[BoundVar(?)\elem].
-    pub fn nbe<U: Semantics<T> + Primitive + Clone + PartialEq + Eq + 'static>(
+    pub fn nbe<U: Semantics<T> + Primitive + Clone + PartialEq + Eq + 'static + Debug>(
         self,
     ) -> Judgment<U> {
         SJudgment::semantics_to_syntax(SJudgment::syntax_to_semantics(self, vec![]))

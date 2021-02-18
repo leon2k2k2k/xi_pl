@@ -6,10 +6,8 @@
     beta-reduction and eta-conversion.
 */
 
-use crate::{
-    free_var::FreeVar,
-    xi_semantics::{SJudgment, Semantics},
-};
+use crate::xi_semantics::{SJudgment, Semantics};
+use free_var::FreeVar;
 use std::fmt::Debug;
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum NatPrim {

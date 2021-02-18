@@ -1,9 +1,10 @@
 /* We introduce semantical judgments for xi. We introduce the
 syntax_to_semantics and semantics_to_syntax function needed for
 normalization by evaluation. This is attempt two after mu. */
-use crate::free_var::FreeVar;
+
 use crate::xi_syntax::Judgment;
 use crate::xi_syntax::Primitive;
+use free_var::FreeVar;
 use std::fmt::Debug;
 use std::rc::Rc;
 
@@ -46,9 +47,6 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + Debug> SJudgment<T> {
             match sem {
                 SJudgment::Syn(judgment) => judgment,
                 SJudgment::Lam(svar_type, func) => {
-                    // let var_type = down(*svar_type.clone())
-                    // term!(Lam |x : $var_type| x@{|x| down(func(up(x)))})
-
                     let free_var = FreeVar::new();
                     let expr = down(func(up(Judgment::free(free_var, down(*svar_type.clone())))));
                     let expr_rebound = Judgment::rebind(expr, free_var);
@@ -57,7 +55,6 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + Debug> SJudgment<T> {
                 }
                 SJudgment::Pi(svar_type, func) => {
                     let free_var = FreeVar::new();
-                    // dbg!(down(func(SJudgment::Syn(Judgment::UInNone))));
                     let expr = down(func(up(Judgment::free(free_var, down(*svar_type.clone())))));
                     let expr_rebound = Judgment::rebind(expr, free_var);
 
@@ -198,134 +195,43 @@ impl<T: Primitive + Clone + PartialEq + Eq + Debug + 'static> Semantics<T> for T
     }
 }
 
+#[rustfmt::skip::macros(term)]
+#[allow(non_snake_case)]
 mod test {
-    use super::*;
-    use crate::xi_syntax::NatPrim;
-    // impl Semantics<NatPrim> for NatPrim {
-    //     fn meaning(prim: NatPrim) -> SJudgment<NatPrim> {
-    //         match prim {
-    //             NatPrim::NatType => SJudgment::Syn(Judgment::prim(NatPrim::NatType)),
-    //             NatPrim::Nat(n) => SJudgment::Syn(Judgment::prim(NatPrim::Nat(n))),
-    //             NatPrim::Add => SJudgment::Lam(
-    //                 Box::new(SJudgment::Syn(Judgment::prim(NatPrim::NatType))),
-    //                 Rc::new(|a| {
-    //                     SJudgment::Lam(
-    //                         Box::new(SJudgment::Syn(Judgment::prim(NatPrim::NatType))),
-    //                         Rc::new(move |b| match (a.clone(), b) {
-    //                             (
-    //                                 SJudgment::Syn(Judgment::Prim(NatPrim::Nat(a_))),
-    //                                 SJudgment::Syn(Judgment::Prim(NatPrim::Nat(b_))),
-    //                             ) => SJudgment::Syn(Judgment::Prim(NatPrim::Nat(a_ + b_))),
-    //                             (SJudgment::Syn(a_), SJudgment::Syn(b_)) => {
-    //                                 SJudgment::Syn(Judgment::app(
-    //                                     Judgment::app(Judgment::prim(NatPrim::Add), a_),
-    //                                     b_,
-    //                                 ))
-    //                             }
-    //                             _ => panic!("idk what to do"),
-    //                         }),
-    //                     )
-    //                 }),
-    //             ),
-    //         }
-    //    }
-    //}
+
     #[test]
     fn test_nbe() {
-        // let id_on_U : Judgment<NatPrim> = term!(Lam |T : U| T)
-        // assert!(id.type_of() == id_type);
-        let id: Judgment<NatPrim> = Judgment::lam(Judgment::u(), Judgment::var(0, Judgment::u()));
+        use super::*;
+        use crate::xi_syntax::NatPrim;
+        use term_macro::term;
+        use NatPrim::{Add, NatType};
+
+        let id: Judgment<NatPrim> = term!(Lam |T : U| T);
         assert_eq!(id.clone().nbe(), id);
 
-        // let id_polymorphic : Judgment<NatPrim> = term!(Lam |T : U, t : T| t)
-        let id_on_term: Judgment<NatPrim> = Judgment::lam(
-            Judgment::u(),
-            Judgment::lam(
-                Judgment::var(1, Judgment::u()),
-                Judgment::var(0, Judgment::var(1, Judgment::u())),
-            ),
-        );
+        let id_on_term: Judgment<NatPrim> = term!(Lam |T : U, t : T| t);
         assert_eq!(id_on_term.clone().nbe(), id_on_term);
 
-        // let unit = term!(Pi |T : U| T -> T)
-        let unit: Judgment<NatPrim> = Judgment::pi(
-            Judgment::u(),
-            Judgment::pi(
-                Judgment::var(1, Judgment::u()),
-                Judgment::var(1, Judgment::u()),
-            ),
-        );
-
+        let unit: Judgment<NatPrim> = term!(Pi |T : U| T -> T);
         assert_eq!(unit.clone().nbe(), unit);
 
-        // let five = term!({NatPrim::Add} {NatPrim::Nat(2)} {NatPrim::Nat(2)})
-        let five = Judgment::app(
-            Judgment::app(
-                Judgment::prim(NatPrim::Add),
-                Judgment::prim(NatPrim::Nat(2)),
-            ),
-            Judgment::Prim(NatPrim::Nat(2)),
-        );
-
-        // assert_eq!(five.nbe(), Judgment::prim(NatPrim::Nat(4)));
+        let unit_test = term!((Lam |T : U| T) {unit.clone()});
+        assert_eq!(unit, unit_test.nbe());
 
         assert_eq!(
-            Judgment::prim(NatPrim::Add).nbe(),
-            Judgment::lam(
-                Judgment::prim(NatPrim::NatType),
-                Judgment::lam(
-                    Judgment::prim(NatPrim::NatType),
-                    Judgment::app(
-                        Judgment::app(
-                            Judgment::prim(NatPrim::Add),
-                            Judgment::var(1, Judgment::Prim(NatPrim::NatType))
-                        ),
-                        Judgment::var(0, Judgment::Prim(NatPrim::NatType))
-                    )
-                )
-            ),
+            term!([NatPrim::Add]).nbe(),
+            term!(Lam |x : [NatType], y : [NatType]| [Add] x y),
         );
-
-        let add3 = Judgment::lam(
-            Judgment::prim(NatPrim::NatType),
-            Judgment::app(
-                Judgment::app(
-                    Judgment::prim(NatPrim::Add),
-                    Judgment::prim(NatPrim::Nat(3)),
-                ),
-                Judgment::var(0, Judgment::prim(NatPrim::NatType)),
-            ),
-        );
-
-        let add3_simp = Judgment::app(
-            Judgment::prim(NatPrim::Add),
-            Judgment::prim(NatPrim::Nat(3)),
-        );
-
-        assert_eq!(add3, add3_simp.nbe())
-
-        // assert_eq!(
-        //     Judgment::app(
-        //         add3.clone(),
-        //         Judgment::app(add3, Judgment::prim(NatPrim::Nat(2)))
-        //     )
-        //     .nbe(),
-        //     Judgment::prim(NatPrim::Nat(8))
-        // );
     }
     #[test]
     #[should_panic]
     fn test_app() {
-        let add3 = Judgment::lam(
-            Judgment::prim(NatPrim::NatType),
-            Judgment::app(
-                Judgment::app(
-                    Judgment::prim(NatPrim::Add),
-                    Judgment::prim(NatPrim::Nat(3)),
-                ),
-                Judgment::var(0, Judgment::prim(NatPrim::NatType)),
-            ),
-        );
-        let error = Judgment::app(add3, Judgment::u());
+        use super::*;
+        use crate::xi_syntax::NatPrim;
+        use term_macro::term;
+        use NatPrim::{Add, Nat};
+
+        let add3 = term!([Add] [Nat(3)]);
+        term!({add3} U);
     }
 }

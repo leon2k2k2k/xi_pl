@@ -1,9 +1,8 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 static FREE_VAR_COUNTER: AtomicU32 = AtomicU32::new(0);
-
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub struct FreeVar(pub u32);
+pub struct FreeVar(u32);
 
 impl FreeVar {
     pub fn new() -> FreeVar {

@@ -1,64 +1,103 @@
+use std::collections::BTreeMap;
+
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
-use syn::{braced, parenthesized, parse_macro_input, token, Expr, Ident, Result, Token};
+use syn::{braced, bracketed, parenthesized, parse_macro_input, token, Expr, Ident, Result, Token};
 
 #[proc_macro]
 pub fn term(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let builder = parse_macro_input!(tokens as TermBuilder);
+    let builder = parse_macro_input!(tokens as TermBuilderFree);
     (quote! { #builder }).into()
 }
 
+#[derive(Clone, Debug)]
+struct TermBuilderFree {
+    free_vars: Vec<(Ident, TermBuilder)>,
+    term: TermBuilder,
+}
 #[derive(Clone, Debug)]
 enum TermBuilder {
     Type,
     Var(Ident),
     RustExpr(Expr),
+    Prim(Expr),
     Lam(Ident, Box<TermBuilder>, Box<TermBuilder>),
     Pi(Ident, Box<TermBuilder>, Box<TermBuilder>),
     Fun(Box<TermBuilder>, Box<TermBuilder>),
     App(Box<TermBuilder>, Box<TermBuilder>),
 }
 
-impl ToTokens for TermBuilder {
+impl ToTokens for TermBuilderFree {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        match self {
-            TermBuilder::Type => tokens.extend(quote! { U() }),
-            TermBuilder::Var(ident) => tokens.extend(quote! { #ident }),
-            TermBuilder::RustExpr(expr) => tokens.extend(quote! { #expr }),
-            TermBuilder::Lam(ident, type_, body) => {
-                let ident_as_str = format!("{}", ident);
-                let lam_expr = quote! {{
-                    let #ident = #type_.var(#ident_as_str);
-                    #ident.lam(& #body)
-                }};
-                tokens.extend(lam_expr);
-            }
-            TermBuilder::Pi(ident, type_, body) => {
-                let ident_as_str = format!("{}", ident);
-                let pi_expr = quote! {{
-                    let #ident = #type_.var(#ident_as_str);
-                    #ident.pi(& #body)
-                }};
-                tokens.extend(pi_expr);
-            }
-            TermBuilder::Fun(domain, codomain) => {
-                let fun_expr = quote! {
-                    #domain.fun(& #codomain)
-                };
-                tokens.extend(fun_expr);
-            }
-            TermBuilder::App(fun, arg) => {
-                let app_expr = quote! {
-                    #fun.app(& #arg)
-                };
-                tokens.extend(app_expr);
+        fn to_tokens_rec(
+            free_vars: &BTreeMap<Ident, TermBuilder>,
+            term: &TermBuilder,
+        ) -> proc_macro2::TokenStream {
+            match term {
+                TermBuilder::Type => quote! { Judgment::u() },
+                TermBuilder::Var(ident) => {
+                    let var_type = free_vars
+                        .get(ident)
+                        .expect(&format!("Variable {} not bound", ident));
+
+                    let var_type_tokens = to_tokens_rec(free_vars, var_type);
+                    quote! {
+                        Judgment::free(#ident, #var_type_tokens)
+                    }
+                }
+                TermBuilder::RustExpr(expr) => quote! { #expr.clone() },
+                TermBuilder::Prim(prim) => quote! { Judgment::prim(#prim) },
+                TermBuilder::Lam(ident, type_, body) => {
+                    let type_tokens = to_tokens_rec(free_vars, type_);
+                    let mut new_vars = free_vars.clone();
+                    new_vars.insert(ident.clone(), *type_.clone());
+                    let body_tokens = to_tokens_rec(&new_vars, body);
+                    quote! {{
+                        let #ident = FreeVar::new();
+                        Judgment::lam(#type_tokens, Judgment::rebind(#body_tokens, #ident))
+                    }}
+                }
+                TermBuilder::Pi(ident, type_, body) => {
+                    let type_tokens = to_tokens_rec(free_vars, type_);
+                    let mut new_vars = free_vars.clone();
+                    new_vars.insert(ident.clone(), *type_.clone());
+                    let body_tokens = to_tokens_rec(&new_vars, body);
+                    quote! {{
+                        let #ident = FreeVar::new();
+                        Judgment::pi(#type_tokens, Judgment::rebind(#body_tokens, #ident))
+                    }}
+                }
+                TermBuilder::Fun(domain, codomain) => {
+                    let domain_tokens = to_tokens_rec(free_vars, domain);
+                    let codomain_tokens = to_tokens_rec(free_vars, codomain);
+                    quote! {Judgment::pi(#domain_tokens, #codomain_tokens)}
+                }
+                TermBuilder::App(fun, arg) => {
+                    let func_tokens = to_tokens_rec(free_vars, fun);
+                    let arg_tokens = to_tokens_rec(free_vars, arg);
+                    quote! { Judgment::app(#func_tokens, #arg_tokens)}
+                }
             }
         }
+        tokens.extend(to_tokens_rec(&BTreeMap::new(), &self.term));
     }
 }
 
 // parser implementation based off
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+
+impl Parse for TermBuilderFree {
+    fn parse(tokens: ParseStream) -> Result<TermBuilderFree> {
+        let should_parse_binders = tokens.peek(Token![|]);
+        let free_vars = if should_parse_binders {
+            parse_binders(tokens)?
+        } else {
+            vec![]
+        };
+        let term = tokens.parse::<TermBuilder>()?;
+        Ok(TermBuilderFree { free_vars, term })
+    }
+}
 
 impl Parse for TermBuilder {
     fn parse(tokens: ParseStream) -> Result<TermBuilder> {
@@ -86,10 +125,12 @@ fn expr_bp(tokens: ParseStream, min_bp: u8) -> Result<TermBuilder> {
         }
     } else if tokens.peek(token::Paren) {
         parse_parens(tokens)?
+    } else if tokens.peek(token::Bracket) {
+        parse_bracket(tokens)?
     } else if tokens.peek(token::Brace) {
         parse_rust_expr(tokens)?
     } else {
-        return Err(tokens.error("Unexpected token"));
+        return Err(tokens.error("Unexpected token {}"));
     };
 
     loop {
@@ -109,6 +150,8 @@ fn expr_bp(tokens: ParseStream, min_bp: u8) -> Result<TermBuilder> {
             } else if tokens.peek(token::Tilde) {
                 Some((Op::App, 3, 4))
             } else if tokens.peek(token::Brace) {
+                Some((Op::App, 3, 4))
+            } else if tokens.peek(token::Bracket) {
                 Some((Op::App, 3, 4))
             } else {
                 None
@@ -143,8 +186,7 @@ fn expr_bp(tokens: ParseStream, min_bp: u8) -> Result<TermBuilder> {
     Ok(lhs)
 }
 
-// Lam |X: U, Y: U| X
-fn parse_lam(tokens: ParseStream) -> Result<TermBuilder> {
+fn parse_binders(tokens: ParseStream) -> Result<Vec<(Ident, TermBuilder)>> {
     let mut binders = Vec::new();
     tokens.parse::<Token![|]>()?;
 
@@ -159,47 +201,44 @@ fn parse_lam(tokens: ParseStream) -> Result<TermBuilder> {
     } {}
 
     tokens.parse::<Token![|]>()?;
-    let body = expr_bp(tokens, 0)?;
+    Ok(binders)
+}
 
-    let mut expr = body;
+// lam |X: U, Y: U| X
+fn parse_lam(tokens: ParseStream) -> Result<TermBuilder> {
+    let mut binders = parse_binders(tokens)?;
+    let mut body = expr_bp(tokens, 0)?;
+
     binders.reverse();
 
     for (ident, type_) in binders {
-        expr = TermBuilder::Lam(ident, Box::new(type_), Box::new(expr));
+        body = TermBuilder::Lam(ident, Box::new(type_), Box::new(body));
     }
-    Ok(expr)
+    Ok(body)
 }
 
 fn parse_pi(tokens: ParseStream) -> Result<TermBuilder> {
-    let mut binders = Vec::new();
-    tokens.parse::<Token![|]>()?;
+    let mut binders = parse_binders(tokens)?;
+    let mut body = expr_bp(tokens, 0)?;
 
-    while {
-        let ident = tokens.parse::<Ident>()?;
-        tokens.parse::<Token![:]>()?;
-        let type_ = expr_bp(tokens, 0)?;
-
-        binders.push((ident, type_));
-
-        tokens.parse::<token::Comma>().is_ok()
-    } {}
-
-    tokens.parse::<Token![|]>()?;
-    let body = expr_bp(tokens, 0)?;
-
-    let mut expr = body;
     binders.reverse();
 
     for (ident, type_) in binders {
-        expr = TermBuilder::Pi(ident, Box::new(type_), Box::new(expr));
+        body = TermBuilder::Pi(ident, Box::new(type_), Box::new(body));
     }
-    Ok(expr)
+    Ok(body)
 }
 
 fn parse_parens(tokens: ParseStream) -> Result<TermBuilder> {
     let content;
     parenthesized!(content in tokens);
     Ok(content.parse::<TermBuilder>()?)
+}
+
+fn parse_bracket(tokens: ParseStream) -> Result<TermBuilder> {
+    let content;
+    bracketed!(content in tokens);
+    Ok(TermBuilder::Prim(content.parse::<Expr>()?))
 }
 
 fn parse_rust_expr(tokens: ParseStream) -> Result<TermBuilder> {
@@ -209,99 +248,235 @@ fn parse_rust_expr(tokens: ParseStream) -> Result<TermBuilder> {
 }
 
 mod test {
-    use proc_macro2::TokenStream;
-    use syn::parse2;
 
-    use super::*;
+    #[cfg(test)]
     fn test_expand(text: &str, desired: TokenStream) {
+        use super::*;
+        use syn::parse2;
+
         let tokens = text.parse::<TokenStream>().unwrap();
-        let builder = parse2::<TermBuilder>(tokens).unwrap();
+        let builder = parse2::<TermBuilderFree>(tokens).unwrap();
         let output = quote!( #builder );
         assert_eq!(output.to_string(), desired.to_string());
     }
 
     #[test]
     fn test_type() {
+        use super::*;
+
         test_expand(
             "U",
             quote! {
-                U()
+                Judgment::u()
             },
         );
         test_expand(
             "Lam |T : U| T",
             quote! {{
-                let T = U().var("T");
-                T.lam(&T)
+                let T = FreeVar::new();
+                Judgment::lam(
+                    Judgment::u(),
+                    Judgment::rebind(Judgment::free(T, Judgment::u()), T)
+                )
             }},
         );
         test_expand(
             "Pi |T : U| T",
             quote! {{
-                let T = U().var("T");
-                T.pi(&T)
+                let T = FreeVar::new();
+                Judgment::pi(
+                    Judgment::u(),
+                    Judgment::rebind(Judgment::free(T, Judgment::u()), T)
+                )
             }},
         );
         test_expand(
             "Lam |T : U, t : T| t",
             quote! {{
-                let T = U().var("T");
-                T.lam( & {
-                    let t = T.var("t");
-                    t.lam(&t)
-                })
+                let T = FreeVar::new();
+                Judgment::lam(
+                    Judgment::u(),
+                    Judgment::rebind(
+                        {
+                            let t = FreeVar::new();
+                            Judgment::lam(
+                                Judgment::free(T, Judgment::u()),
+                                Judgment::rebind(
+                                    Judgment::free(t, Judgment::free(T, Judgment::u())),
+                                    t
+                                )
+                            )
+                        },
+                        T
+                    )
+                )
             }},
         );
         test_expand(
             "Lam |A : U| A -> (A -> A) -> A",
             quote! {{
-                let A = U().var("A");
-                A.lam(& A.fun(&A.fun(&A).fun(&A)))
+                let A = FreeVar::new();
+                Judgment::lam(
+                    Judgment::u(),
+                    Judgment::rebind(
+                        Judgment::pi(
+                            Judgment::free(A, Judgment::u()),
+                            Judgment::pi(
+                                Judgment::pi(
+                                    Judgment::free(A, Judgment::u()),
+                                    Judgment::free(A, Judgment::u())
+                                ),
+                                Judgment::free(A, Judgment::u())
+                            )
+                        ),
+                        A
+                    )
+                )
             }},
         );
         test_expand(
             "Lam |A : U, f : A -> A| f f f",
             quote! {{
-                let A = U().var("A");
-                A.lam(&{
-                    let f = A.fun(&A).var("f");
-                    f.lam(&f.app(&f).app(&f))
-                })
+                let A = FreeVar::new();
+                Judgment::lam(
+                    Judgment::u(),
+                    Judgment::rebind(
+                        {
+                            let f = FreeVar::new();
+                            Judgment::lam(
+                                Judgment::pi(
+                                    Judgment::free(A, Judgment::u()),
+                                    Judgment::free(A, Judgment::u())
+                                ),
+                                Judgment::rebind(
+                                    Judgment::app(
+                                        Judgment::app(
+                                            Judgment::free(
+                                                f,
+                                                Judgment::pi(
+                                                    Judgment::free(A, Judgment::u()),
+                                                    Judgment::free(A, Judgment::u())
+                                                )
+                                            ),
+                                            Judgment::free(
+                                                f,
+                                                Judgment::pi(
+                                                    Judgment::free(A, Judgment::u()),
+                                                    Judgment::free(A, Judgment::u())
+                                                )
+                                            )
+                                        ),
+                                        Judgment::free(
+                                            f,
+                                            Judgment::pi(
+                                                Judgment::free(A, Judgment::u()),
+                                                Judgment::free(A, Judgment::u())
+                                            )
+                                        )
+                                    ),
+                                    f
+                                )
+                            )
+                        },
+                        A
+                    )
+                )
             }},
         );
-        test_expand(
-            "Lam |A : U| A -> ~empty_type",
+        test_expand("Lam |A : U| A -> {empty_type}", {
             quote! {{
-                let A = U().var("A");
-                A.lam(&A.fun(&empty_type()))
-            }},
-        );
-        test_expand(
-            "Lam |A : U| A -> empty_type",
-            quote! {{
-                let A = U().var("A");
-                A.lam(&A.fun(&empty_type))
-            }},
-        );
+                let A = FreeVar::new();
+                Judgment::lam(
+                    Judgment::u(),
+                    Judgment::rebind(
+                        Judgment::pi(Judgment::free(A, Judgment::u()), empty_type.clone()),
+                        A
+                    )
+                )
+            }}
+        });
         test_expand(
             "Lam |A : U| A -> U",
             quote! {{
-                let A = U().var("A");
-                A.lam(&A.fun(&U()))
+                let A = FreeVar::new();
+                Judgment::lam(
+                    Judgment::u(),
+                    Judgment::rebind(
+                        Judgment::pi(Judgment::free(A, Judgment::u()), Judgment::u()),
+                        A
+                    )
+                )
             }},
         );
         test_expand(
             "Pi |A : U, P : A -> U| Lam |a : A| P a -> P a",
             quote! {{
-                let A = U().var("A");
-                A.pi(&{
-                    let P = A.fun(&U()).var("P");
-                    P.pi(&{
-                        let a = A.var("a");
-                        a.lam(&P.app(&a).fun(&P.app (& a)))
-                    })
-                })
+                let A = FreeVar::new();
+                Judgment::pi(
+                    Judgment::u(),
+                    Judgment::rebind(
+                        {
+                            let P = FreeVar::new();
+                            Judgment::pi(
+                                Judgment::pi(Judgment::free(A, Judgment::u()), Judgment::u()),
+                                Judgment::rebind(
+                                    {
+                                        let a = FreeVar::new();
+                                        Judgment::lam(
+                                            Judgment::free(A, Judgment::u()),
+                                            Judgment::rebind(
+                                                Judgment::pi(
+                                                    Judgment::app(
+                                                        Judgment::free(
+                                                            P,
+                                                            Judgment::pi(
+                                                                Judgment::free(A, Judgment::u()),
+                                                                Judgment::u()
+                                                            )
+                                                        ),
+                                                        Judgment::free(
+                                                            a,
+                                                            Judgment::free(A, Judgment::u())
+                                                        )
+                                                    ),
+                                                    Judgment::app(
+                                                        Judgment::free(
+                                                            P,
+                                                            Judgment::pi(
+                                                                Judgment::free(A, Judgment::u()),
+                                                                Judgment::u()
+                                                            )
+                                                        ),
+                                                        Judgment::free(
+                                                            a,
+                                                            Judgment::free(A, Judgment::u())
+                                                        )
+                                                    )
+                                                ),
+                                                a
+                                            )
+                                        )
+                                    },
+                                    P
+                                )
+                            )
+                        },
+                        A
+                    )
+                )
             }},
+        );
+        test_expand(
+            "{a} {b}",
+            quote! {
+                Judgment::app(a.clone(), b.clone())
+            },
+        );
+        test_expand(
+            "[a] [b]",
+            quote! {
+                Judgment::app(Judgment::prim(a), Judgment::prim(b))
+            },
         );
     }
 }

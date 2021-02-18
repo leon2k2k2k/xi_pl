@@ -1,1 +1,3 @@
-/target
+/target/
+/free_var/target/
+/term_macro/target/

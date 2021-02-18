@@ -9,7 +9,9 @@ edition = "2018"
 [lib]
 proc-macro = true
 
+
 [dependencies]
 proc-macro2 = "1.0"
 syn = { version = "1.0", features = ["extra-traits"] }
 quote = "1.0"
+free_var = { path = "../free_var" }

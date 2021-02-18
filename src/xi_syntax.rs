@@ -19,8 +19,8 @@ pub enum NatPrim {
 }
 
 impl Primitive for NatPrim {
-    fn type_of(&self) -> JudgmentClosed<Self> {
-        JudgmentClosed(match self {
+    fn type_of(&self) -> Judgment<Self> {
+        match self {
             NatPrim::NatType => Judgment::u(),
             NatPrim::Nat(_) => Judgment::Prim(NatPrim::NatType),
             NatPrim::Add => Judgment::pi(
@@ -30,7 +30,7 @@ impl Primitive for NatPrim {
                     Judgment::Prim(NatPrim::NatType),
                 ),
             ),
-        })
+        }
     }
 }
 
@@ -38,7 +38,7 @@ pub trait Primitive
 where
     Self: Sized,
 {
-    fn type_of(&self) -> JudgmentClosed<Self>;
+    fn type_of(&self) -> Judgment<Self>;
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -84,21 +84,7 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + std::fmt::Debug> Judgment
     }
 
     pub fn normalize(self) -> Judgment<T> {
-        match self {
-            Judgment::UInNone => Judgment::UInNone,
-            Judgment::Pi(var_type, expr) => Judgment::pi(var_type.normalize(), expr.normalize()),
-            Judgment::Lam(var_type, expr) => Judgment::lam(var_type.normalize(), expr.normalize()),
-            Judgment::BoundVar(i, var_type) => {
-                // TODO: eta expand
-                Judgment::var(i, var_type.normalize())
-            }
-            Judgment::Application(func, arg) => Judgment::app(func.normalize(), arg.normalize()),
-            Judgment::Prim(prim) => {
-                // TODO: eta expand
-                Judgment::prim(prim)
-            }
-            Judgment::FreeVar(index, var_type) => Judgment::free(index, var_type.normalize()),
-        }
+        self.nbe()
     }
 
     /// U:None constructor
@@ -230,6 +216,14 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + std::fmt::Debug> Judgment
             }
         }
         rebind_rec(s, free_var, 0)
+    }
+
+    pub fn app_unchecked(func: Judgment<T>, arg: Judgment<T>) -> Judgment<T> {
+        Judgment::Application(Box::new(func), Box::new(arg))
+    }
+
+    pub fn pi_unchecked(var_type: Judgment<T>, expr: Judgment<T>) -> Judgment<T> {
+        Judgment::Pi(Box::new(var_type), Box::new(expr))
     }
 }
 

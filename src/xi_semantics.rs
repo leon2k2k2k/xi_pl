@@ -27,7 +27,7 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + Debug> SJudgment<T> {
                     Judgment::UInNone => SJudgment::Syn(syn),
                     Judgment::Pi(var_type, _expr) => SJudgment::Lam(
                         Box::new(SJudgment::Syn(*var_type)),
-                        Rc::new(move |S| up(Judgment::app(syn_clone.clone(), down(S)))),
+                        Rc::new(move |S| up(Judgment::app_unchecked(syn_clone.clone(), down(S)))),
                     ),
 
                     Judgment::Lam(_, _) => panic!("shoudn't see Lambda on type of syn"),
@@ -73,7 +73,9 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + Debug> SJudgment<T> {
     }
 
     #[allow(non_snake_case)]
-    pub fn syntax_to_semantics<U: Semantics<T> + Primitive + Clone + PartialEq + Eq + 'static>(
+    pub fn syntax_to_semantics<
+        U: Semantics<T> + Primitive + Clone + PartialEq + Eq + 'static + Debug,
+    >(
         syn: Judgment<T>,
         ctx: Vec<SJudgment<U>>,
     ) -> SJudgment<U> {
@@ -112,7 +114,9 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + Debug> SJudgment<T> {
             Judgment::BoundVar(i, _var_type) => ctx[ctx.len() - 1 - i as usize].clone(),
             Judgment::Application(func, elem) => {
                 match SJudgment::syntax_to_semantics(*func, ctx.clone()) {
-                    SJudgment::Syn(_) => panic!("syntax_to_semantics(func) should match to Lam"),
+                    SJudgment::Syn(a) => {
+                        panic!("syntax_to_semantics(func) should match to Lam {:?}", a)
+                    }
                     SJudgment::Lam(_, sfunc) => sfunc(SJudgment::syntax_to_semantics(*elem, ctx)),
                     SJudgment::Pi(_, _) => panic!("syntax_to_semantics(func) should match to Lam"),
                     SJudgment::FreeVar(_, _) => {
@@ -139,47 +143,93 @@ where
     fn meaning(prim: T) -> SJudgment<Self>;
 }
 
-/*  NatPrim:: Add => Judgment::Lam(Judgment::Syn(Judgment::prim(NatPrim:NatType)),
-//                 Lam(Judgment::Syn(Judgment::prim(NatPrim:NatType)),
-                        ))
-
-*/
-// NatPrim = term!(Lam |a : NatPrim::NatType, b : NatPrim::NatType| match (a, b) => if a and b are )
-
-mod test {
-    use core::panic;
-
-    use super::*;
-    use crate::xi_syntax::NatPrim;
-    impl Semantics<NatPrim> for NatPrim {
-        fn meaning(prim: NatPrim) -> SJudgment<NatPrim> {
-            match prim {
-                NatPrim::NatType => SJudgment::Syn(Judgment::prim(NatPrim::NatType)),
-                NatPrim::Nat(n) => SJudgment::Syn(Judgment::prim(NatPrim::Nat(n))),
-                NatPrim::Add => SJudgment::Lam(
-                    Box::new(SJudgment::Syn(Judgment::prim(NatPrim::NatType))),
-                    Rc::new(|a| {
-                        SJudgment::Lam(
-                            Box::new(SJudgment::Syn(Judgment::prim(NatPrim::NatType))),
-                            Rc::new(move |b| match (a.clone(), b) {
-                                (
-                                    SJudgment::Syn(Judgment::Prim(NatPrim::Nat(a_))),
-                                    SJudgment::Syn(Judgment::Prim(NatPrim::Nat(b_))),
-                                ) => SJudgment::Syn(Judgment::Prim(NatPrim::Nat(a_ + b_))),
-                                (SJudgment::Syn(a_), SJudgment::Syn(b_)) => {
-                                    SJudgment::Syn(Judgment::app(
-                                        Judgment::app(Judgment::prim(NatPrim::Add), a_),
-                                        b_,
-                                    ))
-                                }
-                                _ => panic!("idk what to do"),
-                            }),
-                        )
+impl<T: Primitive + Clone + PartialEq + Eq + Debug + 'static> Semantics<T> for T {
+    fn meaning(prim: T) -> SJudgment<Self> {
+        fn add_to_ctx<U: Clone>(v: Vec<U>, x: &U) -> Vec<U> {
+            let mut v = v;
+            v.push(x.clone());
+            v
+        }
+        fn meaning_rec<T: Primitive + Clone + PartialEq + Eq + Debug + 'static>(
+            prim: T,
+            type_of: Judgment<T>,
+            var_list: Vec<Judgment<T>>,
+            ctx: Vec<SJudgment<T>>,
+        ) -> SJudgment<T> {
+            let var_list_clone = var_list.clone();
+            let ctx_clone = ctx.clone();
+            match type_of {
+                Judgment::Pi(var_type, expr) => SJudgment::Lam(
+                    Box::new(SJudgment::syntax_to_semantics(
+                        *var_type,
+                        add_to_ctx(ctx, &SJudgment::Syn(Judgment::UInNone)),
+                    )),
+                    Rc::new(move |s| match s {
+                        SJudgment::Syn(s_) => meaning_rec(
+                            prim.clone(),
+                            *expr.clone(),
+                            add_to_ctx(var_list_clone.clone(), &s_),
+                            add_to_ctx(ctx_clone.clone(), &SJudgment::Syn(s_)),
+                        ),
+                        _ => panic!("only can be syn"),
                     }),
                 ),
+                _ => SJudgment::Syn(appn(prim, var_list)),
             }
         }
+
+        fn appn<T: Primitive + Clone + PartialEq + Eq + Debug + 'static>(
+            prim: T,
+            var_list: Vec<Judgment<T>>,
+        ) -> Judgment<T> {
+            let mut var_list = var_list;
+            if var_list.len() == 0 {
+                Judgment::prim(prim)
+            } else {
+                let var = var_list.pop();
+                if var_list.len() == 0 {
+                    Judgment::app_unchecked(Judgment::prim(prim.clone()), var.unwrap())
+                } else {
+                    Judgment::app_unchecked(appn(prim.clone(), var_list), var.unwrap())
+                }
+            }
+        }
+        meaning_rec(prim.clone(), prim.type_of(), vec![], vec![])
     }
+}
+
+mod test {
+    use super::*;
+    use crate::xi_syntax::NatPrim;
+    // impl Semantics<NatPrim> for NatPrim {
+    //     fn meaning(prim: NatPrim) -> SJudgment<NatPrim> {
+    //         match prim {
+    //             NatPrim::NatType => SJudgment::Syn(Judgment::prim(NatPrim::NatType)),
+    //             NatPrim::Nat(n) => SJudgment::Syn(Judgment::prim(NatPrim::Nat(n))),
+    //             NatPrim::Add => SJudgment::Lam(
+    //                 Box::new(SJudgment::Syn(Judgment::prim(NatPrim::NatType))),
+    //                 Rc::new(|a| {
+    //                     SJudgment::Lam(
+    //                         Box::new(SJudgment::Syn(Judgment::prim(NatPrim::NatType))),
+    //                         Rc::new(move |b| match (a.clone(), b) {
+    //                             (
+    //                                 SJudgment::Syn(Judgment::Prim(NatPrim::Nat(a_))),
+    //                                 SJudgment::Syn(Judgment::Prim(NatPrim::Nat(b_))),
+    //                             ) => SJudgment::Syn(Judgment::Prim(NatPrim::Nat(a_ + b_))),
+    //                             (SJudgment::Syn(a_), SJudgment::Syn(b_)) => {
+    //                                 SJudgment::Syn(Judgment::app(
+    //                                     Judgment::app(Judgment::prim(NatPrim::Add), a_),
+    //                                     b_,
+    //                                 ))
+    //                             }
+    //                             _ => panic!("idk what to do"),
+    //                         }),
+    //                     )
+    //                 }),
+    //             ),
+    //         }
+    //    }
+    //}
     #[test]
     fn test_nbe() {
         // let id_on_U : Judgment<NatPrim> = term!(Lam |T : U| T)
@@ -217,7 +267,7 @@ mod test {
             Judgment::Prim(NatPrim::Nat(2)),
         );
 
-        assert_eq!(five.nbe(), Judgment::prim(NatPrim::Nat(4)));
+        // assert_eq!(five.nbe(), Judgment::prim(NatPrim::Nat(4)));
 
         assert_eq!(
             Judgment::prim(NatPrim::Add).nbe(),
@@ -247,13 +297,20 @@ mod test {
             ),
         );
 
-        assert_eq!(
-            Judgment::app(
-                add3.clone(),
-                Judgment::app(add3, Judgment::prim(NatPrim::Nat(2)))
-            )
-            .nbe(),
-            Judgment::prim(NatPrim::Nat(8))
+        let add3_simp = Judgment::app(
+            Judgment::prim(NatPrim::Add),
+            Judgment::prim(NatPrim::Nat(3)),
         );
+
+        assert_eq!(add3, add3_simp.nbe())
+
+        // assert_eq!(
+        //     Judgment::app(
+        //         add3.clone(),
+        //         Judgment::app(add3, Judgment::prim(NatPrim::Nat(2)))
+        //     )
+        //     .nbe(),
+        //     Judgment::prim(NatPrim::Nat(8))
+        // );
     }
 }

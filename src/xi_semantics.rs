@@ -6,6 +6,7 @@ use crate::xi_syntax::Judgment;
 use crate::xi_syntax::Primitive;
 use std::fmt::Debug;
 use std::rc::Rc;
+use term_macro::test;
 
 #[derive(Clone)]
 pub enum SJudgment<T> {

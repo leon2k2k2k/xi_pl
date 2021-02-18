@@ -6,7 +6,6 @@ use crate::xi_syntax::Judgment;
 use crate::xi_syntax::Primitive;
 use std::fmt::Debug;
 use std::rc::Rc;
-use term_macro::test;
 
 #[derive(Clone)]
 pub enum SJudgment<T> {
@@ -313,5 +312,20 @@ mod test {
         //     .nbe(),
         //     Judgment::prim(NatPrim::Nat(8))
         // );
+    }
+    #[test]
+    #[should_panic]
+    fn test_app() {
+        let add3 = Judgment::lam(
+            Judgment::prim(NatPrim::NatType),
+            Judgment::app(
+                Judgment::app(
+                    Judgment::prim(NatPrim::Add),
+                    Judgment::prim(NatPrim::Nat(3)),
+                ),
+                Judgment::var(0, Judgment::prim(NatPrim::NatType)),
+            ),
+        );
+        let error = Judgment::app(add3, Judgment::u());
     }
 }

@@ -13,7 +13,6 @@ use crate::{
 
 pub async fn run_js_from_string(str: String) -> Result<(), AnyError> {
     let mut worker = std_worker();
-
     let result = worker.execute(&str)?;
     worker.run_event_loop().await?;
     Ok(())
@@ -51,25 +50,30 @@ fn std_worker() -> MainWorker {
     worker
 }
 
-fn run_js_from_judgment<T: JsOutput>(judgment: xi_syntax::Judgment<T>) -> Result<(), AnyError> {
+async fn run_js_from_judgment<T: JsOutput>(
+    judgment: xi_syntax::Judgment<T>,
+) -> Result<(), AnyError> {
     let str = output::to_js_program(judgment);
-    run_js_from_string(str);
+    run_js_from_string(str).await?;
     Ok(())
 }
 
 mod test {
     use super::*;
+    use free_var::FreeVar;
+    use output::JsTest;
     use output::JsTest::*;
     use term_macro::term;
+    use xi_syntax::Judgment;
     #[tokio::test]
     async fn run_js_from_string_test() {
         let str = "console.log('hello_world');".into();
         run_js_from_string(str).await;
     }
 
-    // #[test]
-    // fn run_js_from_judgment_test(){
-    //     let id = term!(Lam |T : U, t : T| t);
-
-    // }
+    #[tokio::test]
+    async fn run_js_from_judgment_test() {
+        let id: Judgment<JsTest> = term!([Output][Str("hello world".into())]);
+        run_js_from_judgment(id).await;
+    }
 }

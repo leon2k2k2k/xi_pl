@@ -40,8 +40,6 @@ where
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct JudgmentClosed<T>(Judgment<T>);
-#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Judgment<T> {
     UInNone,
     Prim(T),
@@ -50,12 +48,6 @@ pub enum Judgment<T> {
     Lam(Box<Judgment<T>>, Box<Judgment<T>>),
     BoundVar(u32, Box<Judgment<T>>),
     Application(Box<Judgment<T>>, Box<Judgment<T>>),
-}
-
-impl<T> From<JudgmentClosed<T>> for Judgment<T> {
-    fn from(judgment: JudgmentClosed<T>) -> Judgment<T> {
-        judgment.0
-    }
 }
 
 impl<T: Primitive + Clone + PartialEq + Eq + 'static + std::fmt::Debug> Judgment<T> {

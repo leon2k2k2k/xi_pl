@@ -224,7 +224,6 @@ mod test {
         );
     }
     #[test]
-    #[should_panic]
     fn test_app() {
         use super::*;
         use crate::xi_syntax::NatPrim;
@@ -232,6 +231,7 @@ mod test {
         use NatPrim::{Add, Nat};
 
         let add3 = term!([Add] [Nat(3)]);
-        term!({add3} U);
+        let err = std::panic::catch_unwind(|| term!({add3} U));
+        assert!(err.is_err());
     }
 }

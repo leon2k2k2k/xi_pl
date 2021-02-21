@@ -8,5 +8,11 @@ edition = "2018"
 
 [dependencies]
 term_macro = { path = "term_macro" }
-
 free_var = { path = "free_var" }
+swc_ecma_ast = "0.39"
+swc_common = "0.10"
+swc_ecma_codegen = "0.46"
+deno_runtime = "0.9"
+url = "2.2"
+deno_core = "0.80"
+tokio = "1.2"

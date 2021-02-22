@@ -131,27 +131,41 @@ pub trait JsOutput {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum JsTest {
-    Output,
+pub enum JsPrim {
+    ConsoleOutput,
+    ConsoleInput,
     Str(String),
     StrType,
+    JsIO,
+    JsIOBind,
+    JsIOPure,
+    UnitType,
+    Unit,
 }
 
-impl Primitive for JsTest {
+impl Primitive for JsPrim {
     fn type_of(&self) -> Judgment<Self> {
-        use JsTest::*;
+        use JsPrim::*;
         match self {
-            JsTest::Output => term!([StrType] -> [StrType]),
-            JsTest::Str(_) => term!([StrType]),
-            JsTest::StrType => term!(U),
+            Str(_) => term!([StrType]),
+            StrType => term!(U),
+            ConsoleInput => term!([JsIO][StrType]),
+            JsIO => term!(U -> U),
+            JsIOBind => term!(Pi | T : U, S : U| [JsIO] T -> (T -> [JsIO] S) -> [JsIO] S),
+            JsIOPure => term!(Pi |T : U| T -> [JsIO] T),
+            ConsoleOutput => term!([StrType] -> [JsIO] [UnitType]),
+            UnitType => term!(U),
+            Unit => term!([UnitType]),
+            UnitType => term!(U),
         }
     }
 }
 
-impl JsOutput for JsTest {
+impl JsOutput for JsPrim {
     fn to_js_prim(&self) -> Expr {
+        use JsPrim::*;
         match self {
-            JsTest::Output => {
+            ConsoleOutput => {
                 let console = Ident {
                     span: DUMMY_SP,
                     sym: "console".into(),
@@ -173,8 +187,14 @@ impl JsOutput for JsTest {
 
                 Expr::Member(memberexpr)
             }
-            JsTest::Str(str) => to_js_str(str.clone()),
-            JsTest::StrType => to_js_str("StrType".into()),
+            Str(str) => to_js_str(str.clone()),
+            StrType => to_js_str("StrType".into()),
+            ConsoleInput => todo!(),
+            JsIO => to_js_str("JsIO".into()),
+            JsIOBind => todo!(),
+            JsIOPure => todo!(),
+            UnitType => to_js_str("UnitType".into()),
+            Unit => todo!(),
         }
     }
 }
@@ -185,12 +205,12 @@ mod test {
     fn to_js_test() {
         use super::*;
         use term_macro::term;
-        use JsTest::*;
-        let hello_world = term!([Output][Str("hello world".into())]);
+        use JsPrim::*;
+        let hello_world = term!([ConsoleOutput][Str("hello world".into())]);
         let s = to_js_program(hello_world);
         assert_eq!(s, "console.log(\"hello world\");\n");
 
-        let id: Judgment<JsTest> = term!(Lam | T: U, t: T | t);
+        let id: Judgment<JsPrim> = term!(Lam | T: U, t: T | t);
         let hello = term!({ id }[StrType][Str("hello".into())]);
         println!("{:?}", hello);
         let s2 = to_js_program(hello);

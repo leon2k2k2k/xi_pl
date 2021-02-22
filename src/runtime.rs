@@ -61,8 +61,8 @@ async fn run_js_from_judgment<T: JsOutput>(
 mod test {
     use super::*;
     use free_var::FreeVar;
-    use output::JsTest;
-    use output::JsTest::*;
+    use output::JsPrim;
+    use output::JsPrim::*;
     use term_macro::term;
     use xi_syntax::Judgment;
     #[tokio::test]
@@ -73,7 +73,7 @@ mod test {
 
     #[tokio::test]
     async fn run_js_from_judgment_test() {
-        let id: Judgment<JsTest> = term!([Output][Str("hello world".into())]);
+        let id: Judgment<JsPrim> = term!([ConsoleOutput][Str("hello world".into())]);
         run_js_from_judgment(id).await;
     }
 }

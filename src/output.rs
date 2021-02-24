@@ -37,23 +37,41 @@ pub fn to_js_program<T: JsOutput>(judgment: Judgment<T>) -> String {
     std::str::from_utf8(output_buf.as_slice()).unwrap().into()
 }
 
-fn to_js<T: JsOutput>(judgment: Judgment<T>, ctx: Vec<String>) -> Expr {
+fn make_var_name(ctx: &Vec<Ident>) -> Ident {
+    to_js_ident2(format!("var_{}", ctx.len()))
+}
+fn to_js<T: JsOutput>(judgment: Judgment<T>, ctx: Vec<Ident>) -> Expr {
     match judgment {
         Judgment::UInNone => to_js_str_u(),
-        Judgment::Prim(t) => JsOutput::to_js_prim(&t),
+        Judgment::Prim(t) => 
+        {JsOutput::to_js_prim(&t)},
         Judgment::FreeVar(_, _) => panic!("Should not have a FreeVar in this expression"),
         Judgment::Pi(_, _) => to_js_str_pi(),
         Judgment::Lam(_var_type, body) => {
-            let var_name = format!("var_{}", ctx.len());
+            let var_name = make_var_name(&ctx);
             to_js_lam(
-                to_js(*body, add_to_ctx(ctx, var_name.clone())),
-                to_js_ident2(var_name),
+                swc_ecma_ast::BlockStmtOrExpr::Expr(Box::new(to_js(
+                    *body,
+                    add_to_ctx(ctx, var_name.clone()),
+                ))),
+                vec![var_name],
             )
         }
         Judgment::BoundVar(index, _var_type) => {
             to_js_ident(ctx[ctx.len() - 1 - index as usize].clone())
         }
-        Judgment::Application(func, arg) => to_js_app(to_js(*func, ctx.clone()), to_js(*arg, ctx)),
+        Judgment::Application(func, arg) => {
+            if let Judgment::Prim(prim) = *func {
+                // if prim.app_special().is_none() {
+                //     to_js_app(to_js(*func, ctx.clone()), to_js(*arg, ctx))
+                // } else {
+                //     todo!()
+                // }
+                todo!();
+            } else {
+                to_js_app(to_js(*func, ctx.clone()), vec![to_js(*arg, ctx)])
+            }
+        }
     }
 }
 
@@ -63,15 +81,24 @@ fn add_to_ctx<T: Clone>(v: Vec<T>, t: T) -> Vec<T> {
     v2
 }
 
-fn to_js_lam(body: Expr, var_name: Ident) -> Expr {
-    let pat = Pat::Ident(BindingIdent {
-        id: var_name,
-        type_ann: None,
-    });
+fn to_js_lam(body: BlockStmtOrExpr, var_names: Vec<Ident>) -> Expr {
+    // let pat = Pat::Ident(BindingIdent {
+    //     id: var_name,
+    //     type_ann: None,
+    // });
+    let pats = var_names
+        .iter()
+        .map(|var_name| {
+            Pat::Ident(BindingIdent {
+                id: *var_name,
+                type_ann: None,
+            })
+        })
+        .collect();
     let lam = ArrowExpr {
         span: DUMMY_SP,
-        params: vec![pat],
-        body: BlockStmtOrExpr::Expr(Box::new(body)),
+        params: pats,
+        body: body,
         is_async: false,
         is_generator: false,
         type_params: None,
@@ -89,18 +116,26 @@ fn to_js_ident2(name: String) -> Ident {
     }
 }
 
-fn to_js_ident(name: String) -> Expr {
-    Expr::Ident(to_js_ident2(name))
+fn to_js_ident(var_name: Ident) -> Expr {
+    Expr::Ident(var_name)
 }
 
-fn to_js_app(func: Expr, arg: Expr) -> Expr {
+fn to_js_app(func: Expr, args: Vec<Expr>) -> Expr {
     let app = CallExpr {
         span: DUMMY_SP,
         callee: ExprOrSuper::Expr(Box::new(func)),
-        args: vec![ExprOrSpread {
-            spread: None,
-            expr: Box::new(arg),
-        }],
+        // args: vec![ExprOrSpread {
+        //     spread: None,
+        //     expr: Box::new(arg),
+        // }],
+        args: args
+            .iter()
+            .map(|arg| ExprOrSpread {
+                spread: None,
+                expr: Box::new(*arg),
+            })
+            .collect(),
+
         type_args: None,
     };
 
@@ -127,76 +162,170 @@ fn to_js_str_pi() -> Expr {
 }
 
 pub trait JsOutput {
-    fn to_js_prim(&self) -> Expr;
+    fn to_js_prim(&self) -> (usize, Rc<dyn Fn(Vec<Expr>) -> Expr>);
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum JsPrim {
-    ConsoleOutput,
-    ConsoleInput,
+    IO(JsIO),
+    Promise(JsPromise),
+    Type(JsType),
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum JsType {
     Str(String),
     StrType,
-    JsIO,
-    JsIOBind,
-    JsIOPure,
     UnitType,
     Unit,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum JsIO {
+    IOMonad,
+    Bind,
+    Pure,
+    ConsoleOutput,
+    ConsoleInput,
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum JsPromise {
+    PromiseMonad,
+    Bind,
+    Pure,
+    Await,
 }
 
 impl Primitive for JsPrim {
     fn type_of(&self) -> Judgment<Self> {
         use JsPrim::*;
+
         match self {
-            Str(_) => term!([StrType]),
-            StrType => term!(U),
-            ConsoleInput => term!([JsIO][StrType]),
-            JsIO => term!(U -> U),
-            JsIOBind => term!(Pi | T : U, S : U| [JsIO] T -> (T -> [JsIO] S) -> [JsIO] S),
-            JsIOPure => term!(Pi |T : U| T -> [JsIO] T),
-            ConsoleOutput => term!([StrType] -> [JsIO] [UnitType]),
-            UnitType => term!(U),
-            Unit => term!([UnitType]),
-            UnitType => term!(U),
+            JsPrim::IO(iomonad) => {
+                use JsIO::*;
+                match iomonad {
+                    ConsoleOutput => {
+                        term!([Type(JsType::StrType)] -> [IO(IOMonad)] [Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)])
+                    }
+                    ConsoleInput => term!(
+                        [IO(IOMonad)][Promise(JsPromise::PromiseMonad)][Type(JsType::StrType)]
+                    ),
+                    IOMonad => term!(U -> U),
+                    Bind => {
+                        term!(Pi | T : U, S : U| [IO(IOMonad)] T -> (T -> [IO(IOMonad)] S) -> [IO(IOMonad)] S)
+                    }
+                    Pure => term!(Pi |T : U| T -> [IO(IOMonad)] T),
+                }
+            }
+            JsPrim::Promise(promise) => {
+                use JsPromise::*;
+                match promise {
+                    JsPromise::PromiseMonad => term!(U -> U),
+                    JsPromise::Bind => {
+                        term!(Pi |T : U, S : U| [Promise(PromiseMonad)] T -> (T -> [Promise(PromiseMonad)] S) -> [Promise(PromiseMonad)] S)
+                    }
+                    JsPromise::Pure => term!(Pi |T : U| T -> [Promise(PromiseMonad)] T),
+                    JsPromise::Await => {
+                        term!(Pi |T : U| [Promise(PromiseMonad)] T -> [IO(JsIO::IOMonad)])
+                    }
+                }
+            }
+            JsPrim::Type(js_type) => {
+                use JsType::*;
+                match js_type {
+                    JsType::Str(String) => term!([Type(StrType)]),
+
+                    JsType::StrType => term!(U),
+                    JsType::UnitType => term!(U),
+                    JsType::Unit => term!([Type(UnitType)]),
+                }
+            }
         }
     }
 }
 
 impl JsOutput for JsPrim {
-    fn to_js_prim(&self) -> Expr {
+    fn to_js_prim(&self) -> Result<Expr, Rc<dyn Fn(Vec<Expr>) -> Expr>> {
         use JsPrim::*;
+        // match self {
+        // ConsoleOutput => {
+        //     let console = Ident {
+        //         span: DUMMY_SP,
+        //         sym: "console".into(),
+        //         optional: false,
+        //     };
+
+        //     let log = Ident {
+        //         span: DUMMY_SP,
+        //         sym: "log".into(),
+        //         optional: false,
+        //     };
+
+        //     let memberexpr = MemberExpr {
+        //         span: DUMMY_SP,
+        //         obj: ExprOrSuper::Expr(Box::new(Expr::Ident(console))),
+        //         prop: Box::new(Expr::Ident(log)),
+        //         computed: false,
+        //     };
+
+        //     Expr::Member(memberexpr)
+        // }
+        //     Str(str) => to_js_str(str.clone()),
+        //     StrType => to_js_str("StrType".into()),
+        //     ConsoleInput => todo!(),
+        //     JsIO => to_js_str("JsIO".into()),
+        //     JsIOBind => todo!(),
+        //     JsIOPure => todo!(),
+        //     UnitType => to_js_str("UnitType".into()),
+        //     Unit => todo!(),
+        // }
+
+        // I  changed the type signature of this funtion to return an Option
         match self {
-            ConsoleOutput => {
-                let console = Ident {
-                    span: DUMMY_SP,
-                    sym: "console".into(),
-                    optional: false,
-                };
+            IO(iomonad) => match iomonad {
+                JsIO::IOMonad => Ok(to_js_str("IOMonad".into())),
+                JsIO::Bind => to_js_bind(),
+                JsIO::Pure => to_js_io_pure(),
+                JsIO::ConsoleOutput => {
+                    // let console = Ident {
+                    //     span: DUMMY_SP,
+                    //     sym: "console".into(),
+                    //     optional: false,
+                    // };
 
-                let log = Ident {
-                    span: DUMMY_SP,
-                    sym: "log".into(),
-                    optional: false,
-                };
+                    // let log = Ident {
+                    //     span: DUMMY_SP,
+                    //     sym: "log".into(),
+                    //     optional: false,
+                    // };
 
-                let memberexpr = MemberExpr {
-                    span: DUMMY_SP,
-                    obj: ExprOrSuper::Expr(Box::new(Expr::Ident(console))),
-                    prop: Box::new(Expr::Ident(log)),
-                    computed: false,
-                };
+                    // let memberexpr = MemberExpr {
+                    //     span: DUMMY_SP,
+                    //     obj: ExprOrSuper::Expr(Box::new(Expr::Ident(console))),
+                    //     prop: Box::new(Expr::Ident(log)),
+                    //     computed: false,
+                    // };
 
-                Expr::Member(memberexpr)
-            }
-            Str(str) => to_js_str(str.clone()),
-            StrType => to_js_str("StrType".into()),
-            ConsoleInput => todo!(),
-            JsIO => to_js_str("JsIO".into()),
-            JsIOBind => todo!(),
-            JsIOPure => todo!(),
-            UnitType => to_js_str("UnitType".into()),
-            Unit => todo!(),
+                    // Ok(Expr::Member(memberexpr))
+                }
+                JsIO::ConsoleInput => {}
+            },
+            Promise(promise) => match promise {
+                JsPromise::PromiseMonad => Ok(to_js_str("IOMonad".into())),
+                JsPromise::Bind => {}
+                JsPromise::Pure => {}
+                JsPromise::Await => todo!{},
+            },
+            Type(js_type) => match js_type {
+                JsType::Str(str) => Ok(to_js_str(str.clone())),
+                JsType::StrType => Ok(to_js_str("StrType".into())),
+                JsType::UnitType => Ok(to_js_str("UnitType".into())),
+                JsType::Unit => Ok(to_js_str("Unit".into())),
+            },
         }
     }
+
+    fn to_js_io_pure() => 
 }
 
 mod test {

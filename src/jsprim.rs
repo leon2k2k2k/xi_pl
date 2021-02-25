@@ -138,17 +138,21 @@ impl JsPrim{
         
     }
 
-    pub fn output_inpt() -> String{
-        use JsPrim::*;
-        use crate::output;
-        let func2 = term!(Lam |output : {JsPrim::str_to_promise_unit()}| [IO(JsIO::Pure)] {JsPrim::promise_unit()});
-        let func1 = term!(|output: {JsPrim::str_to_promise_unit()} | Lam |input : [Type(JsType::StrType)]| output input);
+    // pub fn output_inpt() -> String{
+    //     use JsPrim::*;
+    //     use crate::output;
+
+    //     let func2 = term!(Lam |output : {JsPrim::str_to_promise_unit()}| [IO(JsIO::Pure)] {JsPrim::promise_unit()}(help1));
+
+
+    //     let help1 = term!([IO(JsIO::Pure)] {JsPrim::promise_unit()} () );
+    //     let func1 = term!(|output: {JsPrim::str_to_promise_unit()} | Lam |input : [Type(JsType::StrType)]| output input);
 
 
 
 
-        output::to_js_program(answer);
-    }
+    //     output::to_js_program(answer);
+    // }
 }
 
 

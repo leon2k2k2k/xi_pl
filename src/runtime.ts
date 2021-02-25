@@ -9,15 +9,11 @@ function io_bind2<T, U>(arg: () => T) {
 }
 
 export function io_bind(_: any) {
-    return (_: any) => {
-        return io_bind2;
-    }
+    return (_: any) => io_bind2
 }
 
 function io_pure2<T>(val: T) {
-    return () => {
-        return val;
-    };
+    return () => val;
 }
 
 export function io_pure(_: any) {
@@ -33,21 +29,16 @@ export function console_input() {
 }
 
 export function console_output() {
-    return (out_str: string) => {
-        return Deno.writeAll(Deno.stdout, new TextEncoder().encode(out_str));
-    };
+    return (out_str: string) => Deno.writeAll(Deno.stdout, new TextEncoder().encode(out_str));
 }
 
 function promise_bind2<T, U>(arg: Promise<T>) {
-    return (func: ((_: T) => Promise<U>)) => {
-        return arg.then(func);
-    };
+    return (func: ((_: T) => Promise<U>)) => arg.then(func);
 }
 
 export function promise_bind(_: any) {
-    return (_: any) => {
-        return promise_bind2;
-    }
+    return (_: any) => promise_bind2;
+
 }
 
 function promise_pure2<T>(val: T) {

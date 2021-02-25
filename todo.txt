@@ -2,6 +2,8 @@ todo list:
 
 1. Output:
     a. do some tests: console_input testing, 
+    b. implement fix point, int.
+    c. test fix point via factorial.
 
 
 2. Front_end:

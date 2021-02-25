@@ -124,10 +124,7 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + Debug> SJudgment<T> {
             Judgment::Prim(prim) => U::meaning(prim),
             Judgment::FreeVar(free_var, var_type) => SJudgment::FreeVar(
                 free_var,
-                Box::new(SJudgment::syntax_to_semantics(
-                    Judgment::FreeVar(free_var, Box::new(*var_type)),
-                    ctx,
-                )),
+                Box::new(SJudgment::syntax_to_semantics(*var_type, ctx)),
             ),
         }
     }

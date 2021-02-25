@@ -1,9 +1,9 @@
 todo list:
 
 1. Output:
-    a. Fix app(app(bind)input)output problem.
-    b. Get top-level await, think about how to use Dino.
-    c. finish to_js implentation for JsPrim.
-    d. Pair in JsPrim???
-    e. Shove JsPrim implementations to a different file.
-    
+    a. do some tests: console_input testing, 
+
+
+2. Front_end:
+    a. We can get to Tree. 
+    b. Type inference. 

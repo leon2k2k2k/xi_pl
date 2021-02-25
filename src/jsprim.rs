@@ -111,6 +111,56 @@ impl JsOutput for JsPrim {
     }
 }
 
+impl JsPrim{
+    pub fn promise_unit() -> Judgment<JsPrim> {
+        term!([JsPrim::Promise(JsPromise::PromiseMonad)] [JsPrim::Type(JsType::UnitType)])
+    }
+
+    pub fn str_to_promise_unit() -> Judgment<JsPrim>{
+        term!([JsPrim::Type(JsType::StrType)] -> ([JsPrim::Promise(JsPromise::PromiseMonad)] [JsPrim::Type(JsType::UnitType)]))
+    }
+
+    pub fn console_output_type() -> Judgment<JsPrim> {
+        term!([JsPrim::IO(JsIO::Bind)] -> {JsPrim::str_to_promise_unit()})
+    }
+
+    pub fn output_str(str: String) -> String {
+        use JsPrim::*;
+        use crate::output;
+        let str_judgment = term!([Type(JsType::Str(str))]);
+
+        let func = term!((Lam |func1 : {JsPrim::str_to_promise_unit()}| 
+                ([IO(JsIO::Pure)] {JsPrim::promise_unit()} (func1 {str_judgment}))));
+
+        let str_expression:Judgment<JsPrim> = term!([IO(JsIO::Bind)]{JsPrim::str_to_promise_unit()} {JsPrim::promise_unit()} [IO(JsIO::ConsoleOutput)] {func});
+        // println!("type of str_expression: {:?}", str_expression.type_of());
+        output::to_js_program(str_expression)
+        
+    }
+
+    pub fn output_inpt() -> String{
+        use JsPrim::*;
+        use crate::output;
+        let func2 = term!(Lam |output : {JsPrim::str_to_promise_unit()}| [IO(JsIO::Pure)] {JsPrim::promise_unit()});
+        let func1 = term!(|output: {JsPrim::str_to_promise_unit()} | Lam |input : [Type(JsType::StrType)]| output input);
+
+
+
+
+        output::to_js_program(answer);
+    }
+}
+
+
+
+        // let hello_world = term!([IO(JsIO::ConsoleOutput)][Type(JsType::Str("hello world".into()))]);
+        // let str: Judgment<JsPrim> = term!([Type(JsType::Str("hello world".into()))]);
+        // let hello_world = term!([IO(JsIO::Bind)] ([Type(JsType::StrType)] -> ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]))
+        //     ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]) [IO(JsIO::ConsoleOutput)] 
+        //     (Lam |func : [Type(JsType::StrType)] -> ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)])| ([IO(JsIO::Pure)] ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]) (func {str}))));
+        // let s = to_js_program(hello_world);
+        // assert_eq!(s, "console.log(\"hello world\");\n");
+
 mod test {
 
     #[tokio::test]
@@ -123,17 +173,25 @@ mod test {
 
         // // let hello_world = term!([IO(JsIO::ConsoleOutput)][Type(JsType::Str("hello world".into()))]);
         // let str: Judgment<JsPrim> = term!([Type(JsType::Str("hello world".into()))]);
-        // let hello_world = term!([IO(JsIO::Bind)] ([Type(JsType::StrType)] -> ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]))
-        //     ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]) [IO(JsIO::ConsoleOutput)] 
-        //     (Lam |func : [Type(JsType::StrType)] -> ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)])| ([IO(JsIO::Pure)] ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]) (func {str}))));
         // let s = to_js_program(hello_world);
         // run_js_from_string(s).await.unwrap();
         // // assert_eq!(s, "console.log(\"hello world\");\n");
 
-        let id: Judgment<JsPrim> = term!(Lam | T: U, t: T | t);
-        let hello = term!({ id }[Type(JsType::StrType)][Type(JsType::Str("hello".into()))]);
-        println!("{:?}", hello);
-        let s2 = to_js_program(hello);
-        panic!(s2);
+
+        // let hello_world = term!([IO(JsIO::ConsoleOutput)][Type(JsType::Str("hello world".into()))]);
+        // let str: Judgment<JsPrim> = term!([Type(JsType::Str("hello world".into()))]);
+        // let hello_world = term!([IO(JsIO::Bind)] ([Type(JsType::StrType)] -> ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]))
+        //     ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]) [IO(JsIO::ConsoleOutput)] 
+        //     (Lam |func : [Type(JsType::StrType)] -> ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)])| ([IO(JsIO::Pure)] ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]) (func {str}))));
+        // let s = to_js_program(hello_world);
+        let s = JsPrim::output_str("frank is stupid\n".into());
+        run_js_from_string(s).await.unwrap();
+        // assert_eq!(s, "console.log(\"hello world\");\n");
+
+        // let id: Judgment<JsPrim> = term!(Lam | T: U, t: T | t);
+        // let hello = term!({ id }[Type(JsType::StrType)][Type(JsType::Str("hello".into()))]);
+        // println!("{:?}", hello);
+        // let s2 = to_js_program(hello);
+        // panic!(s2);
     }
 }

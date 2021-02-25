@@ -2,8 +2,8 @@
 syntax_to_semantics and semantics_to_syntax function needed for
 normalization by evaluation. This is attempt two after mu. */
 
-use crate::xi_syntax::Judgment;
-use crate::xi_syntax::Primitive;
+use crate::judgment::Judgment;
+use crate::judgment::Primitive;
 use free_var::FreeVar;
 use std::fmt::Debug;
 use std::rc::Rc;
@@ -150,10 +150,27 @@ impl<T: Primitive + Clone + PartialEq + Eq + Debug + 'static> Semantics<T> for T
         fn meaning_rec<T: Primitive + Clone + PartialEq + Eq + Debug + 'static>(
             prim: T,
             type_of: Judgment<T>,
-            var_list: Vec<Judgment<T>>,
             ctx: Vec<SJudgment<T>>,
         ) -> SJudgment<T> {
-            let var_list_clone = var_list.clone();
+            // match type_of {
+            //     Judgment::Pi(var_type, expr) => SJudgment::Lam(
+            //         Box::new(SJudgment::syntax_to_semantics(
+            //             *var_type,
+            //             add_to_ctx(ctx.clone(), &SJudgment::Syn(Judgment::UInNone)),
+            //         )),
+            //         Rc::new(move |s| {
+            //             SJudgment::Syn(Judgment::app_unchecked(
+            //                 SJudgment::semantics_to_syntax(meaning_rec(
+            //                     prim.clone(),
+            //                     *expr.clone(),
+            //                     add_to_ctx(ctx.clone(), &s.clone()),
+            //                 )),
+            //                 SJudgment::semantics_to_syntax(s),
+            //             ))
+            //         }),
+            //     ),
+            //     _ => SJudgment::Syn(Judgment::prim(prim)),
+            // }
             let ctx_clone = ctx.clone();
             match type_of {
                 Judgment::Pi(var_type, expr) => SJudgment::Lam(
@@ -161,37 +178,35 @@ impl<T: Primitive + Clone + PartialEq + Eq + Debug + 'static> Semantics<T> for T
                         *var_type,
                         add_to_ctx(ctx, &SJudgment::Syn(Judgment::UInNone)),
                     )),
-                    Rc::new(move |s| match s {
-                        SJudgment::Syn(s_) => meaning_rec(
+                    Rc::new(move |s| {
+                        meaning_rec(
                             prim.clone(),
                             *expr.clone(),
-                            add_to_ctx(var_list_clone.clone(), &s_),
-                            add_to_ctx(ctx_clone.clone(), &SJudgment::Syn(s_)),
-                        ),
-                        _ => panic!("only can be syn"),
+                            add_to_ctx(ctx_clone.clone(), &s),
+                        )
                     }),
                 ),
-                _ => SJudgment::Syn(appn(prim, var_list)),
+                _ => SJudgment::Syn(appn(prim, ctx)),
             }
         }
 
         fn appn<T: Primitive + Clone + PartialEq + Eq + Debug + 'static>(
             prim: T,
-            var_list: Vec<Judgment<T>>,
+            ctx: Vec<SJudgment<T>>,
         ) -> Judgment<T> {
-            let mut var_list = var_list;
-            if var_list.len() == 0 {
+            let mut ctx = ctx;
+            if ctx.len() == 0 {
                 Judgment::prim(prim)
             } else {
-                let var = var_list.pop();
-                if var_list.len() == 0 {
-                    Judgment::app_unchecked(Judgment::prim(prim.clone()), var.unwrap())
+                let var = SJudgment::semantics_to_syntax(ctx.pop().unwrap());
+                if ctx.len() == 0 {
+                    Judgment::app_unchecked(Judgment::prim(prim.clone()), var)
                 } else {
-                    Judgment::app_unchecked(appn(prim.clone(), var_list), var.unwrap())
+                    Judgment::app_unchecked(appn(prim.clone(), ctx), var)
                 }
             }
         }
-        meaning_rec(prim.clone(), prim.type_of(), vec![], vec![])
+        meaning_rec(prim.clone(), prim.type_of(), vec![])
     }
 }
 
@@ -202,7 +217,7 @@ mod test {
     #[test]
     fn test_nbe() {
         use super::*;
-        use crate::xi_syntax::NatPrim;
+        use crate::judgment::NatPrim;
         use term_macro::term;
         use NatPrim::{Add, NatType};
 
@@ -226,7 +241,7 @@ mod test {
     #[test]
     fn test_app() {
         use super::*;
-        use crate::xi_syntax::NatPrim;
+        use crate::judgment::NatPrim;
         use term_macro::term;
         use NatPrim::{Add, Nat};
 

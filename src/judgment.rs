@@ -6,7 +6,7 @@
     beta-reduction and eta-conversion.
 */
 
-use crate::xi_semantics::{SJudgment, Semantics};
+use crate::nbe::{SJudgment, Semantics};
 use free_var::FreeVar;
 use std::fmt::Debug;
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -113,8 +113,14 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + std::fmt::Debug> Judgment
     pub fn app(func: Judgment<T>, elem: Judgment<T>) -> Judgment<T> {
         let func_type = func.clone().type_of().unwrap();
         if let Judgment::Pi(func_arg_type, _) = func_type {
-            if *func_arg_type != elem.clone().type_of().unwrap() {
-                panic!("elem and func's types doesn't match up")
+            let elem_type = elem.clone().type_of().unwrap();
+
+            if *func_arg_type != elem_type {
+                panic!(
+                    "elem and func's types doesn't match up\nfunc_arg_type: {:?}\nelem_type: {:?}
+                    \nfunc: {:?} \nelem: {:?}",
+                    func_arg_type, elem_type, func, elem,
+                )
             }
         } else {
             panic!("func is not a Pi type")

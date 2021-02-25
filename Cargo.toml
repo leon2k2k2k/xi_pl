@@ -12,7 +12,9 @@ free_var = { path = "free_var" }
 swc_ecma_ast = "0.39"
 swc_common = "0.10"
 swc_ecma_codegen = "0.46"
-deno_runtime = "0.9"
 url = "2.2"
-deno_core = "0.80"
 tokio = "1.2"
+
+deno = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.7.5" }
+deno_core = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.7.5" }
+deno_runtime = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.7.5" }

@@ -7,7 +7,7 @@ use syn::{braced, bracketed, parenthesized, parse_macro_input, token, Expr, Iden
 #[proc_macro]
 pub fn term(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let builder = parse_macro_input!(tokens as TermBuilderFree);
-    (quote! { #builder }).into()
+    (quote! {{ #[allow(non_snake_case)] { #builder } }}).into()
 }
 
 #[derive(Clone, Debug)]

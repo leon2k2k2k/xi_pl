@@ -1,79 +1,63 @@
+use deno::create_main_worker;
+use deno::file_fetcher::File;
+use deno::media_type::MediaType;
+use deno::program_state::ProgramState;
 use deno_core::error::AnyError;
-use deno_runtime::worker::MainWorker;
-use deno_runtime::{permissions, worker};
-use std::rc::Rc;
-use std::sync::Arc;
-use url::Url;
-use worker::WorkerOptions;
+use deno_core::resolve_url_or_path;
+use deno_runtime::permissions::Permissions;
 
-use crate::{
-    output::{self, JsOutput},
-    xi_syntax,
-};
+pub async fn run_js_from_string(source_code: String) -> Result<(), AnyError> {
+    let flags = deno::flags::flags_from_vec(vec!["eval".into()])?;
 
-pub async fn run_js_from_string(str: String) -> Result<(), AnyError> {
-    let mut worker = std_worker();
-    let result = worker.execute(&str)?;
-    worker.run_event_loop().await?;
-    Ok(())
-}
+    let main_module = resolve_url_or_path("./$deno$eval.ts").unwrap();
+    let permissions = Permissions::from_options(&flags.clone().into());
+    let program_state = ProgramState::new(flags)?;
+    let mut worker = create_main_worker(&program_state, main_module.clone(), permissions);
 
-fn std_worker() -> MainWorker {
-    let main_module = Url::parse("https://example.net").unwrap();
-    let permissions = permissions::Permissions::allow_all();
-    let module_free_loader = Rc::new(deno_core::NoopModuleLoader);
-    let create_web = Arc::new(|x| panic!("asdfasdfsad"));
-
-    let options = worker::WorkerOptions {
-        apply_source_maps: false,
-        args: vec![],
-        debug_flag: false,
-        unstable: false,
-        ca_data: None,
-        user_agent: "".into(),
-        seed: None,
-        module_loader: module_free_loader,
-        create_web_worker_cb: create_web,
-        js_error_create_fn: None,
-        attach_inspector: false,
-        maybe_inspector_server: None,
-        should_break_on_first_statement: false,
-        runtime_version: "frank sucks".into(),
-        ts_version: "leon sucks".into(),
-        no_color: false,
-        get_error_class_fn: None,
-        location: None,
+    let main_module_file = File {
+        local: main_module.clone().to_file_path().unwrap(),
+        maybe_types: None,
+        media_type: MediaType::TypeScript,
+        source: source_code,
+        specifier: main_module.clone(),
     };
 
-    let mut worker = MainWorker::from_options(main_module, permissions, &options);
-    worker.bootstrap(&options);
-    worker
-}
+    program_state.file_fetcher.insert_cached(main_module_file);
 
-async fn run_js_from_judgment<T: JsOutput>(
-    judgment: xi_syntax::Judgment<T>,
-) -> Result<(), AnyError> {
-    let str = output::to_js_program(judgment);
-    run_js_from_string(str).await?;
+    let runtime_module = resolve_url_or_path("./$deno$runtime.ts").unwrap();
+    let runtime_code = include_str!("runtime.ts");
+
+    let runtime_module_file = File {
+        local: runtime_module.clone().to_file_path().unwrap(),
+        maybe_types: None,
+        media_type: MediaType::TypeScript,
+        source: runtime_code.into(),
+        specifier: runtime_module.clone(),
+    };
+
+    program_state
+        .file_fetcher
+        .insert_cached(runtime_module_file);
+
+    worker.execute_module(&main_module).await?;
+    worker.execute("window.dispatchEvent(new Event('load'))")?;
+    worker.run_event_loop().await?;
+    worker.execute("window.dispatchEvent(new Event('unload'))")?;
     Ok(())
 }
-
 mod test {
-    use super::*;
-    use free_var::FreeVar;
-    use output::JsPrim;
-    use output::JsPrim::*;
-    use term_macro::term;
-    use xi_syntax::Judgment;
+
     #[tokio::test]
     async fn run_js_from_string_test() {
+        use super::*;
+
         let str = "console.log('hello_world');".into();
-        run_js_from_string(str).await;
+        run_js_from_string(str).await.unwrap();
     }
 
-    #[tokio::test]
-    async fn run_js_from_judgment_test() {
-        let id: Judgment<JsPrim> = term!([ConsoleOutput][Str("hello world".into())]);
-        run_js_from_judgment(id).await;
-    }
+    // #[tokio::test]
+    // async fn run_js_from_judgment_test() {
+    //     let id: Judgment<JsPrim> = term!([IO(JsIO::ConsoleOutput)][Str("hello world".into())]);
+    //     run_js_from_judgment(id).await;
+    // }
 }

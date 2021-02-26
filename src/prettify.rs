@@ -1,4 +1,4 @@
-/// Define a map from Judgment<T> to term macros so we can read better.
+/// Define a map from Judgment<T,S> to term macros so we can read better.
 use crate::judgment::*;
 use free_var::FreeVar;
 
@@ -8,7 +8,7 @@ pub enum JudgmentTree<T> {
     UinNone,
     Prim(T),
     FreeVar(FreeVar, Box<JudgmentTree<T>>),
-    BoundVar(u32, Box<Judgment<T>>),
+    BoundVar(u32, Box<JudgmentTree<T>>),
     /// I should add metadata here.
     Fun(Vec<JudgmentTree<T>>),
     Pi(Vec<JudgmentTree<T>>, Box<JudgmentTree<T>>),
@@ -16,7 +16,7 @@ pub enum JudgmentTree<T> {
     App(Vec<JudgmentTree<T>>),
 }
 
-pub fn judgment_to_tree<T: Primitive>(judgment: Judgment<T>) -> JudgmentTree<T> {
+pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> JudgmentTree<T> {
     use JudgmentTree::*;
     match judgment {
         Judgment::UInNone => JudgmentTree::UinNone,
@@ -53,7 +53,9 @@ pub fn judgment_to_tree<T: Primitive>(judgment: Judgment<T>) -> JudgmentTree<T> 
                 Lam(vec![var_type_tree], Box::new(expr_tree.clone()))
             }
         }
-        Judgment::BoundVar(u32, expr) => JudgmentTree::BoundVar(u32, expr),
+        Judgment::BoundVar(u32, expr) => {
+            JudgmentTree::BoundVar(u32, Box::new(judgment_to_tree(*expr)))
+        }
         Judgment::Application(func, elem) => {
             let func_tree = judgment_to_tree(*func);
             let elem_tree = judgment_to_tree(*elem);
@@ -64,6 +66,7 @@ pub fn judgment_to_tree<T: Primitive>(judgment: Judgment<T>) -> JudgmentTree<T> 
                 App(vec![func_tree, elem_tree])
             }
         }
+        Judgment::Metadata(_, _) => todo!("cry"),
     }
 }
 
@@ -196,28 +199,28 @@ mod test {
         use super::*;
         use term_macro::term;
 
-        let test0: Judgment<()> = term!(Pi | A: U | A);
+        let test0: Judgment<(), ()> = term!(Pi | A: U | A);
         assert_eq!(tree_to_string(&judgment_to_tree(test0)), "Pi |v0 : U| v0");
 
-        let test1: Judgment<()> = term!(Pi |A : U, B : U, C : U| A -> B -> C);
+        let test1: Judgment<(), ()> = term!(Pi |A : U, B : U, C : U| A -> B -> C);
         assert_eq!(
             tree_to_string(&judgment_to_tree(test1)),
             "Pi |v0 : U, v1 : U, v2 : U| v0 -> v1 -> v2"
         );
 
-        let test2: Judgment<()> = term!(Pi |T : U| T -> (T -> T) -> T);
+        let test2: Judgment<(), ()> = term!(Pi |T : U| T -> (T -> T) -> T);
         assert_eq!(
             tree_to_string(&judgment_to_tree(test2)),
             "Pi |v0 : U| v0 -> (v0 -> v0) -> v0"
         );
 
-        let test3: Judgment<()> = term!(Pi |T : U, P : U -> U| (Pi |S : U| S) -> P T -> P T);
+        let test3: Judgment<(), ()> = term!(Pi |T : U, P : U -> U| (Pi |S : U| S) -> P T -> P T);
         assert_eq!(
             tree_to_string(&judgment_to_tree(test3)),
             "Pi |v0 : U, v1 : U -> U| (Pi |v3 : U| v3) -> v1 v0 -> v1 v0"
         );
 
-        let test4: Judgment<()> = term!(Lam | T: U, t: T | t);
+        let test4: Judgment<(), ()> = term!(Lam | T: U, t: T | t);
         assert_eq!(
             tree_to_string(&judgment_to_tree(test4)),
             "Lam |v0 : U, v1 : v0| v1"

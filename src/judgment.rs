@@ -15,27 +15,29 @@ use free_var::FreeVar;
 // }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Judgment<T> {
+pub enum Judgment<T, S> {
     UInNone,
     Prim(T),
-    FreeVar(FreeVar, Box<Judgment<T>>),
-    Pi(Box<Judgment<T>>, Box<Judgment<T>>),
-    Lam(Box<Judgment<T>>, Box<Judgment<T>>),
-    BoundVar(u32, Box<Judgment<T>>),
-    Application(Box<Judgment<T>>, Box<Judgment<T>>),
-    // Metadata(String, Judgment<T>),
+    FreeVar(FreeVar, Box<Judgment<T, S>>),
+    Pi(Box<Judgment<T, S>>, Box<Judgment<T, S>>),
+    Lam(Box<Judgment<T, S>>, Box<Judgment<T, S>>),
+    BoundVar(u32, Box<Judgment<T, S>>),
+    Application(Box<Judgment<T, S>>, Box<Judgment<T, S>>),
+    Metadata(S, Box<Judgment<T, S>>),
 }
 
 pub trait Primitive: Clone + PartialEq + Eq + 'static + std::fmt::Debug
 where
     Self: Sized,
 {
-    fn type_of(&self) -> Judgment<Self>;
+    fn type_of<S: Metadata>(&self) -> Judgment<Self, S>;
 }
 
-impl<T: Primitive> Judgment<T> {
+pub trait Metadata: Clone + PartialEq + Eq + 'static + std::fmt::Debug {}
+
+impl<T: Primitive, S: Metadata> Judgment<T, S> {
     /// Takes a judgment and returns its the judgment representing its type
-    pub fn type_of(&self) -> Option<Judgment<T>> {
+    pub fn type_of(&self) -> Option<Judgment<T, S>> {
         match self {
             Judgment::UInNone => None,
             Judgment::Pi(_var_type, expr) => expr.type_of(),
@@ -53,19 +55,20 @@ impl<T: Primitive> Judgment<T> {
             }
             Judgment::Prim(prim) => Some(prim.type_of().into()),
             Judgment::FreeVar(_free_var, var_type) => Some((**var_type).clone()),
+            Judgment::Metadata(_, _) => todo!(),
         }
     }
 
-    pub fn normalize(self) -> Judgment<T> {
+    pub fn normalize(self) -> Judgment<T, S> {
         self.nbe()
     }
 
     /// U:None constructor
-    pub fn u() -> Judgment<T> {
+    pub fn u() -> Judgment<T, S> {
         Judgment::UInNone
     }
     /// Pi constructor
-    pub fn pi(var_type: Judgment<T>, expr: Judgment<T>) -> Judgment<T> {
+    pub fn pi(var_type: Judgment<T, S>, expr: Judgment<T, S>) -> Judgment<T, S> {
         let type_expr = expr.type_of();
 
         match type_expr {
@@ -77,23 +80,23 @@ impl<T: Primitive> Judgment<T> {
         }
     }
     /// Lambda constructor
-    pub fn lam(var_type: Judgment<T>, expr: Judgment<T>) -> Judgment<T> {
+    pub fn lam(var_type: Judgment<T, S>, expr: Judgment<T, S>) -> Judgment<T, S> {
         Judgment::Lam(Box::new(var_type), Box::new(expr))
     }
     /// BoundVar constructor
-    pub fn var(int: u32, var_type: Judgment<T>) -> Judgment<T> {
+    pub fn var(int: u32, var_type: Judgment<T, S>) -> Judgment<T, S> {
         Judgment::BoundVar(int, Box::new(var_type))
     }
 
-    pub fn free(int: FreeVar, var_type: Judgment<T>) -> Judgment<T> {
+    pub fn free(int: FreeVar, var_type: Judgment<T, S>) -> Judgment<T, S> {
         Judgment::FreeVar(int, Box::new(var_type))
     }
 
-    pub fn prim(prim: T) -> Judgment<T> {
+    pub fn prim(prim: T) -> Judgment<T, S> {
         Judgment::Prim(prim)
     }
 
-    pub fn app(func: Judgment<T>, elem: Judgment<T>) -> Judgment<T> {
+    pub fn app(func: Judgment<T, S>, elem: Judgment<T, S>) -> Judgment<T, S> {
         let func_type = func.clone().type_of().unwrap();
         if let Judgment::Pi(func_arg_type, _) = func_type {
             let elem_type = elem.clone().type_of().unwrap();
@@ -118,12 +121,12 @@ impl<T: Primitive> Judgment<T> {
     }
 
     /// Replace the outermost bound variable in expr with elem.
-    fn instantiate(expr: Judgment<T>, elem: Judgment<T>) -> Judgment<T> {
-        fn instantiate_rec<T: Primitive>(
-            expr: &Judgment<T>,
-            elem: &Judgment<T>,
+    fn instantiate(expr: Judgment<T, S>, elem: Judgment<T, S>) -> Judgment<T, S> {
+        fn instantiate_rec<T: Primitive, S: Metadata>(
+            expr: &Judgment<T, S>,
+            elem: &Judgment<T, S>,
             depth: u32,
-        ) -> Judgment<T> {
+        ) -> Judgment<T, S> {
             match expr {
                 Judgment::UInNone => Judgment::UInNone,
                 Judgment::Pi(var_type, expr) => Judgment::pi(
@@ -156,13 +159,18 @@ impl<T: Primitive> Judgment<T> {
                 Judgment::FreeVar(free_var, var_type) => {
                     Judgment::FreeVar(*free_var, var_type.clone())
                 }
+                Judgment::Metadata(_, _) => todo!(),
             }
         }
         instantiate_rec(&expr, &elem, 0)
     }
 
-    pub fn rebind(s: Judgment<T>, free_var: FreeVar) -> Judgment<T> {
-        fn rebind_rec<T: Primitive>(s: Judgment<T>, free_var: FreeVar, depth: u32) -> Judgment<T> {
+    pub fn rebind(s: Judgment<T, S>, free_var: FreeVar) -> Judgment<T, S> {
+        fn rebind_rec<T: Primitive, S: Metadata>(
+            s: Judgment<T, S>,
+            free_var: FreeVar,
+            depth: u32,
+        ) -> Judgment<T, S> {
             match s {
                 Judgment::UInNone => Judgment::u(),
                 Judgment::Pi(var_type, expr) => Judgment::pi(
@@ -188,26 +196,27 @@ impl<T: Primitive> Judgment<T> {
                         Judgment::free(i, rebind_rec(*var_type, free_var, depth))
                     }
                 }
+                Judgment::Metadata(_, _) => todo!(),
             }
         }
         rebind_rec(s, free_var, 0)
     }
 
-    pub fn app_unchecked(func: Judgment<T>, arg: Judgment<T>) -> Judgment<T> {
+    pub fn app_unchecked(func: Judgment<T, S>, arg: Judgment<T, S>) -> Judgment<T, S> {
         Judgment::Application(Box::new(func), Box::new(arg))
     }
 
-    pub fn pi_unchecked(var_type: Judgment<T>, expr: Judgment<T>) -> Judgment<T> {
+    pub fn pi_unchecked(var_type: Judgment<T, S>, expr: Judgment<T, S>) -> Judgment<T, S> {
         Judgment::Pi(Box::new(var_type), Box::new(expr))
     }
 
     /// Normalization to beta-reduced, eta-long form. beta-reduced means that app(lam(var_type,expr), elem) is beta-reduced to expr[BoundVar(?)\elem].
-    pub fn nbe<U: Primitive + Semantics<T>>(self) -> Judgment<U> {
+    pub fn nbe<U: Primitive + Semantics<T>>(self) -> Judgment<U, S> {
         SJudgment::semantics_to_syntax(SJudgment::syntax_to_semantics(self, vec![]))
     }
 
     pub fn is_outermost_bound_var_used(self) -> bool {
-        fn is_bound_var_used<T>(expr: Judgment<T>, depth: u32) -> bool {
+        fn is_bound_var_used<T, S>(expr: Judgment<T, S>, depth: u32) -> bool {
             match expr {
                 Judgment::UInNone => false,
                 Judgment::Prim(_) => false,
@@ -222,6 +231,7 @@ impl<T: Primitive> Judgment<T> {
                 Judgment::Application(func, elem) => {
                     is_bound_var_used(*func, depth) || is_bound_var_used(*elem, depth)
                 }
+                Judgment::Metadata(_, _) => todo!(),
             }
         }
         is_bound_var_used(self, 0)
@@ -236,7 +246,7 @@ pub enum NatPrim {
 }
 
 impl Primitive for NatPrim {
-    fn type_of(&self) -> Judgment<Self> {
+    fn type_of<S: Metadata>(&self) -> Judgment<Self, S> {
         match self {
             NatPrim::NatType => Judgment::u(),
             NatPrim::Nat(_) => Judgment::Prim(NatPrim::NatType),
@@ -252,7 +262,9 @@ impl Primitive for NatPrim {
 }
 
 impl Primitive for () {
-    fn type_of(&self) -> Judgment<Self> {
+    fn type_of<S: Metadata>(&self) -> Judgment<Self, S> {
         Judgment::u()
     }
 }
+
+impl Metadata for () {}

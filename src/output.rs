@@ -1,4 +1,4 @@
-use crate::judgment::Judgment;
+use crate::judgment::{Judgment, Metadata};
 use std::rc::Rc;
 use swc_common::{FilePathMapping, SourceMap, DUMMY_SP};
 use swc_ecma_ast::{
@@ -8,7 +8,7 @@ use swc_ecma_ast::{
 };
 use swc_ecma_codegen::{text_writer::JsWriter, Config, Emitter};
 
-pub fn to_js_program<T: JsOutput>(judgment: Judgment<T>) -> String {
+pub fn to_js_program<T: JsOutput, S: Metadata>(judgment: Judgment<T, S>) -> String {
     let stmt = Stmt::Expr(ExprStmt {
         span: DUMMY_SP,
         expr: Box::new(to_js(judgment, vec![])),
@@ -58,7 +58,7 @@ pub fn to_js_program<T: JsOutput>(judgment: Judgment<T>) -> String {
 fn make_var_name(ctx: &Vec<Ident>) -> Ident {
     to_js_ident2(format!("var_{}", ctx.len()))
 }
-fn to_js<T: JsOutput>(judgment: Judgment<T>, ctx: Vec<Ident>) -> Expr {
+fn to_js<T: JsOutput, S: Metadata>(judgment: Judgment<T, S>, ctx: Vec<Ident>) -> Expr {
     match judgment {
         Judgment::UInNone => to_js_str_u(),
         Judgment::Prim(t) => T::to_js_prim(&t),
@@ -80,6 +80,7 @@ fn to_js<T: JsOutput>(judgment: Judgment<T>, ctx: Vec<Ident>) -> Expr {
         Judgment::Application(func, arg) => {
             to_js_app(to_js(*func, ctx.clone()), vec![to_js(*arg, ctx)])
         }
+        Judgment::Metadata(_, _) => todo!(),
     }
 }
 

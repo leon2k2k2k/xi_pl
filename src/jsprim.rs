@@ -1,4 +1,4 @@
-use crate::judgment::{Judgment, Primitive};
+use crate::judgment::{Judgment, Metadata, Primitive};
 use crate::output::{ JsOutput};
 use free_var::FreeVar;
 use swc_ecma_ast::{
@@ -37,7 +37,7 @@ pub enum JsPromise {
 }
 
 impl Primitive for JsPrim {
-    fn type_of(&self) -> Judgment<Self> {
+    fn type_of<S: Metadata>(&self) -> Judgment<Self, S> {
         use JsPrim::*;
 
         match self {
@@ -112,15 +112,15 @@ impl JsOutput for JsPrim {
 }
 
 impl JsPrim{
-    pub fn promise_unit() -> Judgment<JsPrim> {
+    pub fn promise_unit<S: Metadata>() -> Judgment<JsPrim, S> {
         term!([JsPrim::Promise(JsPromise::PromiseMonad)] [JsPrim::Type(JsType::UnitType)])
     }
 
-    pub fn str_to_promise_unit() -> Judgment<JsPrim>{
+    pub fn str_to_promise_unit<S: Metadata>() -> Judgment<JsPrim, S>{
         term!([JsPrim::Type(JsType::StrType)] -> ([JsPrim::Promise(JsPromise::PromiseMonad)] [JsPrim::Type(JsType::UnitType)]))
     }
 
-    pub fn console_output_type() -> Judgment<JsPrim> {
+    pub fn console_output_type<S: Metadata>() -> Judgment<JsPrim, S> {
         term!([JsPrim::IO(JsIO::Bind)] -> {JsPrim::str_to_promise_unit()})
     }
 
@@ -132,7 +132,7 @@ impl JsPrim{
         let func = term!((Lam |func1 : {JsPrim::str_to_promise_unit()}| 
                 ([IO(JsIO::Pure)] {JsPrim::promise_unit()} (func1 {str_judgment}))));
 
-        let str_expression:Judgment<JsPrim> = term!([IO(JsIO::Bind)]{JsPrim::str_to_promise_unit()} {JsPrim::promise_unit()} [IO(JsIO::ConsoleOutput)] {func});
+        let str_expression:Judgment<JsPrim, ()> = term!([IO(JsIO::Bind)]{JsPrim::str_to_promise_unit()} {JsPrim::promise_unit()} [IO(JsIO::ConsoleOutput)] {func});
         // println!("type of str_expression: {:?}", str_expression.type_of());
         output::to_js_program(str_expression)
         

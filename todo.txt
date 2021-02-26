@@ -12,4 +12,11 @@ todo list:
 
 
 3. Prettify:
-    a. 
+    a. define the bracket thing.
+    b. change variable name according to metadata.
+
+4. term_macro:
+    a. default T, S. 
+    b. compatible with variable names in metadata.
+    c. compatibility with generic metadata.
+

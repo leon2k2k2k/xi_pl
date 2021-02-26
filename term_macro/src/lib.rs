@@ -79,7 +79,24 @@ impl ToTokens for TermBuilderFree {
                 }
             }
         }
-        tokens.extend(to_tokens_rec(&BTreeMap::new(), &self.term));
+        let mut free_vars = BTreeMap::new();
+        let mut free_var_bindings = vec![];
+
+        for (bind_ident, bind_type) in &self.free_vars {
+            free_vars.insert(bind_ident.clone(), bind_type.clone());
+            free_var_bindings.push(quote! { let #bind_ident = FreeVar::new(); });
+        }
+        let body_tokens = to_tokens_rec(&free_vars, &self.term);
+
+        if free_vars.is_empty() {
+            tokens.extend(body_tokens);
+        } else if free_vars.len() == 1 {
+            let free_var_name = self.free_vars[0].0.clone();
+            tokens.extend(quote! {{#(#free_var_bindings)* (#free_var_name, #body_tokens)}})
+        } else {
+            let free_var_names = self.free_vars.iter().map(|x| &x.0);
+            tokens.extend(quote! {{#(#free_var_bindings)* ((#(#free_var_names),*) , #body_tokens)}})
+        }
     }
 }
 
@@ -250,11 +267,11 @@ fn parse_rust_expr(tokens: ParseStream) -> Result<TermBuilder> {
 mod test {
 
     #[cfg(test)]
-    fn test_expand(text: &str, desired: TokenStream) {
+    fn test_expand(text: &str, desired: proc_macro2::TokenStream) {
         use super::*;
         use syn::parse2;
 
-        let tokens = text.parse::<TokenStream>().unwrap();
+        let tokens = text.parse::<proc_macro2::TokenStream>().unwrap();
         let builder = parse2::<TermBuilderFree>(tokens).unwrap();
         let output = quote!( #builder );
         assert_eq!(output.to_string(), desired.to_string());
@@ -477,6 +494,21 @@ mod test {
             quote! {
                 Judgment::app(Judgment::prim(a), Judgment::prim(b))
             },
+        );
+        test_expand(
+            "|T : U| T",
+            quote! {{
+                let T = FreeVar::new();
+                (T, Judgment::free(T, Judgment::u()))
+            }},
+        );
+        test_expand(
+            "|T : U, S : U| T -> U",
+            quote! {{
+                let T = FreeVar::new();
+                let S = FreeVar::new();
+                ((T, S), Judgment::pi(Judgment::Free(T, Judgment::u()), Judgment::u()))
+            }},
         );
     }
 }

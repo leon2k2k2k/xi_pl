@@ -9,3 +9,7 @@ todo list:
 2. Front_end:
     a. We can get to Tree. 
     b. Type inference. 
+
+
+3. Prettify:
+    a. 

@@ -9,28 +9,6 @@
 use crate::nbe::{SJudgment, Semantics};
 use free_var::FreeVar;
 use std::fmt::Debug;
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum NatPrim {
-    NatType,
-    Nat(i32),
-    Add,
-}
-
-impl Primitive for NatPrim {
-    fn type_of(&self) -> Judgment<Self> {
-        match self {
-            NatPrim::NatType => Judgment::u(),
-            NatPrim::Nat(_) => Judgment::Prim(NatPrim::NatType),
-            NatPrim::Add => Judgment::pi(
-                Judgment::Prim(NatPrim::NatType),
-                Judgment::pi(
-                    Judgment::Prim(NatPrim::NatType),
-                    Judgment::Prim(NatPrim::NatType),
-                ),
-            ),
-        }
-    }
-}
 
 // #[derive(Clone, Debug)]
 // enum TypeCheckError {
@@ -228,13 +206,61 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + std::fmt::Debug> Judgment
     pub fn pi_unchecked(var_type: Judgment<T>, expr: Judgment<T>) -> Judgment<T> {
         Judgment::Pi(Box::new(var_type), Box::new(expr))
     }
-}
 
-impl<T: Primitive + Clone + PartialEq + Eq + 'static + Debug> Judgment<T> {
     /// Normalization to beta-reduced, eta-long form. beta-reduced means that app(lam(var_type,expr), elem) is beta-reduced to expr[BoundVar(?)\elem].
     pub fn nbe<U: Semantics<T> + Primitive + Clone + PartialEq + Eq + 'static + Debug>(
         self,
     ) -> Judgment<U> {
         SJudgment::semantics_to_syntax(SJudgment::syntax_to_semantics(self, vec![]))
+    }
+
+    pub fn is_outermost_bound_var_used(self) -> bool {
+        fn is_bound_var_used<T>(expr: Judgment<T>, depth: u32) -> bool {
+            match expr {
+                Judgment::UInNone => false,
+                Judgment::Prim(_) => false,
+                Judgment::FreeVar(_, expr) => is_bound_var_used(*expr, depth),
+                Judgment::Pi(var_type, expr) => {
+                    is_bound_var_used(*var_type, depth + 1) || is_bound_var_used(*expr, depth + 1)
+                }
+                Judgment::Lam(var_type, expr) => {
+                    is_bound_var_used(*var_type, depth + 1) || is_bound_var_used(*expr, depth + 1)
+                }
+                Judgment::BoundVar(int, expr) => int == depth || is_bound_var_used(*expr, depth),
+                Judgment::Application(func, elem) => {
+                    is_bound_var_used(*func, depth) || is_bound_var_used(*elem, depth)
+                }
+            }
+        }
+        is_bound_var_used(self, 0)
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum NatPrim {
+    NatType,
+    Nat(i32),
+    Add,
+}
+
+impl Primitive for NatPrim {
+    fn type_of(&self) -> Judgment<Self> {
+        match self {
+            NatPrim::NatType => Judgment::u(),
+            NatPrim::Nat(_) => Judgment::Prim(NatPrim::NatType),
+            NatPrim::Add => Judgment::pi(
+                Judgment::Prim(NatPrim::NatType),
+                Judgment::pi(
+                    Judgment::Prim(NatPrim::NatType),
+                    Judgment::Prim(NatPrim::NatType),
+                ),
+            ),
+        }
+    }
+}
+
+impl Primitive for () {
+    fn type_of(&self) -> Judgment<Self> {
+        Judgment::u()
     }
 }

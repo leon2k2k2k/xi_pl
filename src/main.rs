@@ -3,6 +3,7 @@ mod jsprim;
 mod judgment;
 mod nbe;
 mod output;
+mod prettify;
 mod runtime;
 #[tokio::main]
 async fn main() {

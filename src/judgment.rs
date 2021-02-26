@@ -32,6 +32,12 @@ impl Primitive for NatPrim {
     }
 }
 
+// #[derive(Clone, Debug)]
+// enum TypeCheckError {
+//     location: Span,
+
+// }
+
 pub trait Primitive
 where
     Self: Sized,
@@ -48,6 +54,7 @@ pub enum Judgment<T> {
     Lam(Box<Judgment<T>>, Box<Judgment<T>>),
     BoundVar(u32, Box<Judgment<T>>),
     Application(Box<Judgment<T>>, Box<Judgment<T>>),
+    // Metadata(String, Judgment<T>),
 }
 
 impl<T: Primitive + Clone + PartialEq + Eq + 'static + std::fmt::Debug> Judgment<T> {

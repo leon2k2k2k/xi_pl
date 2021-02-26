@@ -169,11 +169,13 @@ mod test {
 
     #[tokio::test]
     async fn to_js_test() {
-        use super::JsPrim::*;
         use super::*;
-        use crate::output::to_js_program;
-        use term_macro::term;
-        use crate::runtime::*;
+        use crate::runtime::run_js_from_string;
+        // use super::JsPrim::*;
+        // use super::*;
+        // use crate::output::to_js_program;
+        // use term_macro::term;
+        // use crate::runtime::*;
 
         // // let hello_world = term!([IO(JsIO::ConsoleOutput)][Type(JsType::Str("hello world".into()))]);
         // let str: Judgment<JsPrim> = term!([Type(JsType::Str("hello world".into()))]);

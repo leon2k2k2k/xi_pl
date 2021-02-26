@@ -16,9 +16,7 @@ pub enum JudgmentTree<T> {
     App(Vec<JudgmentTree<T>>),
 }
 
-pub fn judgment_to_tree<T: Primitive + Clone + PartialEq + Eq + 'static + std::fmt::Debug>(
-    judgment: Judgment<T>,
-) -> JudgmentTree<T> {
+pub fn judgment_to_tree<T: Primitive>(judgment: Judgment<T>) -> JudgmentTree<T> {
     use JudgmentTree::*;
     match judgment {
         Judgment::UInNone => JudgmentTree::UinNone,
@@ -77,10 +75,8 @@ enum Precedence {
     Var,
 }
 
-pub fn tree_to_string<T: Primitive + Clone + PartialEq + Eq + 'static + std::fmt::Debug>(
-    judg_tree: &JudgmentTree<T>,
-) -> String {
-    fn tts_rec<T: Primitive + Clone + PartialEq + Eq + 'static + std::fmt::Debug>(
+pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
+    fn tts_rec<T: Primitive>(
         judg_tree: &JudgmentTree<T>,
         free_vars: &mut Vec<String>,
         precedence: Precedence,

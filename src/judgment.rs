@@ -8,20 +8,11 @@
 
 use crate::nbe::{SJudgment, Semantics};
 use free_var::FreeVar;
-use std::fmt::Debug;
-
 // #[derive(Clone, Debug)]
 // enum TypeCheckError {
 //     location: Span,
 
 // }
-
-pub trait Primitive
-where
-    Self: Sized,
-{
-    fn type_of(&self) -> Judgment<Self>;
-}
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Judgment<T> {
@@ -35,7 +26,14 @@ pub enum Judgment<T> {
     // Metadata(String, Judgment<T>),
 }
 
-impl<T: Primitive + Clone + PartialEq + Eq + 'static + std::fmt::Debug> Judgment<T> {
+pub trait Primitive: Clone + PartialEq + Eq + 'static + std::fmt::Debug
+where
+    Self: Sized,
+{
+    fn type_of(&self) -> Judgment<Self>;
+}
+
+impl<T: Primitive> Judgment<T> {
     /// Takes a judgment and returns its the judgment representing its type
     pub fn type_of(&self) -> Option<Judgment<T>> {
         match self {
@@ -121,7 +119,7 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + std::fmt::Debug> Judgment
 
     /// Replace the outermost bound variable in expr with elem.
     fn instantiate(expr: Judgment<T>, elem: Judgment<T>) -> Judgment<T> {
-        fn instantiate_rec<T: Primitive + Clone + PartialEq + Eq + 'static + Debug>(
+        fn instantiate_rec<T: Primitive>(
             expr: &Judgment<T>,
             elem: &Judgment<T>,
             depth: u32,
@@ -164,11 +162,7 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + std::fmt::Debug> Judgment
     }
 
     pub fn rebind(s: Judgment<T>, free_var: FreeVar) -> Judgment<T> {
-        fn rebind_rec<T: Primitive + Clone + PartialEq + Eq + 'static + Debug>(
-            s: Judgment<T>,
-            free_var: FreeVar,
-            depth: u32,
-        ) -> Judgment<T> {
+        fn rebind_rec<T: Primitive>(s: Judgment<T>, free_var: FreeVar, depth: u32) -> Judgment<T> {
             match s {
                 Judgment::UInNone => Judgment::u(),
                 Judgment::Pi(var_type, expr) => Judgment::pi(
@@ -208,9 +202,7 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + std::fmt::Debug> Judgment
     }
 
     /// Normalization to beta-reduced, eta-long form. beta-reduced means that app(lam(var_type,expr), elem) is beta-reduced to expr[BoundVar(?)\elem].
-    pub fn nbe<U: Semantics<T> + Primitive + Clone + PartialEq + Eq + 'static + Debug>(
-        self,
-    ) -> Judgment<U> {
+    pub fn nbe<U: Primitive + Semantics<T>>(self) -> Judgment<U> {
         SJudgment::semantics_to_syntax(SJudgment::syntax_to_semantics(self, vec![]))
     }
 

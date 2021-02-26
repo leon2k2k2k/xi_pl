@@ -5,7 +5,6 @@ normalization by evaluation. This is attempt two after mu. */
 use crate::judgment::Judgment;
 use crate::judgment::Primitive;
 use free_var::FreeVar;
-use std::fmt::Debug;
 use std::rc::Rc;
 
 #[derive(Clone)]
@@ -16,12 +15,10 @@ pub enum SJudgment<T> {
     Pi(Box<SJudgment<T>>, Rc<dyn Fn(SJudgment<T>) -> SJudgment<T>>),
 }
 
-impl<T: Primitive + Clone + PartialEq + Eq + 'static + Debug> SJudgment<T> {
+impl<T: Primitive> SJudgment<T> {
     #[allow(non_snake_case)]
     pub fn semantics_to_syntax(sem: SJudgment<T>) -> Judgment<T> {
-        fn up<T: Primitive + Clone + PartialEq + Eq + 'static + Debug>(
-            syn: Judgment<T>,
-        ) -> SJudgment<T> {
+        fn up<T: Primitive>(syn: Judgment<T>) -> SJudgment<T> {
             let syn_clone = syn.clone();
             match syn.type_of() {
                 Some(type_of_syn) => match type_of_syn {
@@ -41,9 +38,7 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + Debug> SJudgment<T> {
             }
         }
 
-        fn down<T: Primitive + Clone + PartialEq + Eq + 'static + Debug>(
-            sem: SJudgment<T>,
-        ) -> Judgment<T> {
+        fn down<T: Primitive>(sem: SJudgment<T>) -> Judgment<T> {
             match sem {
                 SJudgment::Syn(judgment) => judgment,
                 SJudgment::Lam(svar_type, func) => {
@@ -70,9 +65,7 @@ impl<T: Primitive + Clone + PartialEq + Eq + 'static + Debug> SJudgment<T> {
     }
 
     #[allow(non_snake_case)]
-    pub fn syntax_to_semantics<
-        U: Semantics<T> + Primitive + Clone + PartialEq + Eq + 'static + Debug,
-    >(
+    pub fn syntax_to_semantics<U: Semantics<T> + Primitive>(
         syn: Judgment<T>,
         ctx: Vec<SJudgment<U>>,
     ) -> SJudgment<U> {
@@ -137,14 +130,14 @@ where
     fn meaning(prim: T) -> SJudgment<Self>;
 }
 
-impl<T: Primitive + Clone + PartialEq + Eq + Debug + 'static> Semantics<T> for T {
+impl<T: Primitive> Semantics<T> for T {
     fn meaning(prim: T) -> SJudgment<Self> {
         fn add_to_ctx<U: Clone>(v: Vec<U>, x: &U) -> Vec<U> {
             let mut v = v;
             v.push(x.clone());
             v
         }
-        fn meaning_rec<T: Primitive + Clone + PartialEq + Eq + Debug + 'static>(
+        fn meaning_rec<T: Primitive>(
             prim: T,
             type_of: Judgment<T>,
             ctx: Vec<SJudgment<T>>,
@@ -187,10 +180,7 @@ impl<T: Primitive + Clone + PartialEq + Eq + Debug + 'static> Semantics<T> for T
             }
         }
 
-        fn appn<T: Primitive + Clone + PartialEq + Eq + Debug + 'static>(
-            prim: T,
-            ctx: Vec<SJudgment<T>>,
-        ) -> Judgment<T> {
+        fn appn<T: Primitive>(prim: T, ctx: Vec<SJudgment<T>>) -> Judgment<T> {
             let mut ctx = ctx;
             if ctx.len() == 0 {
                 Judgment::prim(prim)

@@ -55,7 +55,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             }
             Judgment::Prim(prim) => Some(prim.type_of().into()),
             Judgment::FreeVar(_free_var, var_type) => Some((**var_type).clone()),
-            Judgment::Metadata(_, _) => todo!(),
+            Judgment::Metadata(_, body) => body.type_of(),
         }
     }
 
@@ -159,7 +159,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                 Judgment::FreeVar(free_var, var_type) => {
                     Judgment::FreeVar(*free_var, var_type.clone())
                 }
-                Judgment::Metadata(_, _) => todo!(),
+                Judgment::Metadata(_, body) => todo!("don't know what to do with the metadata when instantiating it."),
             }
         }
         instantiate_rec(&expr, &elem, 0)
@@ -196,7 +196,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                         Judgment::free(i, rebind_rec(*var_type, free_var, depth))
                     }
                 }
-                Judgment::Metadata(_, _) => todo!(),
+                Judgment::Metadata(data, body) => todo!(),
             }
         }
         rebind_rec(s, free_var, 0)

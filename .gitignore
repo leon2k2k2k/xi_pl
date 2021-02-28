@@ -1,3 +1,7 @@
 /target/
 /free_var/target/
 /term_macro/target/
+/tree-sitter-aplite/src/
+/tree-sitter-aplite/index.js
+/tree-sitter-aplite/node_modules
+/tree-sitter-aplite/binding.gyp

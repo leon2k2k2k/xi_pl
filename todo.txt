@@ -9,6 +9,7 @@ todo list:
 2. Front_end:
     a. We can get to Tree. 
     b. Type inference. 
+    c. name resolution
 
 
 3. Prettify:
@@ -20,3 +21,48 @@ todo list:
     b. compatible with variable names in metadata.
     c. compatibility with generic metadata.
 
+5. Error_handling:
+    a. In the front end we need to at least make sure it will pass through the core.
+
+6. Latex handling:
+    a. $mathcal{F}$ for respect
+
+
+
+
+test case:
+
+/// print hello world in Aplite:
+
+let str = $hello world"!$
+    str : String
+let _ = console_output(str)
+
+
+/// make a file "hello_world.ap"
+
+fn main -> JsIO() {  /// do we need instead JSIo
+    let str = console_input!
+        str : String
+    let _ = console_output(str)
+        _ : ()
+}
+
+
+console_input: JSIO String
+consone_output: JSIO (String -> ()
+
+let x1 = console_input!
+x1 : String
+
+let x = console_input2 (5)
+x : JSIO a
+
+console_input2 : Int -> JSIO a
+
+
+// x : String
+let x = console_output
+
+
+hello, its me, I am California dreaming about who we used to be. When we were, younger and free. 

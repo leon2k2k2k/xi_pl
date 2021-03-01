@@ -13,18 +13,20 @@ const PRECEDENCE = {
 module.exports = grammar({
     name: 'aplite',
     extras: $ => [
-        $.line_comment,
-        /[\s]/
+        $._line_comment,
+        $._whitespace,
     ],
 
     rules: {
+        // a source file is a list of statements
+
         source_file: $ => repeat($._stmt),
 
-        line_comment: $ => token(seq(
+        _line_comment: $ => token(seq(
             '//', /.*/
         )),
 
-        // a source file is a list of statements
+        _whitespace: $ => /[\s]+/,
 
         // a Stmt is
         // 1. let < var_name : Ident> <var_type: Expr>? = <body: Expr>

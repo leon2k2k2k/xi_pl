@@ -1560,6 +1560,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "parser"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2969,6 +2977,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tree-sitter"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d18dcb776d3affaba6db04d11d645946d34a69b3172e588af96ce9fecd20faac"
+dependencies = [
+ "cc",
+ "regex",
+]
+
+[[package]]
 name = "trust-dns-proto"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3372,6 +3390,7 @@ dependencies = [
  "deno_core",
  "deno_runtime",
  "free_var",
+ "parser",
  "swc_common",
  "swc_ecma_ast 0.39.1",
  "swc_ecma_codegen 0.46.1",

@@ -13,10 +13,12 @@ mod tests {
         let mut parser = Parser::new();
         let language = unsafe { tree_sitter_aplite() };
         parser.set_language(language).unwrap();
-        let source_code = "do add 3 2";
+
+        let source_code = "let x = 5";
         let tree = parser.parse(source_code, None).unwrap();
         let root_node = tree.root_node();
 
-        assert_eq!(root_node.kind(), "source_file");
+        println!("{:?}", tree)
+        
     }
 }

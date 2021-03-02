@@ -14,6 +14,7 @@ module.exports = grammar({
     name: 'aplite',
     extras: $ => [
         $._line_comment,
+        $._newline,
         $._whitespace,
     ],
 
@@ -26,7 +27,9 @@ module.exports = grammar({
             '//', /.*/
         )),
 
-        _whitespace: $ => /[\s]+/,
+        _whitespace: $ => /[\s^\r^\n]/,
+
+        _newline: $ => choice("\r", "\n", "\r\n"),
 
         // a Stmt is
         // 1. let < var_name : Ident> <var_type: Expr>? = <body: Expr>

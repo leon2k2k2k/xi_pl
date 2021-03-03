@@ -116,7 +116,7 @@ impl JsPrim{
         term!([JsPrim::Promise(JsPromise::PromiseMonad)] [JsPrim::Type(JsType::UnitType)])
     }
 
-    pub fn s<S: Metadata>() -> Judgment<JsPrim, S>{
+    pub fn str_to_promise_unit<S: Metadata>() -> Judgment<JsPrim, S>{
         term!([JsPrim::Type(JsType::StrType)] -> ([JsPrim::Promise(JsPromise::PromiseMonad)] [JsPrim::Type(JsType::UnitType)]))
     }
 

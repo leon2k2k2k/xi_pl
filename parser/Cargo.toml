@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 tree-sitter = "0.17"
+rowan = "0.12"
 
 [build-dependencies]
 cc = "*"

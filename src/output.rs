@@ -1,4 +1,4 @@
-use crate::judgment::{Judgment, Metadata};
+use crate::judgment::{Judgment, JudgmentKind, Metadata};
 use std::rc::Rc;
 use swc_common::{FilePathMapping, SourceMap, DUMMY_SP};
 use swc_ecma_ast::{
@@ -59,12 +59,12 @@ fn make_var_name(ctx: &Vec<Ident>) -> Ident {
     to_js_ident2(format!("var_{}", ctx.len()))
 }
 fn to_js<T: JsOutput, S: Metadata>(judgment: Judgment<T, S>, ctx: Vec<Ident>) -> Expr {
-    match judgment {
-        Judgment::UInNone => to_js_str_u(),
-        Judgment::Prim(t) => T::to_js_prim(&t),
-        Judgment::FreeVar(_, _) => panic!("Should not have a FreeVar in this expression"),
-        Judgment::Pi(_, _) => to_js_str_pi(),
-        Judgment::Lam(_var_type, body) => {
+    match judgment.tree() {
+        JudgmentKind::UInNone => to_js_str_u(),
+        JudgmentKind::Prim(t) => T::to_js_prim(&t),
+        JudgmentKind::FreeVar(_, _) => panic!("Should not have a FreeVar in this expression"),
+        JudgmentKind::Pi(_, _) => to_js_str_pi(),
+        JudgmentKind::Lam(_var_type, body) => {
             let var_name = make_var_name(&ctx);
             to_js_lam(
                 swc_ecma_ast::BlockStmtOrExpr::Expr(Box::new(to_js(
@@ -74,13 +74,12 @@ fn to_js<T: JsOutput, S: Metadata>(judgment: Judgment<T, S>, ctx: Vec<Ident>) ->
                 vec![var_name],
             )
         }
-        Judgment::BoundVar(index, _var_type) => {
+        JudgmentKind::BoundVar(index, _var_type) => {
             to_js_ident1(ctx[ctx.len() - 1 - index as usize].clone())
         }
-        Judgment::Application(func, arg) => {
+        JudgmentKind::Application(func, arg) => {
             to_js_app(to_js(*func, ctx.clone()), vec![to_js(*arg, ctx)])
         }
-        Judgment::Metadata(_, _) => todo!(),
     }
 }
 

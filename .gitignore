@@ -6,3 +6,4 @@
 /parser/tree-sitter-aplite/node_modules
 /parser/tree-sitter-aplite/binding.gyp
 /parser/tree-sitter-aplite/build
+/parser/target/

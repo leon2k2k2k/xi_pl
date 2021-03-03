@@ -18,13 +18,13 @@ pub enum JudgmentTree<T> {
 
 pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> JudgmentTree<T> {
     use JudgmentTree::*;
-    match judgment {
-        Judgment::UInNone => JudgmentTree::UinNone,
-        Judgment::Prim(prim) => JudgmentTree::Prim(prim),
-        Judgment::FreeVar(free_var, expr) => {
+    match judgment.tree() {
+        JudgmentKind::UInNone => JudgmentTree::UinNone,
+        JudgmentKind::Prim(prim) => JudgmentTree::Prim(prim),
+        JudgmentKind::FreeVar(free_var, expr) => {
             JudgmentTree::FreeVar(free_var, Box::new(judgment_to_tree(*expr)))
         }
-        Judgment::Pi(var_type, expr) => {
+        JudgmentKind::Pi(var_type, expr) => {
             let expr_tree = judgment_to_tree(*expr.clone());
             let var_type_tree = judgment_to_tree(*var_type);
             if expr.is_outermost_bound_var_used() {
@@ -43,7 +43,7 @@ pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> 
                 }
             }
         }
-        Judgment::Lam(var_type, expr) => {
+        JudgmentKind::Lam(var_type, expr) => {
             let expr_tree = judgment_to_tree(*expr);
             let var_type_tree = judgment_to_tree(*var_type);
             if let Lam(mut vec, expr) = expr_tree {
@@ -53,10 +53,10 @@ pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> 
                 Lam(vec![var_type_tree], Box::new(expr_tree.clone()))
             }
         }
-        Judgment::BoundVar(u32, expr) => {
+        JudgmentKind::BoundVar(u32, expr) => {
             JudgmentTree::BoundVar(u32, Box::new(judgment_to_tree(*expr)))
         }
-        Judgment::Application(func, elem) => {
+        JudgmentKind::Application(func, elem) => {
             let func_tree = judgment_to_tree(*func);
             let elem_tree = judgment_to_tree(*elem);
             if let App(mut vec) = func_tree {
@@ -66,7 +66,6 @@ pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> 
                 App(vec![func_tree, elem_tree])
             }
         }
-        Judgment::Metadata(_, _) => todo!("cry"),
     }
 }
 

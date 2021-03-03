@@ -34,7 +34,7 @@ impl ToTokens for TermBuilderFree {
             term: &TermBuilder,
         ) -> proc_macro2::TokenStream {
             match term {
-                TermBuilder::Type => quote! { Judgment::u() },
+                TermBuilder::Type => quote! { Judgment::u(None) },
                 TermBuilder::Var(ident) => {
                     let var_type = free_vars
                         .get(ident)
@@ -42,11 +42,11 @@ impl ToTokens for TermBuilderFree {
 
                     let var_type_tokens = to_tokens_rec(free_vars, var_type);
                     quote! {
-                        Judgment::free(#ident, #var_type_tokens)
+                        Judgment::free(#ident, #var_type_tokens, None)
                     }
                 }
                 TermBuilder::RustExpr(expr) => quote! { #expr.clone() },
-                TermBuilder::Prim(prim) => quote! { Judgment::prim(#prim) },
+                TermBuilder::Prim(prim) => quote! { Judgment::prim(#prim, None) },
                 TermBuilder::Lam(ident, type_, body) => {
                     let type_tokens = to_tokens_rec(free_vars, type_);
                     let mut new_vars = free_vars.clone();
@@ -54,7 +54,7 @@ impl ToTokens for TermBuilderFree {
                     let body_tokens = to_tokens_rec(&new_vars, body);
                     quote! {{
                         let #ident = FreeVar::new();
-                        Judgment::lam(#type_tokens, Judgment::rebind(#body_tokens, #ident))
+                        Judgment::lam(#type_tokens, Judgment::rebind(#body_tokens, #ident), None)
                     }}
                 }
                 TermBuilder::Pi(ident, type_, body) => {
@@ -64,18 +64,18 @@ impl ToTokens for TermBuilderFree {
                     let body_tokens = to_tokens_rec(&new_vars, body);
                     quote! {{
                         let #ident = FreeVar::new();
-                        Judgment::pi(#type_tokens, Judgment::rebind(#body_tokens, #ident))
+                        Judgment::pi(#type_tokens, Judgment::rebind(#body_tokens, #ident), None)
                     }}
                 }
                 TermBuilder::Fun(domain, codomain) => {
                     let domain_tokens = to_tokens_rec(free_vars, domain);
                     let codomain_tokens = to_tokens_rec(free_vars, codomain);
-                    quote! {Judgment::pi(#domain_tokens, #codomain_tokens)}
+                    quote! {Judgment::pi(#domain_tokens, #codomain_tokens, None)}
                 }
                 TermBuilder::App(fun, arg) => {
                     let func_tokens = to_tokens_rec(free_vars, fun);
                     let arg_tokens = to_tokens_rec(free_vars, arg);
-                    quote! { Judgment::app(#func_tokens, #arg_tokens)}
+                    quote! { Judgment::app(#func_tokens, #arg_tokens, None)}
                 }
             }
         }

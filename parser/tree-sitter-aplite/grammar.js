@@ -13,9 +13,9 @@ const PRECEDENCE = {
 module.exports = grammar({
     name: 'aplite',
     extras: $ => [
-        $._line_comment,
-        $._newline,
-        $._whitespace,
+        $.line_comment,
+        $.newline,
+        $.whitespace,
     ],
 
     rules: {
@@ -23,13 +23,13 @@ module.exports = grammar({
 
         source_file: $ => repeat($._stmt),
 
-        _line_comment: $ => token(seq(
+        line_comment: $ => token(seq(
             '//', /.*/
         )),
 
-        _whitespace: $ => /[\s^\r^\n]/,
+        whitespace: $ => / +/g,
 
-        _newline: $ => choice("\r", "\n", "\r\n"),
+        newline: $ => /\r\n|\n|\r/,
 
         // a Stmt is
         // 1. let < var_name : Ident> <var_type: Expr>? = <body: Expr>
@@ -52,7 +52,7 @@ module.exports = grammar({
         fn_stmt: $ => seq("fn", $.ident, optional($.binders), optional(seq("->", $._expr)), $._expr),
 
         // an Ident is a sequence of alphanumeric characters
-        ident: $ => /[A-Za-z0-9_]+/,
+        ident: $ => /\w+/,
 
         // an Expr is
         // 1. an Ident

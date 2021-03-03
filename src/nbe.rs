@@ -140,49 +140,6 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
                 Box::new(SJudgment::syntax_to_semantics(*var_type, ctx)),
             ),
         }
-        // match syn {
-        //     Judgment::UInNone => SJudgment::Syn(Judgment::UInNone),
-        //     Judgment::Pi(var_type, expr) => SJudgment::Pi(
-        //         Box::new(SJudgment::syntax_to_semantics(
-        //             *var_type,
-        //             add_to_ctx(ctx, &SJudgment::Syn(Judgment::UInNone)),
-        //         )),
-        //         Rc::new(move |S| {
-        //             SJudgment::syntax_to_semantics(*expr.clone(), add_to_ctx(ctx_clone.clone(), &S))
-        //         }),
-        //     ),
-        //     Judgment::Lam(var_type, expr) => SJudgment::Lam(
-        //         Box::new(SJudgment::syntax_to_semantics(
-        //             *var_type,
-        //             add_to_ctx(ctx, &SJudgment::Syn(Judgment::UInNone)),
-        //         )),
-        //         Rc::new(move |S| {
-        //             SJudgment::syntax_to_semantics(
-        //                 *expr.clone(),
-        //                 add_to_ctx(ctx_clone2.clone(), &S),
-        //             )
-        //         }),
-        //     ),
-        //     Judgment::BoundVar(i, _var_type) => ctx[ctx.len() - 1 - i as usize].clone(),
-        //     Judgment::Application(func, elem) => {
-        //         match SJudgment::syntax_to_semantics(*func, ctx.clone()) {
-        //             SJudgment::Syn(a) => {
-        //                 panic!("syntax_to_semantics(func) should match to Lam {:?}", a)
-        //             }
-        //             SJudgment::Lam(_, sfunc) => sfunc(SJudgment::syntax_to_semantics(*elem, ctx)),
-        //             SJudgment::Pi(_, _) => panic!("syntax_to_semantics(func) should match to Lam"),
-        //             SJudgment::FreeVar(_, _) => {
-        //                 panic!("syntax_to_semantics(func) should match to Lam")
-        //             }
-        //         }
-        //     }
-        //     Judgment::Prim(prim) => U::meaning(prim),
-        //     Judgment::FreeVar(free_var, var_type) => SJudgment::FreeVar(
-        //         free_var,
-        //         Box::new(SJudgment::syntax_to_semantics(*var_type, ctx)),
-        //     ),
-        //     Judgment::Metadata(_, _) => todo!(),
-        // }
     }
 }
 
@@ -266,10 +223,8 @@ mod test {
         let unit_test = term!((Lam |T : U| T) {unit.clone()});
         assert_eq!(unit, unit_test.nbe());
 
-        // assert_eq!(
-        //     term!([NatPrim::Add]).nbe(),
-        //     term!(Lam |x : [NatType], y : [NatType]| [Add] x y),
-        // );
+        let add: Judgment<NatPrim, ()> = term!([NatPrim::Add]).nbe();
+        assert_eq!(add, term!(Lam |x : [NatType], y : [NatType]| [Add] x y));
     }
     #[test]
     fn test_app() {
@@ -278,8 +233,8 @@ mod test {
         use term_macro::term;
         use NatPrim::{Add, Nat};
 
-        // let add3 = term!([Add] [Nat(3)]);
-        // let err = std::panic::catch_unwind(|| term!({add3} U));
-        // assert!(err.is_err());
+        let add3: Judgment<NatPrim, ()> = term!([Add] [Nat(3)]);
+        let err = std::panic::catch_unwind(|| term!({add3} U));
+        assert!(err.is_err());
     }
 }

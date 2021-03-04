@@ -124,14 +124,32 @@ fn syntax(node: GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(node.clone())
 }
 
-fn node_token(node: SyntaxNode) -> String {
+fn string_to_syntax(text: &str) -> SyntaxNode {
+    SyntaxNode::new_root(parse(text))
+}
+
+fn syntax_node_to_string(node: SyntaxNode) -> String {
     let mut str: String = "".into();
     for child in node.children_with_tokens() {
         match child {
             rowan::NodeOrToken::Node(node_child) => {
                 str.push_str(&format!("{:?}(", Lang::kind_from_raw(node_child.kind())));
-                str.push_str(node_token(node_child.clone()).as_str());
+                str.push_str(syntax_node_to_string(node_child.clone()).as_str());
                 str.push_str(")");
+            }
+
+            rowan::NodeOrToken::Token(node_token) => str.push_str(node_token.text()),
+        }
+    }
+    str
+}
+
+fn geometric_realization(node: SyntaxNode) -> String {
+    let mut str: String = "".into();
+    for child in node.children_with_tokens() {
+        match child {
+            rowan::NodeOrToken::Node(node_child) => {
+                str.push_str(geometric_realization(node_child.clone()).as_str());
             }
 
             rowan::NodeOrToken::Token(node_token) => str.push_str(node_token.text()),
@@ -143,8 +161,11 @@ fn node_token(node: SyntaxNode) -> String {
 #[test]
 fn test_parser() {
     use super::*;
-    let text = "let f = 5 \n let x = asdljfaldsf";
-    println!("{:?}", node_token(syntax(parse(text))));
+    let text = "fn f (x : int) -> int { val x + 1
+    }";
+    let syntax_node = string_to_syntax(text);
+    println!("{:?}", syntax_node_to_string(syntax_node.clone()));
+    println!("{:?}", geometric_realization(syntax_node));
 
     // println!("{:?}", syntax_node.first_token())
 }

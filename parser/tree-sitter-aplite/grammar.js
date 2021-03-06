@@ -5,6 +5,7 @@ function separated(expr, seperator) {
 }
 
 const PRECEDENCE = {
+    MEM: 4,
     APP: 3,
     FUN: 2,
     LAM: 1,
@@ -41,6 +42,7 @@ module.exports = grammar({
             $.do_stmt,
             $.val_stmt,
             $.fn_stmt,
+            $.import_stmt,
         ),
 
         let_stmt: $ => seq("let", $.ident, optional(seq(":", $._expr)), "=", $._expr),
@@ -51,6 +53,7 @@ module.exports = grammar({
 
         fn_stmt: $ => seq("fn", $.ident, optional($.binders), optional(seq("->", $._expr)), $._expr),
 
+        import_stmt: $ => seq("import", $._expr),
         // an Ident is a sequence of alphanumeric characters
         ident: $ => /\w+/,
 
@@ -73,6 +76,8 @@ module.exports = grammar({
             $.pi_expr,
             $.stmt_expr,
             $.paren_expr,
+            $.member_expr,
+            $.string_expr,
         ),
 
         type_expr: $ => "Type",
@@ -90,6 +95,28 @@ module.exports = grammar({
         stmt_expr: $ => seq("{", repeat($._stmt), "}"),
 
         paren_expr: $ => seq("(", $._expr, ")"),
+
+        member_expr: $ => prec.left(PRECEDENCE.MEM, seq($._expr, ".", $._expr)),
+
+        string_expr: $ => seq(
+            '"',
+            repeat(choice(
+                token.immediate(/[^"\\]+/),
+                $.escape_sequence
+            )),
+            '"'
+        ),
+
+        escape_sequence: $ => token.immediate(seq(
+            '\\',
+            choice(
+                /[^xu0-7]/,
+                /[0-7]{1,3}/,
+                /x[0-9a-fA-F]{2}/,
+                /u[0-9a-fA-F]{4}/,
+                /u{[0-9a-fA-F]+}/
+            )
+        )),
 
         // a Binder is | <one or more of var_name : Expr> |
         binders: $ => seq("|", separated($.binder_component, ","), "|"),

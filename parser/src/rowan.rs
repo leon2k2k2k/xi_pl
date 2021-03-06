@@ -14,23 +14,26 @@ use crate::to_tree;
 #[allow(non_camel_case_types)]
 #[repr(u16)]
 enum MySyntaxKind {
-    SOURCE_FILE,  //"source_file"
-    LINE_COMMENT, //"line_comment"
-    WHITESPACE,   // "whitespace"
-    NEWLINE,      // "newline"
-    LET_STMT,     // "let_stmt"
-    DO_STMT,      // "do_stmt"
-    VAL_STMT,     // "val_stmt"
-    FN_STMT,      // "fn_stmt"
-    IDENT,        // "ident"
-    TYPE_EXPR,    // "type_expr"
-    BANG_EXPR,    // "bang_expr"
-    APP_EXPR,     // "app_expr"
+    SOURCE_FILE,
+    LINE_COMMENT,
+    WHITESPACE,
+    NEWLINE,
+    LET_STMT,
+    DO_STMT,
+    VAL_STMT,
+    FN_STMT,
+    IMPORT_STMT,
+    IDENT,
+    TYPE_EXPR,
+    BANG_EXPR,
+    APP_EXPR,
     FUN_EXPR,
     LAMBDA_EXPR,
     PI_EXPR,
     STMT_EXPR,
     PAREN_EXPR,
+    MEMBER_EXPR,
+    STRING_EXPR,
     BINDERS,
     BINDER_COMPONENT,
     ERROR,
@@ -90,6 +93,7 @@ pub fn parse_rec(text: &str, node: Node, builder: &mut GreenNodeBuilder) {
         "do_stmt" => DO_STMT,
         "val_stmt" => VAL_STMT,
         "fn_stmt" => FN_STMT,
+        "import_stmt" => IMPORT_STMT,
         "ident" => IDENT,
         "type_expr" => TYPE_EXPR,
         "bang_expr" => BANG_EXPR,
@@ -99,10 +103,11 @@ pub fn parse_rec(text: &str, node: Node, builder: &mut GreenNodeBuilder) {
         "pi_expr" => PI_EXPR,
         "stmt_expr" => STMT_EXPR,
         "paren_expr" => PAREN_EXPR,
+        "member_expr" => MEMBER_EXPR,
+        "string_expr" => STRING_EXPR,
         "binders" => BINDERS,
         "binder_component" => BINDER_COMPONENT,
         "ERROR" => ERROR,
-
         _ => STRING,
     };
 
@@ -161,8 +166,7 @@ fn geometric_realization(node: SyntaxNode) -> String {
 #[test]
 fn test_parser() {
     use super::*;
-    let text = "fn f (x : int) -> int { val x + 1
-    }";
+    let text = "import amsthm  let x = amsthm.mathcal(\"asldjf\")";
     let syntax_node = string_to_syntax(text);
     println!("{:?}", syntax_node_to_string(syntax_node.clone()));
     println!("{:?}", geometric_realization(syntax_node));

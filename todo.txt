@@ -10,6 +10,7 @@ todo list:
     a. We can get to Tree. 
     b. Type inference. 
     c. name resolution
+    d. Streamline the editing process for front_end (string to rowan tree)
 
 
 3. Prettify:

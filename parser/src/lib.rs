@@ -1,3 +1,4 @@
+mod resolve;
 mod rowan;
 use tree_sitter::{Language, Parser, Tree};
 
@@ -23,7 +24,7 @@ mod tests {
 
         // println!("{:?}", root_node.kind());
         println!("{:?}", root_node.child(0).unwrap().kind());
-        let word = root_node.child(0).unwrap().child(0).unwrap();   
+        let word = root_node.child(0).unwrap().child(0).unwrap();
         println!("{:?}", word);
         let text = &source_code[root_node.child(0).unwrap().child(0).unwrap().byte_range()];
         println!("{}", text);

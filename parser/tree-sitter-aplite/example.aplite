@@ -1,2 +1,1 @@
-import amsthm
-let x = amsthm.print("hello \" ")
+import 

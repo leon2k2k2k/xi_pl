@@ -51,7 +51,7 @@ module.exports = grammar({
 
         val_stmt: $ => seq("val", $._expr),
 
-        fn_stmt: $ => seq("fn", $.ident, optional($.binders), optional(seq("->", $._expr)), $._expr),
+        fn_stmt: $ => seq("fn", $.ident, optional($.binders), optional(seq("->", $._expr)), $.stmt_expr),
 
         import_stmt: $ => seq("import", $._expr),
         // an Ident is a sequence of alphanumeric characters
@@ -100,21 +100,21 @@ module.exports = grammar({
 
         string_expr: $ => seq(
             '"',
-            repeat(choice(
-                token.immediate(/[^"\\]+/),
-                $.escape_sequence
-            )),
+            repeat($.string_component),
             '"'
         ),
 
-        escape_sequence: $ => token.immediate(seq(
-            '\\',
-            choice(
-                /[^xu0-7]/,
-                /[0-7]{1,3}/,
-                /x[0-9a-fA-F]{2}/,
-                /u[0-9a-fA-F]{4}/,
-                /u{[0-9a-fA-F]+}/
+        string_component: $ => token.immediate(choice(
+            /[^"\\]+/,
+            seq(
+                '\\',
+                choice(
+                    /[^xu0-7]/,
+                    /[0-7]{1,3}/,
+                    /x[0-9a-fA-F]{2}/,
+                    /u[0-9a-fA-F]{4}/,
+                    /u{[0-9a-fA-F]+}/
+                )
             )
         )),
 

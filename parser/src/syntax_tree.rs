@@ -1,9 +1,8 @@
 use std::fmt::Display;
 
+use rowan::GreenNode;
 use rowan::GreenNodeBuilder;
 use rowan::Language;
-use rowan::SyntaxKind;
-use rowan::{cursor::SyntaxNode, GreenNode};
 use tree_sitter::Node;
 
 use crate::to_tree;
@@ -13,7 +12,7 @@ use crate::to_tree;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[allow(non_camel_case_types)]
 #[repr(u16)]
-enum MySyntaxKind {
+pub enum SyntaxKind {
     SOURCE_FILE,
     LINE_COMMENT,
     WHITESPACE,
@@ -34,30 +33,44 @@ enum MySyntaxKind {
     PAREN_EXPR,
     MEMBER_EXPR,
     STRING_EXPR,
+    STRING_COMPONENT,
     BINDERS,
     BINDER_COMPONENT,
     ERROR,
     STRING,
 }
 
-impl From<MySyntaxKind> for rowan::SyntaxKind {
-    fn from(kind: MySyntaxKind) -> Self {
+impl SyntaxKind {
+    pub fn is_extra(&self) -> bool {
+        use SyntaxKind::*;
+        match self {
+            STRING | WHITESPACE | NEWLINE | ERROR => true,
+            _ => false,
+        }
+    }
+}
+
+impl From<SyntaxKind> for rowan::SyntaxKind {
+    fn from(kind: SyntaxKind) -> Self {
         Self(kind as u16)
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum Lang {}
+pub enum Lang {}
 impl rowan::Language for Lang {
-    type Kind = MySyntaxKind;
+    type Kind = SyntaxKind;
     fn kind_from_raw(raw: rowan::SyntaxKind) -> Self::Kind {
-        assert!(raw.0 <= MySyntaxKind::STRING as u16);
-        unsafe { std::mem::transmute::<u16, MySyntaxKind>(raw.0) }
+        assert!(raw.0 <= SyntaxKind::STRING as u16);
+        unsafe { std::mem::transmute::<u16, SyntaxKind>(raw.0) }
     }
     fn kind_to_raw(kind: Self::Kind) -> rowan::SyntaxKind {
         kind.into()
     }
 }
+
+pub type SyntaxNode = rowan::SyntaxNode<Lang>;
+pub type SyntaxToken = rowan::SyntaxToken<Lang>;
 /// The parse results are stored as a "green tree".
 struct Parse {
     green_node: GreenNode,
@@ -67,7 +80,7 @@ struct Parse {
 
 /// take a string and give back a GreenNode and a list of errors.
 fn parse(text: &str) -> GreenNode {
-    use MySyntaxKind::*;
+    use SyntaxKind::*;
 
     let tree = to_tree(text.into());
     let root_node = tree.root_node();
@@ -81,7 +94,7 @@ fn parse(text: &str) -> GreenNode {
 /// Take a string(the source code), the current node, the currnet builder, and list of errors
 /// parse through the current node.
 pub fn parse_rec(text: &str, node: Node, builder: &mut GreenNodeBuilder) {
-    use MySyntaxKind::*;
+    use SyntaxKind::*;
 
     let node_kind = node.kind();
     let kind = match node_kind {
@@ -105,6 +118,7 @@ pub fn parse_rec(text: &str, node: Node, builder: &mut GreenNodeBuilder) {
         "paren_expr" => PAREN_EXPR,
         "member_expr" => MEMBER_EXPR,
         "string_expr" => STRING_EXPR,
+        "string_component" => STRING_COMPONENT,
         "binders" => BINDERS,
         "binder_component" => BINDER_COMPONENT,
         "ERROR" => ERROR,
@@ -138,7 +152,7 @@ fn syntax_node_to_string(node: SyntaxNode) -> String {
     for child in node.children_with_tokens() {
         match child {
             rowan::NodeOrToken::Node(node_child) => {
-                str.push_str(&format!("{:?}(", Lang::kind_from_raw(node_child.kind())));
+                str.push_str(&format!("{:?}(", node_child.kind()));
                 str.push_str(syntax_node_to_string(node_child.clone()).as_str());
                 str.push_str(")");
             }
@@ -163,10 +177,16 @@ fn geometric_realization(node: SyntaxNode) -> String {
     str
 }
 
+pub fn nonextra_children(node: SyntaxNode) -> impl Iterator<Item = SyntaxNode> {
+    node.children().filter(|node| !node.kind().is_extra())
+}
+
 #[test]
 fn test_parser() {
     use super::*;
-    let text = "import amsthm  let x = amsthm.mathcal(\"asldjf\")";
+    let text = "let x = \"a\"";
+    // let tree_sitter_node = to_tree(text).root_node();
+    // println!("{:?}", tree_sitter_node);
     let syntax_node = string_to_syntax(text);
     println!("{:?}", syntax_node_to_string(syntax_node.clone()));
     println!("{:?}", geometric_realization(syntax_node));

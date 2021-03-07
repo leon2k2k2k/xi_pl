@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 tree-sitter = "0.17"
 rowan = "0.12"
+free_var = { path = "../free_var" }
 
 [build-dependencies]
 cc = "*"

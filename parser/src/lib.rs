@@ -1,5 +1,5 @@
 mod resolve;
-mod rowan;
+mod syntax_tree;
 use tree_sitter::{Language, Parser, Tree};
 
 extern "C" {

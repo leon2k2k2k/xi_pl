@@ -107,16 +107,11 @@ module.exports = grammar({
 
         string_component: $ => token.immediate(choice(
             /[^"\\]+/,
-            seq(
-                '\\',
-                choice(
-                    /[^xu0-7]/,
-                    /[0-7]{1,3}/,
-                    /x[0-9a-fA-F]{2}/,
-                    /u[0-9a-fA-F]{4}/,
-                    /u{[0-9a-fA-F]+}/
-                )
-            )
+            /\\[^xu0-7]/,
+            /\\[0-7]{1,3}/,
+            /\\x[0-9a-fA-F]{2}/,
+            /\\u[0-9a-fA-F]{4}/,
+            /\\u{[0-9a-fA-F]+}/
         )),
 
         // a Binder is | <one or more of var_name : Expr> |

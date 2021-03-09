@@ -31,22 +31,20 @@ enum ExprKind {
     Pi(Binders, Expr),
     Stmt(Vec<Stmt>),
     Member(Expr, Expr),
-    StringLit(StringLit),
+    StringLit(Vec<StringToken>),
 }
 
-#[derive(Clone, Debug)]
-struct StringLit(Vec<StringToken>, Span);
 #[derive(Clone, Debug)]
 struct StringToken(StringTokenKind, Span);
 
 #[derive(Clone, Debug)]
 enum StringTokenKind {
-    Char(char),
+    String(String),
     Escape(String),
 }
 
 #[derive(Clone, Debug)]
-struct Binders(Vec<(Ident, Expr)>, Span);
+struct Binders(Vec<(Ident, Option<Expr>)>, Span);
 #[derive(Clone, Debug)]
 struct Ident(IdentIndex, String, Span);
 
@@ -59,7 +57,10 @@ struct NameNotFoundError {
 type Span = rowan::TextRange;
 
 fn default_ctx() -> BTreeMap<String, IdentIndex> {
-    BTreeMap::new()
+    let mut ctx = BTreeMap::new();
+    ctx.insert("console".into(), IdentIndex::new());
+    ctx.insert("".into(), IdentIndex::new());
+    ctx
 }
 
 fn parse_source_file(node: &SyntaxNode) -> SourceFile {
@@ -107,26 +108,22 @@ fn parse_ident(
 }
 
 fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt {
+    dbg!(node);
     let children = nonextra_children(node).collect::<Vec<_>>();
 
     let stmt_kind = match node.kind() {
         SyntaxKind::LET_STMT => {
-            if children.len() == 6 {
-                assert_eq!(children[0].text(), "let");
-                let ident = create_ident(&children[1], ctx);
-                assert_eq!(children[2].text(), ":");
-                let var_type = parse_expr(&children[3], ctx);
-                assert_eq!(children[4].text(), "=");
-                let body = parse_expr(&children[5], ctx);
+            if children.len() == 3 {
+                let ident = create_ident(&children[0], ctx);
+                let var_type = parse_expr(&children[1], ctx);
+                let body = parse_expr(&children[2], ctx);
                 StmtKind::Let(ident, Some(var_type), body)
-            } else if children.len() == 4 {
-                assert_eq!(children[0].text(), "let");
-                let ident = create_ident(&children[1], ctx);
-                assert_eq!(children[2].text(), "=");
-                let body = parse_expr(&children[3], ctx);
+            } else if children.len() == 2 {
+                let ident = create_ident(&children[0], ctx);
+                let body = parse_expr(&children[1], ctx);
                 StmtKind::Let(ident, None, body)
             } else {
-                panic!("The length of the let_stmt should be 4 or 6.")
+                panic!("The length of the let_stmt should be 2 or 4.")
             }
         }
         SyntaxKind::DO_STMT => {
@@ -138,6 +135,7 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt
             }
         }
         SyntaxKind::VAL_STMT => {
+            dbg!(children.clone());
             if children.len() == 1 {
                 let expr = parse_expr(&children[0], ctx);
                 StmtKind::Val(expr)
@@ -146,29 +144,25 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt
             }
         }
         SyntaxKind::FN_STMT => {
-            if children.len() == 6 {
+            if children.len() == 4 {
                 // fn foo |binders| -> return_type  {stmt_expr}
-                assert_eq!(children[0].text(), "fn");
-                let ident = create_ident(&children[1], ctx);
-                let binders = parse_binders(&children[2], ctx);
-                assert_eq!(children[3].text(), "->");
-                let expr = parse_expr(&children[4], ctx);
-                let body = parse_expr(&children[5], ctx);
+                let ident = create_ident(&children[0], ctx);
+                let (binders, new_ctx) = parse_binders(&children[1], ctx);
+                let expr = parse_expr(&children[2], ctx);
+                let body = parse_expr(&children[3], &new_ctx);
                 StmtKind::Fn(ident, binders, Some(expr), body)
-            } else if children.len() == 4 {
-                assert_eq!(children[0].text(), "fn");
-                let ident = create_ident(&children[1], ctx);
-                let binders = parse_binders(&children[2], ctx);
-                let body = parse_expr(&children[5], ctx);
+            } else if children.len() == 3 {
+                let ident = create_ident(&children[0], ctx);
+                let (binders, new_ctx) = parse_binders(&children[1], ctx);
+                let body = parse_expr(&children[2], &new_ctx);
                 StmtKind::Fn(ident, binders, None, body)
             } else {
-                panic!("the length of fn_stmt should be 6")
+                panic!("the length of fn_stmt should be 4 or 3")
             }
         }
         SyntaxKind::IMPORT_STMT => {
-            if children.len() == 2 {
-                assert_eq!(children[0].text(), "import");
-                let ident = create_ident(&children[1], ctx);
+            if children.len() == 1 {
+                let ident = create_ident(&children[0], ctx);
                 todo!()
             } else {
                 panic!("import_stmt have to be of the form import [import]")
@@ -180,7 +174,7 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt
     Stmt(stmt_kind, node.text_range())
 }
 
-fn parse_expr(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Expr {
+fn parse_expr(node: &SyntaxNode, ctx: &BTreeMap<String, IdentIndex>) -> Expr {
     dbg!(node);
     let children = nonextra_children(node).collect::<Vec<_>>();
 
@@ -194,8 +188,7 @@ fn parse_expr(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Expr
         }
         SyntaxKind::TYPE_EXPR => ExprKind::Type,
         SyntaxKind::BANG_EXPR => {
-            if children.len() == 2 {
-                assert_eq!(children[1].text(), "!");
+            if children.len() == 1 {
                 ExprKind::Bang(parse_expr(&children[0], ctx))
             } else {
                 panic!("bang_expr should be of the form [expr] !")
@@ -211,30 +204,27 @@ fn parse_expr(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Expr
             }
         }
         SyntaxKind::FUN_EXPR => {
-            if children.len() == 3 {
-                assert_eq!(children[1].text(), "->");
+            if children.len() == 2 {
                 let expr_1 = parse_expr(&children[0], ctx);
-                let expr_2 = parse_expr(&children[2], ctx);
+                let expr_2 = parse_expr(&children[1], ctx);
                 ExprKind::Fun(expr_1, expr_2)
             } else {
                 panic!("Fun_expr should be of the form [expr_1] -> [expr_2]")
             }
         }
         SyntaxKind::LAMBDA_EXPR => {
-            if children.len() == 3 {
-                assert_eq!(children[0].text(), "lambda");
-                let binders = parse_binders(&children[1], ctx);
-                let expr = parse_expr(&children[2], ctx);
+            if children.len() == 2 {
+                let (binders, new_ctx) = parse_binders(&children[0], ctx);
+                let expr = parse_expr(&children[1], &new_ctx);
                 ExprKind::Lam(binders, expr)
             } else {
                 panic!("lambda_expr should be of the form lambda [binders] [expr]")
             }
         }
         SyntaxKind::PI_EXPR => {
-            if children.len() == 3 {
-                assert_eq!(children[0].text(), "pi");
-                let binders = parse_binders(&children[1], ctx);
-                let expr = parse_expr(&children[2], ctx);
+            if children.len() == 2 {
+                let (binders, new_ctx) = parse_binders(&children[0], ctx);
+                let expr = parse_expr(&children[1], &new_ctx);
                 ExprKind::Pi(binders, expr)
             } else {
                 panic!("pi_expr should be of the form pi [binders] [expr]")
@@ -242,54 +232,67 @@ fn parse_expr(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Expr
         }
         SyntaxKind::STMT_EXPR => {
             let mut stmt = vec![];
+            let mut new_ctx = ctx.clone();
             for child in children {
-                stmt.push(parse_stmt(&child, ctx))
+                stmt.push(parse_stmt(&child, &mut new_ctx))
             }
             ExprKind::Stmt(stmt)
         }
         SyntaxKind::MEMBER_EXPR => {
-            if children.len() == 3 {
-                assert_eq!(children[1].text(), ".");
+            if children.len() == 2 {
                 let lhs = parse_expr(&children[0], ctx);
-                let rhs = parse_expr(&children[2], ctx);
+                let rhs = parse_expr(&children[1], ctx);
                 ExprKind::Member(lhs, rhs)
             } else {
                 panic!("member_expr should be of the form [lhs].[rhs]")
             }
         }
         SyntaxKind::STRING_EXPR => {
-            let actual_children = node.children_with_tokens();
-            panic!("tried to parse a string");
-            // for child in actual_children {
-            //     match child {
-            //         NodeOrToken::Node(child) => {
-            //             if child.first_token().unwrap().text() == "\\" {
-            //                 // assert!(child.)
-            //                 string_component.push(child.last_token());
-            //             } else {
-            //                 string_component.push(child.first_token().push());
-            //             }
-            //         }
-            //         NodeOrToken::Token(child) => {
-            //             let text = child.text();
-            //             for char in text.chars() {
-            //                 string_component.push(StringTokenKind::Char(char));
-            //             }
-            //         }
-            //     }
-            // }
+            let mut string_component = vec![];
+            for child in children {
+                dbg!(child.clone());
+                let child_token = child.first_token().expect("Expected token");
+                if child_token.text().chars().next().unwrap() == '\\' {
+                    let string_token_kind = StringTokenKind::Escape(child_token.text()[1..].into());
+                    string_component.push(StringToken(string_token_kind, child_token.text_range()));
+                } else {
+                    let string_token_kind = StringTokenKind::String(child_token.text().into());
+                    string_component.push(StringToken(string_token_kind, child_token.text_range()));
+                }
+            }
+            ExprKind::StringLit(string_component)
         }
         _ => panic!("parse_expr can only parse an expr"),
     };
     Expr(Box::new(expr_kind), node.text_range())
 }
 
-fn parse_binders(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Binders {
+fn parse_binders(
+    node: &SyntaxNode,
+    ctx: &BTreeMap<String, IdentIndex>,
+) -> (Binders, BTreeMap<String, IdentIndex>) {
     if let SyntaxKind::BINDERS = node.kind() {
-        let binders = vec![];
-        // TODO!//
+        let children = nonextra_children(node).collect::<Vec<_>>();
 
-        Binders(binders, node.text_range())
+        let mut ctx = ctx.clone();
+
+        let mut binders = vec![];
+
+        for child in children {
+            let grandchildren = nonextra_children(&child).collect::<Vec<_>>();
+            if grandchildren.len() == 2 {
+                let binder_name = create_ident(&grandchildren[0], &mut ctx);
+                let expr = parse_expr(&grandchildren[1], &ctx);
+                binders.push((binder_name, Some(expr)));
+            } else if grandchildren.len() == 1 {
+                let binder_name = create_ident(&grandchildren[0], &mut ctx);
+                binders.push((binder_name, None));
+            } else {
+                panic!("bind_components should be of the form x")
+            }
+        }
+
+        (Binders(binders, node.text_range()), ctx)
     } else {
         panic!("parse_binder con only parse a binder")
     }
@@ -306,7 +309,8 @@ mod test {
     #[test]
     fn test_parser() {
         use super::*;
-        let text = "fn foo |x : Type| -> Type {val x }";
+        let text = "let foo |x : Type, y : Type| -> Type {
+            let x  = console do x}";
         let node = source_code_to_parse(text);
         dbg!(node);
     }

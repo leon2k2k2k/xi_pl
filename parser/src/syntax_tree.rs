@@ -44,7 +44,8 @@ impl SyntaxKind {
     pub fn is_extra(&self) -> bool {
         use SyntaxKind::*;
         match self {
-            WHITESPACE | NEWLINE | ERROR => true,
+            ERROR => panic!("error lol"),
+            STRING | WHITESPACE | NEWLINE => true,
             _ => false,
         }
     }
@@ -108,6 +109,7 @@ pub fn parse_rec(text: &str, node: Node, builder: &mut GreenNodeBuilder) {
         "fn_stmt" => FN_STMT,
         "import_stmt" => IMPORT_STMT,
         "ident" => IDENT,
+        "ident_expr" => IDENT_EXPR,
         "type_expr" => TYPE_EXPR,
         "bang_expr" => BANG_EXPR,
         "app_expr" => APP_EXPR,

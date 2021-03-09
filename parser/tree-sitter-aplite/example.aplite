@@ -1,1 +1,1 @@
-import 
+fn foo |x : Type| -> Type {val x }

@@ -51,9 +51,9 @@ module.exports = grammar({
 
         val_stmt: $ => seq("val", $._expr),
 
-        fn_stmt: $ => seq("fn", $.ident, optional($.binders), optional(seq("->", $._expr)), $.stmt_expr),
+        fn_stmt: $ => seq("fn", $.ident, $.binders, optional(seq("->", $._expr)), $.stmt_expr),
 
-        import_stmt: $ => seq("import", $._expr),
+        import_stmt: $ => seq("import", $.ident),
         // an Ident is a sequence of alphanumeric characters
         ident: $ => /\w+/,
 
@@ -67,7 +67,7 @@ module.exports = grammar({
         // 7. Pi <binder: <body: Expr>
 
         _expr: $ => choice(
-            $.ident,
+            $.ident_expr,
             $.type_expr,
             $.bang_expr,
             $.app_expr,
@@ -75,11 +75,12 @@ module.exports = grammar({
             $.lambda_expr,
             $.pi_expr,
             $.stmt_expr,
-            $.paren_expr,
             $.member_expr,
             $.string_expr,
+            $._paren_expr,
         ),
 
+        ident_expr: $ => $.ident,
         type_expr: $ => "Type",
 
         bang_expr: $ => seq($._expr, "!"),
@@ -94,7 +95,7 @@ module.exports = grammar({
 
         stmt_expr: $ => seq("{", repeat($._stmt), "}"),
 
-        paren_expr: $ => seq("(", $._expr, ")"),
+        _paren_expr: $ => seq("(", $._expr, ")"),
 
         member_expr: $ => prec.left(PRECEDENCE.MEM, seq($._expr, ".", $._expr)),
 
@@ -125,3 +126,4 @@ module.exports = grammar({
 
     }
 });
+

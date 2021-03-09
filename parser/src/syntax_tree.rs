@@ -23,6 +23,7 @@ pub enum SyntaxKind {
     FN_STMT,
     IMPORT_STMT,
     IDENT,
+    IDENT_EXPR,
     TYPE_EXPR,
     BANG_EXPR,
     APP_EXPR,
@@ -30,7 +31,6 @@ pub enum SyntaxKind {
     LAMBDA_EXPR,
     PI_EXPR,
     STMT_EXPR,
-    PAREN_EXPR,
     MEMBER_EXPR,
     STRING_EXPR,
     STRING_COMPONENT,
@@ -44,7 +44,7 @@ impl SyntaxKind {
     pub fn is_extra(&self) -> bool {
         use SyntaxKind::*;
         match self {
-            STRING | WHITESPACE | NEWLINE | ERROR => true,
+            WHITESPACE | NEWLINE | ERROR => true,
             _ => false,
         }
     }
@@ -115,7 +115,6 @@ pub fn parse_rec(text: &str, node: Node, builder: &mut GreenNodeBuilder) {
         "lambda_expr" => LAMBDA_EXPR,
         "pi_expr" => PI_EXPR,
         "stmt_expr" => STMT_EXPR,
-        "paren_expr" => PAREN_EXPR,
         "member_expr" => MEMBER_EXPR,
         "string_expr" => STRING_EXPR,
         "string_component" => STRING_COMPONENT,
@@ -143,7 +142,7 @@ fn syntax(node: GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(node.clone())
 }
 
-fn string_to_syntax(text: &str) -> SyntaxNode {
+pub fn string_to_syntax(text: &str) -> SyntaxNode {
     SyntaxNode::new_root(parse(text))
 }
 
@@ -177,19 +176,21 @@ fn geometric_realization(node: SyntaxNode) -> String {
     str
 }
 
-pub fn nonextra_children(node: SyntaxNode) -> impl Iterator<Item = SyntaxNode> {
+pub fn nonextra_children(node: &SyntaxNode) -> impl Iterator<Item = SyntaxNode> {
     node.children().filter(|node| !node.kind().is_extra())
 }
 
-#[test]
-fn test_parser() {
-    use super::*;
-    let text = "let x = \"a\"";
-    // let tree_sitter_node = to_tree(text).root_node();
-    // println!("{:?}", tree_sitter_node);
-    let syntax_node = string_to_syntax(text);
-    println!("{:?}", syntax_node_to_string(syntax_node.clone()));
-    println!("{:?}", geometric_realization(syntax_node));
+mod test {
+    #[test]
+    fn test_syntax_tree() {
+        use super::*;
+        let text = "fn foo |x : Nat| -> Nat { val x }";
+        // let tree_sitter_node = to_tree(text).root_node();
+        // println!("{:?}", tree_sitter_node);
+        let syntax_node = string_to_syntax(text);
+        println!("{:?}", syntax_node_to_string(syntax_node.clone()));
+        println!("{:?}", geometric_realization(syntax_node));
 
-    // println!("{:?}", syntax_node.first_token())
+        // println!("{:?}", syntax_node.first_token())
+    }
 }

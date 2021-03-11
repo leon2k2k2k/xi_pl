@@ -1,0 +1,35 @@
+Examples of UI errors and how to handle them:
+
+* Stmt errors:
+
+lt x = 5
+tree-sitter: Source file (Error ...)
+error: invalid statement(s)
+
+let x =    let y = 
+tree-sitter: Source file(Error ...)
+error: invalid let statement
+
+fn foo (x : Nat) Nat ...
+tree-sitter: Source_file(Error ...)
+error: invalid fn statement
+
+
+* expr errors:
+let func = (lambda |x : Nat 4)
+tree-sitter: Source_file(let_stmt .... (lambda_stmt (error...)...)...)
+right now: tree-sitter errors instead of recognizing that it is a let_stmt:
+            Source_file(error ...)
+error: invalid lambda expression. 
+
+
+do lama |x : Nat| 4
+tree-sitter: Source_file(do_stmt(error...)...)
+error: invalid expression
+
+
+* ident errors:
+
+
+
+f(x )

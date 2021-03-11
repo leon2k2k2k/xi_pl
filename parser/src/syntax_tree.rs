@@ -44,7 +44,6 @@ impl SyntaxKind {
     pub fn is_extra(&self) -> bool {
         use SyntaxKind::*;
         match self {
-            ERROR => panic!("error lol"),
             STRING | WHITESPACE | NEWLINE => true,
             _ => false,
         }
@@ -186,7 +185,7 @@ mod test {
     #[test]
     fn test_syntax_tree() {
         use super::*;
-        let text = "fn foo |x : Nat| -> Nat { val x }";
+        let text = "lt x = 5  let y = 5";
         // let tree_sitter_node = to_tree(text).root_node();
         // println!("{:?}", tree_sitter_node);
         let syntax_node = string_to_syntax(text);

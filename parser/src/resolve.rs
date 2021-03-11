@@ -5,6 +5,13 @@ use std::collections::BTreeMap;
 
 #[derive(Clone, Debug)]
 struct SourceFile(Vec<Stmt>);
+#[derive(Clone, Debug)]
+enum Error {
+    Stmt(StmtError),
+    // Expr(ExprError),
+    // Ident(IdentError),
+    // Binder(BinderError),
+}
 
 #[derive(Clone, Debug)]
 struct Stmt(StmtKind, Span);
@@ -16,6 +23,17 @@ enum StmtKind {
     Val(Expr),
     // Fn(Ident, Binders, Option<Expr>, Expr), // Expr should be a stmt_expr.
     Import(Ident),
+    Error(StmtError),
+}
+#[derive(Clone, Debug)]
+struct StmtError(StmtErrorKind, Span);
+#[derive(Clone, Debug)]
+enum StmtErrorKind {
+    InvalidStmt,
+    FnStmt,
+    DoStmt,
+    LetStmt,
+    ImportStmt,
 }
 
 #[derive(Clone, Debug)]
@@ -181,6 +199,10 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt
             } else {
                 panic!("import_stmt have to be of the form import [import]")
             }
+        }
+        SyntaxKind::ERROR => {
+            let first_word = &children[0];
+            todo!();
         }
         _ => panic!("parse_stmt can only parse a stmt"),
     };

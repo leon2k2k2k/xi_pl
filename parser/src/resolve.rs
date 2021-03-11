@@ -12,9 +12,9 @@ struct Stmt(StmtKind, Span);
 #[derive(Clone, Debug)]
 enum StmtKind {
     Let(Ident, Option<Expr>, Expr),
-    Do(Expr),
+    // Do(Expr),
     Val(Expr),
-    Fn(Ident, Binders, Option<Expr>, Expr), // Expr should be a stmt_expr.
+    // Fn(Ident, Binders, Option<Expr>, Expr), // Expr should be a stmt_expr.
     Import(Ident),
 }
 
@@ -127,9 +127,14 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt
             }
         }
         SyntaxKind::DO_STMT => {
+            // do expr
+            // becomes let _ = expr;
+
             if children.len() == 1 {
                 let expr = parse_expr(&children[0], ctx);
-                StmtKind::Do(expr)
+                let ident_index = IdentIndex::new();
+                let ident = Ident(ident_index, "_".into(), TextRange::empty(expr.1.start()));
+                StmtKind::Let(ident, None, expr)
             } else {
                 panic!("the length of do_stmt should be 1")
             }
@@ -162,7 +167,9 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt
                 let ident = create_ident(&children[0], ctx);
                 let (binders, new_ctx) = parse_binders(&children[1], ctx);
                 let body = parse_expr(&children[2], &new_ctx); // lamda |binders| body
-                StmtKind::Fn(ident, binders, None, body)
+                let body_expr_kind = ExprKind::Lam(binders, body.clone());
+                let body_expr = Expr(Box::new(body_expr_kind), body.1);
+                StmtKind::Let(ident, None, body_expr)
             } else {
                 panic!("the length of fn_stmt should be 4 or 3")
             }

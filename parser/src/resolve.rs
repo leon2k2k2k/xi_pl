@@ -1,6 +1,6 @@
 use crate::syntax_tree::{nonextra_children, SyntaxKind, SyntaxNode, SyntaxToken};
 use free_var::FreeVar as IdentIndex;
-use rowan::NodeOrToken;
+use rowan::{NodeOrToken, TextRange};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug)]
@@ -145,16 +145,23 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt
         }
         SyntaxKind::FN_STMT => {
             if children.len() == 4 {
-                // fn foo |binders| -> return_type  {stmt_expr}
+                // fn foo |binders| -> expr  body
+                // becomes let foo (: pi |binders| expr) = lambda |binders| body
                 let ident = create_ident(&children[0], ctx);
                 let (binders, new_ctx) = parse_binders(&children[1], ctx);
                 let expr = parse_expr(&children[2], ctx);
                 let body = parse_expr(&children[3], &new_ctx);
-                StmtKind::Fn(ident, binders, Some(expr), body)
+                // StmtKind::Fn(ident, binders, Some(expr), body);
+                let func_expr_kind = ExprKind::Pi(binders.clone(), expr.clone());
+                let func_span = TextRange::new(binders.1.start(), expr.1.end());
+                let func_expr = Expr(Box::new(func_expr_kind), func_span);
+                let body_expr_kind = ExprKind::Lam(binders, body.clone());
+                let body_expr = Expr(Box::new(body_expr_kind), body.1);
+                StmtKind::Let(ident, Some(func_expr), body_expr)
             } else if children.len() == 3 {
                 let ident = create_ident(&children[0], ctx);
                 let (binders, new_ctx) = parse_binders(&children[1], ctx);
-                let body = parse_expr(&children[2], &new_ctx);
+                let body = parse_expr(&children[2], &new_ctx); // lamda |binders| body
                 StmtKind::Fn(ident, binders, None, body)
             } else {
                 panic!("the length of fn_stmt should be 4 or 3")
@@ -309,8 +316,8 @@ mod test {
     #[test]
     fn test_parser() {
         use super::*;
-        let text = "let foo |x : Type, y : Type| -> Type {
-            let x  = console do x}";
+        let text = "fn foo |x : Type, y : Type| -> Type {
+            val x}";
         let node = source_code_to_parse(text);
         dbg!(node);
     }

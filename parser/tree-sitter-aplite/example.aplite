@@ -1,1 +1,1 @@
-do hi()
+let foo |x : Type| -> Type {val x}

@@ -84,8 +84,17 @@ fn default_ctx() -> BTreeMap<String, IdentIndex> {
 fn parse_source_file(node: &SyntaxNode) -> SourceFile {
     let mut ctx = default_ctx();
     let mut stmts = vec![];
+    // let mut errors = vec![];
+    let mut previous_error = false;
     for child in nonextra_children(node) {
-        stmts.push(parse_stmt(&child, &mut ctx));
+        let child_stmt = parse_stmt(&child, &mut ctx);
+        // stmts.push(child_stmt);
+        // if let SyntaxKind::ERROR = child.kind() {
+        //     if previous_error == false {
+        //         previous_error = true;
+        //         errors.push(child_errors)
+        //     }
+        // }
     }
     SourceFile(stmts)
 }

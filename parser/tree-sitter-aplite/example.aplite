@@ -1,1 +1,1 @@
-do (lambda |x : Nat| asdf) let y = 5 
+let x = (lambda |x : Nat asdf)

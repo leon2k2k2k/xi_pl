@@ -1,2 +1,2 @@
 fn foo |x : Type, y : Type| -> Type {
-            val x}
+j

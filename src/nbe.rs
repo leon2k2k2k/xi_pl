@@ -4,13 +4,13 @@ normalization by evaluation. This is attempt two after mu. */
 
 use crate::judgment::Primitive;
 use crate::judgment::{Judgment, JudgmentKind, Metadata};
-use free_var::FreeVar;
+use free_var::VarIndex;
 use std::rc::Rc;
 
 #[derive(Clone)]
 pub enum SJudgment<T, S> {
     // TODO: do we need this?
-    FreeVar(FreeVar, Box<SJudgment<T, S>>),
+    FreeVar(VarIndex, Box<SJudgment<T, S>>),
     Syn(Judgment<T, S>),
     Lam(
         Box<SJudgment<T, S>>,
@@ -51,7 +51,7 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
             match sem {
                 SJudgment::Syn(judgment) => judgment,
                 SJudgment::Lam(svar_type, func) => {
-                    let free_var = FreeVar::new();
+                    let free_var = VarIndex::new();
                     let expr = down(func(up(Judgment::free(
                         free_var,
                         down(*svar_type.clone()),
@@ -62,7 +62,7 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
                     Judgment::lam(down(*svar_type.clone()), expr_rebound, None)
                 }
                 SJudgment::Pi(svar_type, func) => {
-                    let free_var = FreeVar::new();
+                    let free_var = VarIndex::new();
                     let expr = down(func(up(Judgment::free(
                         free_var,
                         down(*svar_type.clone()),

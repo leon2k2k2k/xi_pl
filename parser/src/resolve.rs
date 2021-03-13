@@ -1,12 +1,12 @@
 use crate::syntax_tree::{nonextra_children, SyntaxKind, SyntaxNode, SyntaxToken};
-use free_var::FreeVar as IdentIndex;
+use free_var::FreeVar as VarIndex;
 use rowan::{NodeOrToken, TextRange};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug)]
-struct SourceFile(Vec<Stmt>);
+pub struct SourceFile(Vec<Stmt>);
 #[derive(Clone, Debug)]
-enum Error {
+pub enum Error {
     Stmt(StmtError),
     // Expr(ExprError),
     // Ident(IdentError),
@@ -14,21 +14,21 @@ enum Error {
 }
 
 #[derive(Clone, Debug)]
-struct Stmt(StmtKind, Span);
+pub struct Stmt(pub StmtKind, pub Span);
 
 #[derive(Clone, Debug)]
-enum StmtKind {
-    Let(Ident, Option<Expr>, Expr),
+pub enum StmtKind {
+    Let(Var, Expr),
     // Do(Expr),
     Val(Expr),
     // Fn(Ident, Binders, Option<Expr>, Expr), // Expr should be a stmt_expr.
-    Import(Ident),
+    Import(Var),
     Error(StmtError),
 }
 #[derive(Clone, Debug)]
-struct StmtError(StmtErrorKind, Span);
+pub struct StmtError(StmtErrorKind, Span);
 #[derive(Clone, Debug)]
-enum StmtErrorKind {
+pub enum StmtErrorKind {
     InvalidStmt,
     FnStmt,
     DoStmt,
@@ -37,10 +37,10 @@ enum StmtErrorKind {
 }
 
 #[derive(Clone, Debug)]
-struct Expr(Box<ExprKind>, Span);
+pub struct Expr(pub Box<ExprKind>, pub Span);
 #[derive(Clone, Debug)]
-enum ExprKind {
-    Var(Ident),
+pub enum ExprKind {
+    Var(Var),
     Type,
     Bang(Expr),
     App(Expr, Expr),
@@ -53,31 +53,34 @@ enum ExprKind {
 }
 
 #[derive(Clone, Debug)]
-struct StringToken(StringTokenKind, Span);
+pub struct StringToken(StringTokenKind, Span);
 
 #[derive(Clone, Debug)]
-enum StringTokenKind {
+pub enum StringTokenKind {
     String(String),
     Escape(String),
 }
 
 #[derive(Clone, Debug)]
-struct Binders(Vec<(Ident, Option<Expr>)>, Span);
+pub struct Binders(Vec<Var>, Span);
 #[derive(Clone, Debug)]
-struct Ident(IdentIndex, String, Span);
+pub struct Var {
+    pub index: VarIndex,
+    pub var_type: Option<Expr>,
+    pub name: String,
+    pub span: Span,
+}
 
 #[derive(Clone, Debug)]
-struct NameNotFoundError {
+pub struct NameNotFoundError {
     name: String,
     span: Span,
 }
 
-type Span = rowan::TextRange;
+pub type Span = rowan::TextRange;
 
-fn default_ctx() -> BTreeMap<String, IdentIndex> {
+fn default_ctx() -> BTreeMap<String, Var> {
     let mut ctx = BTreeMap::new();
-    ctx.insert("console".into(), IdentIndex::new());
-    ctx.insert("".into(), IdentIndex::new());
     ctx
 }
 
@@ -86,6 +89,7 @@ fn parse_source_file(node: &SyntaxNode) -> SourceFile {
     let mut stmts = vec![];
     // let mut errors = vec![];
     let mut previous_error = false;
+
     for child in nonextra_children(node) {
         let child_stmt = parse_stmt(&child, &mut ctx);
 
@@ -100,56 +104,60 @@ fn parse_source_file(node: &SyntaxNode) -> SourceFile {
     SourceFile(stmts)
 }
 
-fn create_ident(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Ident {
+fn create_var(node: &SyntaxNode, var_type: Option<Expr>, ctx: &mut BTreeMap<String, Var>) -> Var {
     assert_eq!(node.kind(), SyntaxKind::IDENT);
-    let index = IdentIndex::new();
+    let index = VarIndex::new();
     let var_name: String = node
         .first_token()
-        .expect("Expected a child for an ident")
+        .expect("Expected a child for an var")
         .text()
         .into();
-    ctx.insert(var_name.clone(), index);
+    let var = Var {
+        index: index,
+        var_type: var_type,
+        name: var_name.clone(),
+        span: node.text_range(),
+    };
+    ctx.insert(var_name.clone(), var.clone());
 
-    Ident(index, var_name, node.text_range())
+    var
 }
 
-fn parse_ident(
-    node: &SyntaxNode,
-    ctx: &BTreeMap<String, IdentIndex>,
-) -> Result<Ident, NameNotFoundError> {
+fn parse_var(node: &SyntaxNode, ctx: &BTreeMap<String, Var>) -> Result<Var, NameNotFoundError> {
     assert!(node.kind() == SyntaxKind::IDENT);
     let var_name = node
         .first_token()
-        .expect("Expected a child for an ident")
+        .expect("Expected a child for an var")
         .text()
         .into();
-    let index = match ctx.get(&var_name) {
+    let var = match ctx.get(&var_name) {
         None => {
             return Err(NameNotFoundError {
                 name: var_name,
                 span: node.text_range(),
             })
         }
-        Some(index) => index,
+        Some(var) => var.clone(),
     };
-    Ok(Ident(*index, var_name, node.text_range()))
+    Ok(var)
 }
 
-fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt {
+fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, Var>) -> Stmt {
     // dbg!(node);
     let children = nonextra_children(node).collect::<Vec<_>>();
 
     let stmt_kind = match node.kind() {
         SyntaxKind::LET_STMT => {
             if children.len() == 3 {
-                let ident = create_ident(&children[0], ctx);
                 let var_type = parse_expr(&children[1], ctx);
+
+                let var = create_var(&children[0], Some(var_type), ctx);
                 let body = parse_expr(&children[2], ctx);
-                StmtKind::Let(ident, Some(var_type), body)
+                StmtKind::Let(var, body)
             } else if children.len() == 2 {
-                let ident = create_ident(&children[0], ctx);
+                let var = create_var(&children[0], None, ctx);
                 let body = parse_expr(&children[1], ctx);
-                StmtKind::Let(ident, None, body)
+                StmtKind::Let(var, body)
             } else {
                 panic!("The length of the let_stmt should be 2 or 4.")
             }
@@ -160,9 +168,14 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt
 
             if children.len() == 1 {
                 let expr = parse_expr(&children[0], ctx);
-                let ident_index = IdentIndex::new();
-                let ident = Ident(ident_index, "_".into(), TextRange::empty(expr.1.start()));
-                StmtKind::Let(ident, None, expr)
+                let var_index = VarIndex::new();
+                let var = Var {
+                    index: var_index,
+                    var_type: None,
+                    name: "_".into(),
+                    span: TextRange::empty(expr.1.start()),
+                };
+                StmtKind::Let(var, expr)
             } else {
                 panic!("the length of do_stmt should be 1")
             }
@@ -180,31 +193,34 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt
             if children.len() == 4 {
                 // fn foo |binders| -> expr  body
                 // becomes let foo (: pi |binders| expr) = lambda |binders| body
-                let ident = create_ident(&children[0], ctx);
                 let (binders, new_ctx) = parse_binders(&children[1], ctx);
                 let expr = parse_expr(&children[2], ctx);
                 let body = parse_expr(&children[3], &new_ctx);
-                // StmtKind::Fn(ident, binders, Some(expr), body);
                 let func_expr_kind = ExprKind::Pi(binders.clone(), expr.clone());
                 let func_span = TextRange::new(binders.1.start(), expr.1.end());
                 let func_expr = Expr(Box::new(func_expr_kind), func_span);
+                let var = create_var(&children[0], Some(func_expr), ctx);
+
+                // StmtKind::Fn(var, binders, Some(expr), body);
+
                 let body_expr_kind = ExprKind::Lam(binders, body.clone());
                 let body_expr = Expr(Box::new(body_expr_kind), body.1);
-                StmtKind::Let(ident, Some(func_expr), body_expr)
+                StmtKind::Let(var, body_expr)
             } else if children.len() == 3 {
-                let ident = create_ident(&children[0], ctx);
                 let (binders, new_ctx) = parse_binders(&children[1], ctx);
                 let body = parse_expr(&children[2], &new_ctx); // lamda |binders| body
                 let body_expr_kind = ExprKind::Lam(binders, body.clone());
                 let body_expr = Expr(Box::new(body_expr_kind), body.1);
-                StmtKind::Let(ident, None, body_expr)
+                let var = create_var(&children[0], None, ctx);
+
+                StmtKind::Let(var, body_expr)
             } else {
                 panic!("the length of fn_stmt should be 4 or 3")
             }
         }
         SyntaxKind::IMPORT_STMT => {
             if children.len() == 1 {
-                let ident = create_ident(&children[0], ctx);
+                let var = create_var(&children[0], None, ctx);
                 todo!()
             } else {
                 panic!("import_stmt have to be of the form import [import]")
@@ -220,16 +236,16 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt
     Stmt(stmt_kind, node.text_range())
 }
 
-fn parse_expr(node: &SyntaxNode, ctx: &BTreeMap<String, IdentIndex>) -> Expr {
+fn parse_expr(node: &SyntaxNode, ctx: &BTreeMap<String, Var>) -> Expr {
     // dbg!(node);
     let children = nonextra_children(node).collect::<Vec<_>>();
 
     let expr_kind = match node.kind() {
         SyntaxKind::IDENT_EXPR => {
             if children.len() == 1 {
-                ExprKind::Var(parse_ident(&children[0], ctx).unwrap())
+                ExprKind::Var(parse_var(&children[0], ctx).unwrap())
             } else {
-                panic!("ident_expr should just have an ident")
+                panic!("var_expr should just have an var")
             }
         }
         SyntaxKind::TYPE_EXPR => ExprKind::Type,
@@ -315,8 +331,8 @@ fn parse_expr(node: &SyntaxNode, ctx: &BTreeMap<String, IdentIndex>) -> Expr {
 
 fn parse_binders(
     node: &SyntaxNode,
-    ctx: &BTreeMap<String, IdentIndex>,
-) -> (Binders, BTreeMap<String, IdentIndex>) {
+    ctx: &BTreeMap<String, Var>,
+) -> (Binders, BTreeMap<String, Var>) {
     if let SyntaxKind::BINDERS = node.kind() {
         let children = nonextra_children(node).collect::<Vec<_>>();
 
@@ -327,12 +343,13 @@ fn parse_binders(
         for child in children {
             let grandchildren = nonextra_children(&child).collect::<Vec<_>>();
             if grandchildren.len() == 2 {
-                let binder_name = create_ident(&grandchildren[0], &mut ctx);
                 let expr = parse_expr(&grandchildren[1], &ctx);
-                binders.push((binder_name, Some(expr)));
+
+                let binder_name = create_var(&grandchildren[0], Some(expr), &mut ctx);
+                binders.push(binder_name);
             } else if grandchildren.len() == 1 {
-                let binder_name = create_ident(&grandchildren[0], &mut ctx);
-                binders.push((binder_name, None));
+                let binder_name = create_var(&grandchildren[0], None, &mut ctx);
+                binders.push(binder_name);
             } else {
                 panic!("bind_components should be of the form x")
             }

@@ -1,3 +1,4 @@
+mod desugar;
 mod resolve;
 mod syntax_tree;
 use tree_sitter::{Language, Parser, Tree};

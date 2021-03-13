@@ -1,6 +1,6 @@
 use crate::judgment::{Judgment, Metadata, Primitive};
 use crate::output::{ JsOutput};
-use free_var::FreeVar;
+use free_var::VarIndex;
 use swc_ecma_ast::{
     Expr
 };

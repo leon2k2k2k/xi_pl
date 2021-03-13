@@ -88,7 +88,8 @@ fn parse_source_file(node: &SyntaxNode) -> SourceFile {
     let mut previous_error = false;
     for child in nonextra_children(node) {
         let child_stmt = parse_stmt(&child, &mut ctx);
-        // stmts.push(child_stmt);
+
+        stmts.push(child_stmt);
         // if let SyntaxKind::ERROR = child.kind() {
         //     if previous_error == false {
         //         previous_error = true;
@@ -135,7 +136,7 @@ fn parse_ident(
 }
 
 fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt {
-    dbg!(node);
+    // dbg!(node);
     let children = nonextra_children(node).collect::<Vec<_>>();
 
     let stmt_kind = match node.kind() {
@@ -167,7 +168,7 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt
             }
         }
         SyntaxKind::VAL_STMT => {
-            dbg!(children.clone());
+            // dbg!(children.clone());
             if children.len() == 1 {
                 let expr = parse_expr(&children[0], ctx);
                 StmtKind::Val(expr)
@@ -209,10 +210,10 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt
                 panic!("import_stmt have to be of the form import [import]")
             }
         }
-        SyntaxKind::ERROR => {
-            let first_word = &children[0];
-            todo!();
-        }
+        // SyntaxKind::ERROR => {
+        //     let first_word = &children[0];
+        //     todo!();
+        // }
         _ => panic!("parse_stmt can only parse a stmt"),
     };
 
@@ -220,7 +221,7 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, IdentIndex>) -> Stmt
 }
 
 fn parse_expr(node: &SyntaxNode, ctx: &BTreeMap<String, IdentIndex>) -> Expr {
-    dbg!(node);
+    // dbg!(node);
     let children = nonextra_children(node).collect::<Vec<_>>();
 
     let expr_kind = match node.kind() {
@@ -295,7 +296,7 @@ fn parse_expr(node: &SyntaxNode, ctx: &BTreeMap<String, IdentIndex>) -> Expr {
         SyntaxKind::STRING_EXPR => {
             let mut string_component = vec![];
             for child in children {
-                dbg!(child.clone());
+                // dbg!(child.clone());
                 let child_token = child.first_token().expect("Expected token");
                 if child_token.text().chars().next().unwrap() == '\\' {
                     let string_token_kind = StringTokenKind::Escape(child_token.text()[1..].into());

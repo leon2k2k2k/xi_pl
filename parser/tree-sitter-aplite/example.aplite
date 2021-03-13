@@ -1,1 +1,2 @@
-let x = (lambda |x : Nat asdf)
+fn foo |x : Type, y : Type| -> Type {
+            val x}

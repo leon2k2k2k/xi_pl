@@ -1,0 +1,17 @@
+[package]
+name = "xi-proc-macro"
+version = "0.1.0"
+authors = ["leon2k2k2k <liuleon4@gmail.com>", "Frank Dai <frank@fyd.ai>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+proc-macro = true
+path = "lib.rs"
+
+[dependencies]
+proc-macro2 = "1.0"
+syn = { version = "1.0", features = ["extra-traits"] }
+quote = "1.0"
+xi-uuid = { path = "../xi-uuid" }

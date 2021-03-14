@@ -1,0 +1,11 @@
+[package]
+name = "xi-uuid"
+version = "0.1.0"
+authors = ["leon2k2k2k <liuleon4@gmail.com>", "Frank Dai <frank@fyd.ai>"]
+edition = "2018"
+
+[lib]
+path = "lib.rs"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]

@@ -1,7 +1,7 @@
 use crate::syntax_tree::{nonextra_children, SyntaxKind, SyntaxNode, SyntaxToken};
-use free_var::FreeVar as VarIndex;
 use rowan::{NodeOrToken, TextRange};
 use std::collections::BTreeMap;
+use xi_uuid::VarUuid;
 
 #[derive(Clone, Debug)]
 pub struct SourceFile(pub Vec<Stmt>);
@@ -65,7 +65,7 @@ pub enum StringTokenKind {
 pub struct Binders(pub Vec<Var>, pub Span);
 #[derive(Clone, Debug)]
 pub struct Var {
-    pub index: VarIndex,
+    pub index: VarUuid,
     pub var_type: Option<Expr>,
     pub name: String,
     pub span: Span,
@@ -106,7 +106,7 @@ pub fn parse_source_file(node: &SyntaxNode) -> SourceFile {
 
 fn create_var(node: &SyntaxNode, var_type: Option<Expr>, ctx: &mut BTreeMap<String, Var>) -> Var {
     assert_eq!(node.kind(), SyntaxKind::IDENT);
-    let index = VarIndex::new();
+    let index = VarUuid::new();
     let var_name: String = node
         .first_token()
         .expect("Expected a child for an var")
@@ -168,7 +168,7 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, Var>) -> Stmt {
 
             if children.len() == 1 {
                 let expr = parse_expr(&children[0], ctx);
-                let var_index = VarIndex::new();
+                let var_index = VarUuid::new();
                 let var = Var {
                     index: var_index,
                     var_type: None,

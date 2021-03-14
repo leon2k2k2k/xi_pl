@@ -1,21 +1,10 @@
-[package]
-name = "xi"
-version = "0.1.0"
-authors = ["leon2k2k2k <liuleon4@gmail.com>", "Frank Dai <frank@fyd.ai>"]
-edition = "2018"
+[workspace]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-term_macro = { path = "term_macro" }
-free_var = { path = "free_var" }
-parser = {path = "parser" }
-swc_ecma_ast = "0.39"
-swc_common = "0.10"
-swc_ecma_codegen = "0.46"
-url = "2.2"
-tokio = "1.2"
-
-deno = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.7.5" }
-deno_core = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.7.5" }
-deno_runtime = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.7.5" }
+members = [
+    "xi-cli",
+    "xi-frontend",
+    "xi-backend",
+    "xi-core",
+    "xi-proc-macro",
+    "xi-uuid",
+]

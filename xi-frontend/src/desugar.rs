@@ -1,11 +1,11 @@
 use crate::resolve::{self, Expr, ExprKind, Stmt, StmtKind};
-use free_var::FreeVar as VarIndex;
+use xi_uuid::VarUuid;
 
 pub use crate::resolve::Span;
 
 #[derive(Clone, Debug)]
 struct Var {
-    index: VarIndex,
+    index: VarUuid,
     var_type: Option<Judg_ment>,
     name: String,
     span: Span,

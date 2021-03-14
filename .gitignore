@@ -1,9 +1,6 @@
 /target/
-/free_var/target/
-/term_macro/target/
-/parser/tree-sitter-aplite/src/
-/parser/tree-sitter-aplite/index.js
-/parser/tree-sitter-aplite/node_modules
-/parser/tree-sitter-aplite/binding.gyp
-/parser/tree-sitter-aplite/build
-/parser/target/
+/xi-frontend/tree-sitter-aplite/src/
+/xi-frontend/tree-sitter-aplite/index.js
+/xi-frontend/tree-sitter-aplite/node_modules
+/xi-frontend/tree-sitter-aplite/binding.gyp
+/xi-frontend/tree-sitter-aplite/build

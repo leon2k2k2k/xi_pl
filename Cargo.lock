@@ -767,10 +767,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "free_var"
-version = "0.1.0"
-
-[[package]]
 name = "from_variant"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1572,16 +1568,6 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "winapi",
-]
-
-[[package]]
-name = "parser"
-version = "0.1.0"
-dependencies = [
- "cc",
- "free_var",
- "rowan",
- "tree-sitter",
 ]
 
 [[package]]
@@ -2810,16 +2796,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "term_macro"
-version = "0.1.0"
-dependencies = [
- "free_var",
- "proc-macro2 1.0.24",
- "quote 1.0.9",
- "syn 1.0.60",
-]
-
-[[package]]
 name = "termcolor"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3419,18 +3395,53 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
 
 [[package]]
-name = "xi"
+name = "xi-backend"
 version = "0.1.0"
 dependencies = [
  "deno",
  "deno_core",
  "deno_runtime",
- "free_var",
- "parser",
  "swc_common",
  "swc_ecma_ast 0.39.1",
  "swc_ecma_codegen 0.46.1",
- "term_macro",
- "tokio",
  "url",
+ "xi-proc-macro",
+ "xi-uuid",
 ]
+
+[[package]]
+name = "xi-cli"
+version = "0.1.0"
+dependencies = [
+ "tokio",
+ "xi-backend",
+ "xi-frontend",
+]
+
+[[package]]
+name = "xi-core"
+version = "0.1.0"
+
+[[package]]
+name = "xi-frontend"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "rowan",
+ "tree-sitter",
+ "xi-uuid",
+]
+
+[[package]]
+name = "xi-proc-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2 1.0.24",
+ "quote 1.0.9",
+ "syn 1.0.60",
+ "xi-uuid",
+]
+
+[[package]]
+name = "xi-uuid"
+version = "0.1.0"

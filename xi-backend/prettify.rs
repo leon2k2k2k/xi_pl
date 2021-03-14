@@ -1,13 +1,13 @@
 /// Define a map from Judgment<T,S> to term macros so we can read better.
-use crate::judgment::*;
-use free_var::FreeVar;
+use xi_core::judgment::*;
+use xi_uuid::VarUuid;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 
 pub enum JudgmentTree<T> {
     UinNone,
     Prim(T),
-    FreeVar(FreeVar, Box<JudgmentTree<T>>),
+    VarUuid(VarUuid, Box<JudgmentTree<T>>),
     BoundVar(u32, Box<JudgmentTree<T>>),
     /// I should add metadata here.
     Fun(Vec<JudgmentTree<T>>),
@@ -21,8 +21,8 @@ pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> 
     match judgment.tree() {
         JudgmentKind::UInNone => JudgmentTree::UinNone,
         JudgmentKind::Prim(prim) => JudgmentTree::Prim(prim),
-        JudgmentKind::FreeVar(free_var, expr) => {
-            JudgmentTree::FreeVar(free_var, Box::new(judgment_to_tree(*expr)))
+        JudgmentKind::VarUuid(free_var, expr) => {
+            JudgmentTree::VarUuid(free_var, Box::new(judgment_to_tree(*expr)))
         }
         JudgmentKind::Pi(var_type, expr) => {
             let expr_tree = judgment_to_tree(*expr.clone());
@@ -87,14 +87,14 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
         let body_str = match judg_tree {
             JudgmentTree::UinNone => "U".into(),
             JudgmentTree::Prim(prim) => format!("{:?}", prim),
-            JudgmentTree::FreeVar(_free_var, var_type) => {
+            JudgmentTree::VarUuid(_free_var, var_type) => {
                 let free_var_index = free_vars.len();
                 free_vars
                     .clone()
                     .push(tts_rec(&*var_type, free_vars, Precedence::Top, depth));
                 format!("fv{}", free_var_index)
             }
-            // we put FreeVar in the beginning.
+            // we put VarUuid in the beginning.
             JudgmentTree::BoundVar(index, _var_type) => {
                 format!("v{}", depth - 1 - index)
             }
@@ -162,7 +162,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
         let my_precedence = match judg_tree {
             JudgmentTree::UinNone => Precedence::Var,
             JudgmentTree::Prim(_) => Precedence::Var,
-            JudgmentTree::FreeVar(_, _) => Precedence::Var,
+            JudgmentTree::VarUuid(_, _) => Precedence::Var,
             JudgmentTree::BoundVar(_, _) => Precedence::Var,
             JudgmentTree::Fun(_) => Precedence::Fun,
             JudgmentTree::Pi(_, _) => Precedence::Top,
@@ -196,7 +196,7 @@ mod test {
     #[test]
     fn judgment_to_tree_test() {
         use super::*;
-        use term_macro::term;
+        use xi_proc_macro::term;
 
         let test0: Judgment<(), ()> = term!(Pi | A: U | A);
         assert_eq!(tree_to_string(&judgment_to_tree(test0)), "Pi |v0 : U| v0");

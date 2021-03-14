@@ -10,3 +10,5 @@ edition = "2018"
 path = "lib.rs"
 
 [dependencies]
+xi-uuid = { path = "../xi-uuid" }
+xi-proc-macro = { path = "../xi-proc-macro" }

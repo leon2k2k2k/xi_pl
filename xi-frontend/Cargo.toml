@@ -10,6 +10,7 @@ edition = "2018"
 tree-sitter = "0.17"
 rowan = "0.12"
 xi-uuid = { path = "../xi-uuid" }
+xi-core = { path = "../xi-core" }
 
 [build-dependencies]
 cc = "*"

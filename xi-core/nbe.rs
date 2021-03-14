@@ -4,13 +4,13 @@ normalization by evaluation. This is attempt two after mu. */
 
 use crate::judgment::Primitive;
 use crate::judgment::{Judgment, JudgmentKind, Metadata};
-use free_var::FreeVar;
 use std::rc::Rc;
+use xi_uuid::VarUuid;
 
 #[derive(Clone)]
 pub enum SJudgment<T, S> {
     // TODO: do we need this?
-    FreeVar(FreeVar, Box<SJudgment<T, S>>),
+    VarUuid(VarUuid, Box<SJudgment<T, S>>),
     Syn(Judgment<T, S>),
     Lam(
         Box<SJudgment<T, S>>,
@@ -41,7 +41,7 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
                     JudgmentKind::BoundVar(_, _) => SJudgment::Syn(syn),
                     JudgmentKind::Application(_, _) => SJudgment::Syn(syn),
                     JudgmentKind::Prim(_) => SJudgment::Syn(syn),
-                    JudgmentKind::FreeVar(_, _) => SJudgment::Syn(syn),
+                    JudgmentKind::VarUuid(_, _) => SJudgment::Syn(syn),
                 },
                 None => SJudgment::Syn(syn),
             }
@@ -51,7 +51,7 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
             match sem {
                 SJudgment::Syn(judgment) => judgment,
                 SJudgment::Lam(svar_type, func) => {
-                    let free_var = FreeVar::new();
+                    let free_var = VarUuid::new();
                     let expr = down(func(up(Judgment::free(
                         free_var,
                         down(*svar_type.clone()),
@@ -62,7 +62,7 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
                     Judgment::lam(down(*svar_type.clone()), expr_rebound, None)
                 }
                 SJudgment::Pi(svar_type, func) => {
-                    let free_var = FreeVar::new();
+                    let free_var = VarUuid::new();
                     let expr = down(func(up(Judgment::free(
                         free_var,
                         down(*svar_type.clone()),
@@ -72,7 +72,7 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
 
                     Judgment::pi(down(*svar_type.clone()), expr_rebound, None)
                 }
-                SJudgment::FreeVar(free_var, var_type) => {
+                SJudgment::VarUuid(free_var, var_type) => {
                     Judgment::free(free_var, down(*var_type), None)
                 }
             }
@@ -129,13 +129,13 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
                     }
                     SJudgment::Lam(_, sfunc) => sfunc(SJudgment::syntax_to_semantics(*elem, ctx)),
                     SJudgment::Pi(_, _) => panic!("syntax_to_semantics(func) should match to Lam"),
-                    SJudgment::FreeVar(_, _) => {
+                    SJudgment::VarUuid(_, _) => {
                         panic!("syntax_to_semantics(func) should match to Lam")
                     }
                 }
             }
             JudgmentKind::Prim(prim) => U::meaning(prim),
-            JudgmentKind::FreeVar(free_var, var_type) => SJudgment::FreeVar(
+            JudgmentKind::VarUuid(free_var, var_type) => SJudgment::VarUuid(
                 free_var,
                 Box::new(SJudgment::syntax_to_semantics(*var_type, ctx)),
             ),
@@ -208,7 +208,7 @@ mod test {
     fn test_nbe() {
         use super::*;
         use crate::judgment::NatPrim;
-        use term_macro::term;
+        use xi_proc_macro::term;
         use NatPrim::{Add, NatType};
 
         let id: Judgment<NatPrim, ()> = term!(Lam |T : U| T);
@@ -230,7 +230,7 @@ mod test {
     fn test_app() {
         use super::*;
         use crate::judgment::NatPrim;
-        use term_macro::term;
+        use xi_proc_macro::term;
         use NatPrim::{Add, Nat};
 
         let add3: Judgment<NatPrim, ()> = term!([Add] [Nat(3)]);

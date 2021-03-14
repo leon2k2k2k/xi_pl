@@ -1,4 +1,3 @@
-use crate::judgment::{Judgment, JudgmentKind, Metadata};
 use std::rc::Rc;
 use swc_common::{FilePathMapping, SourceMap, DUMMY_SP};
 use swc_ecma_ast::{
@@ -7,6 +6,7 @@ use swc_ecma_ast::{
     ModuleItem, Pat, Stmt, Str,
 };
 use swc_ecma_codegen::{text_writer::JsWriter, Config, Emitter};
+use xi_core::judgment::{Judgment, JudgmentKind, Metadata};
 
 pub fn to_js_program<T: JsOutput, S: Metadata>(judgment: Judgment<T, S>) -> String {
     let stmt = Stmt::Expr(ExprStmt {
@@ -62,7 +62,7 @@ fn to_js<T: JsOutput, S: Metadata>(judgment: Judgment<T, S>, ctx: Vec<Ident>) ->
     match judgment.tree() {
         JudgmentKind::UInNone => to_js_str_u(),
         JudgmentKind::Prim(t) => T::to_js_prim(&t),
-        JudgmentKind::FreeVar(_, _) => panic!("Should not have a FreeVar in this expression"),
+        JudgmentKind::VarUuid(_, _) => panic!("Should not have a VarUuid in this expression"),
         JudgmentKind::Pi(_, _) => to_js_str_pi(),
         JudgmentKind::Lam(_var_type, body) => {
             let var_name = make_var_name(&ctx);

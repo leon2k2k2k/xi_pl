@@ -1,10 +1,10 @@
-use crate::judgment::{Judgment, Metadata, Primitive};
+use xi_core::judgment::{Judgment, Metadata, Primitive};
 use crate::output::{ JsOutput};
-use free_var::FreeVar;
+use xi_uuid::VarUuid;
 use swc_ecma_ast::{
     Expr
 };
-use term_macro::term;
+use xi_proc_macro::term;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum JsPrim {
@@ -165,39 +165,39 @@ impl JsPrim{
         // let s = to_js_program(hello_world);
         // assert_eq!(s, "console.log(\"hello world\");\n");
 
-mod test {
+// mod test {
 
-    #[tokio::test]
-    async fn to_js_test() {
-        use super::*;
-        use crate::runtime::run_js_from_string;
-        // use super::JsPrim::*;
-        // use super::*;
-        // use crate::output::to_js_program;
-        // use term_macro::term;
-        // use crate::runtime::*;
+//     #[tokio::test]
+//     async fn to_js_test() {
+//         use super::*;
+//         use crate::runtime::run_js_from_string;
+//         // use super::JsPrim::*;
+//         // use super::*;
+//         // use crate::output::to_js_program;
+//         // use term_macro::term;
+//         // use crate::runtime::*;
 
-        // // let hello_world = term!([IO(JsIO::ConsoleOutput)][Type(JsType::Str("hello world".into()))]);
-        // let str: Judgment<JsPrim> = term!([Type(JsType::Str("hello world".into()))]);
-        // let s = to_js_program(hello_world);
-        // run_js_from_string(s).await.unwrap();
-        // // assert_eq!(s, "console.log(\"hello world\");\n");
+//         // // let hello_world = term!([IO(JsIO::ConsoleOutput)][Type(JsType::Str("hello world".into()))]);
+//         // let str: Judgment<JsPrim> = term!([Type(JsType::Str("hello world".into()))]);
+//         // let s = to_js_program(hello_world);
+//         // run_js_from_string(s).await.unwrap();
+//         // // assert_eq!(s, "console.log(\"hello world\");\n");
 
 
-        // let hello_world = term!([IO(JsIO::ConsoleOutput)][Type(JsType::Str("hello world".into()))]);
-        // let str: Judgment<JsPrim> = term!([Type(JsType::Str("hello world".into()))]);
-        // let hello_world = term!([IO(JsIO::Bind)] ([Type(JsType::StrType)] -> ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]))
-        //     ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]) [IO(JsIO::ConsoleOutput)] 
-        //     (Lam |func : [Type(JsType::StrType)] -> ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)])| ([IO(JsIO::Pure)] ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]) (func {str}))));
-        // let s = to_js_program(hello_world);
-        let s = JsPrim::output_str("frank is stupid\n".into());
-        run_js_from_string(s).await.unwrap();
-        // assert_eq!(s, "console.log(\"hello world\");\n");
+//         // let hello_world = term!([IO(JsIO::ConsoleOutput)][Type(JsType::Str("hello world".into()))]);
+//         // let str: Judgment<JsPrim> = term!([Type(JsType::Str("hello world".into()))]);
+//         // let hello_world = term!([IO(JsIO::Bind)] ([Type(JsType::StrType)] -> ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]))
+//         //     ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]) [IO(JsIO::ConsoleOutput)] 
+//         //     (Lam |func : [Type(JsType::StrType)] -> ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)])| ([IO(JsIO::Pure)] ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)]) (func {str}))));
+//         // let s = to_js_program(hello_world);
+//         let s = JsPrim::output_str("frank is stupid\n".into());
+//         run_js_from_string(s).await.unwrap();
+//         // assert_eq!(s, "console.log(\"hello world\");\n");
 
-        // let id: Judgment<JsPrim> = term!(Lam | T: U, t: T | t);
-        // let hello = term!({ id }[Type(JsType::StrType)][Type(JsType::Str("hello".into()))]);
-        // println!("{:?}", hello);
-        // let s2 = to_js_program(hello);
-        // panic!(s2);
-    }
-}
+//         // let id: Judgment<JsPrim> = term!(Lam | T: U, t: T | t);
+//         // let hello = term!({ id }[Type(JsType::StrType)][Type(JsType::Str("hello".into()))]);
+//         // println!("{:?}", hello);
+//         // let s2 = to_js_program(hello);
+//         // panic!(s2);
+//     }
+// }

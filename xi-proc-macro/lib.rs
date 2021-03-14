@@ -53,7 +53,7 @@ impl ToTokens for TermBuilderFree {
                     new_vars.insert(ident.clone(), *type_.clone());
                     let body_tokens = to_tokens_rec(&new_vars, body);
                     quote! {{
-                        let #ident = FreeVar::new();
+                        let #ident = VarUuid::new();
                         Judgment::lam(#type_tokens, Judgment::rebind(#body_tokens, #ident), None)
                     }}
                 }
@@ -63,7 +63,7 @@ impl ToTokens for TermBuilderFree {
                     new_vars.insert(ident.clone(), *type_.clone());
                     let body_tokens = to_tokens_rec(&new_vars, body);
                     quote! {{
-                        let #ident = FreeVar::new();
+                        let #ident = VarUuid::new();
                         Judgment::pi(#type_tokens, Judgment::rebind(#body_tokens, #ident), None)
                     }}
                 }
@@ -84,7 +84,7 @@ impl ToTokens for TermBuilderFree {
 
         for (bind_ident, bind_type) in &self.free_vars {
             free_vars.insert(bind_ident.clone(), bind_type.clone());
-            free_var_bindings.push(quote! { let #bind_ident = FreeVar::new(); });
+            free_var_bindings.push(quote! { let #bind_ident = VarUuid::new(); });
         }
         let body_tokens = to_tokens_rec(&free_vars, &self.term);
 
@@ -290,7 +290,7 @@ mod test {
         test_expand(
             "Lam |T : U| T",
             quote! {{
-                let T = FreeVar::new();
+                let T = VarUuid::new();
                 Judgment::lam(
                     Judgment::u(),
                     Judgment::rebind(Judgment::free(T, Judgment::u()), T)
@@ -300,7 +300,7 @@ mod test {
         test_expand(
             "Pi |T : U| T",
             quote! {{
-                let T = FreeVar::new();
+                let T = VarUuid::new();
                 Judgment::pi(
                     Judgment::u(),
                     Judgment::rebind(Judgment::free(T, Judgment::u()), T)
@@ -310,12 +310,12 @@ mod test {
         test_expand(
             "Lam |T : U, t : T| t",
             quote! {{
-                let T = FreeVar::new();
+                let T = VarUuid::new();
                 Judgment::lam(
                     Judgment::u(),
                     Judgment::rebind(
                         {
-                            let t = FreeVar::new();
+                            let t = VarUuid::new();
                             Judgment::lam(
                                 Judgment::free(T, Judgment::u()),
                                 Judgment::rebind(
@@ -332,7 +332,7 @@ mod test {
         test_expand(
             "Lam |A : U| A -> (A -> A) -> A",
             quote! {{
-                let A = FreeVar::new();
+                let A = VarUuid::new();
                 Judgment::lam(
                     Judgment::u(),
                     Judgment::rebind(
@@ -354,12 +354,12 @@ mod test {
         test_expand(
             "Lam |A : U, f : A -> A| f f f",
             quote! {{
-                let A = FreeVar::new();
+                let A = VarUuid::new();
                 Judgment::lam(
                     Judgment::u(),
                     Judgment::rebind(
                         {
-                            let f = FreeVar::new();
+                            let f = VarUuid::new();
                             Judgment::lam(
                                 Judgment::pi(
                                     Judgment::free(A, Judgment::u()),
@@ -402,7 +402,7 @@ mod test {
         );
         test_expand("Lam |A : U| A -> {empty_type}", {
             quote! {{
-                let A = FreeVar::new();
+                let A = VarUuid::new();
                 Judgment::lam(
                     Judgment::u(),
                     Judgment::rebind(
@@ -415,7 +415,7 @@ mod test {
         test_expand(
             "Lam |A : U| A -> U",
             quote! {{
-                let A = FreeVar::new();
+                let A = VarUuid::new();
                 Judgment::lam(
                     Judgment::u(),
                     Judgment::rebind(
@@ -428,17 +428,17 @@ mod test {
         test_expand(
             "Pi |A : U, P : A -> U| Lam |a : A| P a -> P a",
             quote! {{
-                let A = FreeVar::new();
+                let A = VarUuid::new();
                 Judgment::pi(
                     Judgment::u(),
                     Judgment::rebind(
                         {
-                            let P = FreeVar::new();
+                            let P = VarUuid::new();
                             Judgment::pi(
                                 Judgment::pi(Judgment::free(A, Judgment::u()), Judgment::u()),
                                 Judgment::rebind(
                                     {
-                                        let a = FreeVar::new();
+                                        let a = VarUuid::new();
                                         Judgment::lam(
                                             Judgment::free(A, Judgment::u()),
                                             Judgment::rebind(
@@ -498,15 +498,15 @@ mod test {
         test_expand(
             "|T : U| T",
             quote! {{
-                let T = FreeVar::new();
+                let T = VarUuid::new();
                 (T, Judgment::free(T, Judgment::u()))
             }},
         );
         test_expand(
             "|T : U, S : U| T -> U",
             quote! {{
-                let T = FreeVar::new();
-                let S = FreeVar::new();
+                let T = VarUuid::new();
+                let S = VarUuid::new();
                 ((T, S), Judgment::pi(Judgment::Free(T, Judgment::u()), Judgment::u()))
             }},
         );

@@ -47,13 +47,13 @@ pub async fn run_js_from_string(source_code: String) -> Result<(), AnyError> {
 }
 mod test {
 
-    #[tokio::test]
-    async fn run_js_from_string_test() {
-        use super::*;
+    // #[tokio::test]
+    // async fn run_js_from_string_test() {
+    //     use super::*;
 
-        let str = "console.log('hello_world');".into();
-        run_js_from_string(str).await.unwrap();
-    }
+    //     let str = "console.log('hello_world');".into();
+    //     run_js_from_string(str).await.unwrap();
+    // }
 
     // #[tokio::test]
     // async fn run_js_from_judgment_test() {

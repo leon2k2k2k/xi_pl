@@ -12,12 +12,12 @@ struct Var {
 }
 
 #[derive(Clone, Debug)]
-struct Judg_ment(Box<Judg_mentKind>, Span);
+pub struct Judg_ment(Box<Judg_mentKind>, Span);
 
 #[derive(Clone, Debug)]
-enum Judg_mentKind {
+pub enum Judg_mentKind {
     Type,
-    FreeVar(Var),
+    VarUuid(Var),
     Fun(Judg_ment, Judg_ment),
     Undefined,
     Pi(Var, Judg_ment),
@@ -80,7 +80,7 @@ fn desugar_var(var: &resolve::Var) -> Var {
 
 fn desugar_expr(expr: &Expr) -> Judg_ment {
     let result_kind: Judg_mentKind = match &*expr.0 {
-        ExprKind::Var(var) => Judg_mentKind::FreeVar(desugar_var(var)),
+        ExprKind::Var(var) => Judg_mentKind::VarUuid(desugar_var(var)),
         ExprKind::Type => Judg_mentKind::Type,
         ExprKind::Bang(expr) => {
             todo!("don't bang please");

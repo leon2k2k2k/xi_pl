@@ -7,7 +7,7 @@
 */
 
 use crate::nbe::{SJudgment, Semantics};
-use free_var::FreeVar;
+use xi_uuid::VarUuid;
 // #[derive(Clone, Debug)]
 // enum TypeCheckError {
 //     location: Span,
@@ -24,7 +24,7 @@ pub struct Judgment<T, S> {
 pub enum JudgmentKind<T, S> {
     UInNone,
     Prim(T),
-    FreeVar(FreeVar, Box<Judgment<T, S>>),
+    VarUuid(VarUuid, Box<Judgment<T, S>>),
     Pi(Box<Judgment<T, S>>, Box<Judgment<T, S>>),
     Lam(Box<Judgment<T, S>>, Box<Judgment<T, S>>),
     BoundVar(u32, Box<Judgment<T, S>>),
@@ -82,7 +82,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                 }
             }
             JudgmentKind::Prim(prim) => Some(prim.type_of().into()),
-            JudgmentKind::FreeVar(_free_var, var_type) => Some((*var_type).clone()),
+            JudgmentKind::VarUuid(_free_var, var_type) => Some((*var_type).clone()),
         }
     }
 
@@ -131,9 +131,9 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     //     Judgment::BoundVar(int, Box::new(var_type))
     // }
 
-    pub fn free(int: FreeVar, var_type: Judgment<T, S>, metadata: Option<S>) -> Judgment<T, S> {
+    pub fn free(int: VarUuid, var_type: Judgment<T, S>, metadata: Option<S>) -> Judgment<T, S> {
         Judgment {
-            tree: JudgmentKind::FreeVar(int, Box::new(var_type)),
+            tree: JudgmentKind::VarUuid(int, Box::new(var_type)),
             metadata: metadata.unwrap_or_default(),
         }
     }
@@ -208,8 +208,8 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                     Box::new(instantiate_rec(*arg, elem, depth)),
                 ),
                 JudgmentKind::Prim(_) => expr.tree.clone(),
-                JudgmentKind::FreeVar(free_var, var_type) => {
-                    JudgmentKind::FreeVar(free_var, var_type.clone())
+                JudgmentKind::VarUuid(free_var, var_type) => {
+                    JudgmentKind::VarUuid(free_var, var_type.clone())
                 }
             };
 
@@ -221,10 +221,10 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
         instantiate_rec(expr, elem, 0)
     }
 
-    pub fn rebind(s: Judgment<T, S>, free_var: FreeVar) -> Judgment<T, S> {
+    pub fn rebind(s: Judgment<T, S>, free_var: VarUuid) -> Judgment<T, S> {
         fn rebind_rec<T: Primitive, S: Metadata>(
             s: Judgment<T, S>,
-            free_var: FreeVar,
+            free_var: VarUuid,
             depth: u32,
         ) -> Judgment<T, S> {
             let result_tree = match s.tree {
@@ -245,11 +245,11 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                     Box::new(rebind_rec(*rhs, free_var, depth)),
                 ),
                 JudgmentKind::Prim(_) => s.tree.clone(),
-                JudgmentKind::FreeVar(i, var_type) => {
+                JudgmentKind::VarUuid(i, var_type) => {
                     if i == free_var {
                         JudgmentKind::BoundVar(depth, Box::new(*var_type))
                     } else {
-                        JudgmentKind::FreeVar(i, Box::new(rebind_rec(*var_type, free_var, depth)))
+                        JudgmentKind::VarUuid(i, Box::new(rebind_rec(*var_type, free_var, depth)))
                     }
                 }
             };
@@ -294,7 +294,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             match expr.tree {
                 JudgmentKind::UInNone => false,
                 JudgmentKind::Prim(_) => false,
-                JudgmentKind::FreeVar(_, expr) => is_bound_var_used(*expr, depth),
+                JudgmentKind::VarUuid(_, expr) => is_bound_var_used(*expr, depth),
                 JudgmentKind::Pi(var_type, expr) => {
                     is_bound_var_used(*var_type, depth + 1) || is_bound_var_used(*expr, depth + 1)
                 }
@@ -322,7 +322,7 @@ pub enum NatPrim {
 
 impl Primitive for NatPrim {
     fn type_of<S: Metadata>(&self) -> Judgment<Self, S> {
-        use term_macro::term;
+        use xi_proc_macro::term;
         match self {
             NatPrim::NatType => term!(U),
             NatPrim::Nat(_) => term!([NatPrim::NatType]),

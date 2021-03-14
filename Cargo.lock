@@ -3405,6 +3405,7 @@ dependencies = [
  "swc_ecma_ast 0.39.1",
  "swc_ecma_codegen 0.46.1",
  "url",
+ "xi-core",
  "xi-proc-macro",
  "xi-uuid",
 ]
@@ -3421,6 +3422,10 @@ dependencies = [
 [[package]]
 name = "xi-core"
 version = "0.1.0"
+dependencies = [
+ "xi-proc-macro",
+ "xi-uuid",
+]
 
 [[package]]
 name = "xi-frontend"
@@ -3429,6 +3434,7 @@ dependencies = [
  "cc",
  "rowan",
  "tree-sitter",
+ "xi-core",
  "xi-uuid",
 ]
 

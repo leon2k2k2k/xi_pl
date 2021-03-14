@@ -1,0 +1,15 @@
+fn foo |x : Type| -> Type {let y = x! val y}
+val foo
+
+let foo = lambda |x : Type| x
+
+let foo = lambda |x : Type| {val x}
+
+let x = "hello"
+let y = x
+val y
+
+let x : String = "hello"
+let y = x
+val y
+

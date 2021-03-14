@@ -1,6 +1,7 @@
 mod desugar;
 mod resolve;
 mod syntax_tree;
+mod type_inference;
 use tree_sitter::{Language, Parser, Tree};
 
 extern "C" {

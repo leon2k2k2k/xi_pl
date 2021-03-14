@@ -1,13 +1,13 @@
 /// Define a map from Judgment<T,S> to term macros so we can read better.
 use crate::judgment::*;
-use free_var::VarIndex;
+use free_var::FreeVar;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 
 pub enum JudgmentTree<T> {
     UinNone,
     Prim(T),
-    FreeVar(VarIndex, Box<JudgmentTree<T>>),
+    FreeVar(FreeVar, Box<JudgmentTree<T>>),
     BoundVar(u32, Box<JudgmentTree<T>>),
     /// I should add metadata here.
     Fun(Vec<JudgmentTree<T>>),

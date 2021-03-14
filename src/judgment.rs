@@ -7,7 +7,7 @@
 */
 
 use crate::nbe::{SJudgment, Semantics};
-use free_var::VarIndex;
+use free_var::FreeVar;
 // #[derive(Clone, Debug)]
 // enum TypeCheckError {
 //     location: Span,
@@ -24,7 +24,7 @@ pub struct Judgment<T, S> {
 pub enum JudgmentKind<T, S> {
     UInNone,
     Prim(T),
-    FreeVar(VarIndex, Box<Judgment<T, S>>),
+    FreeVar(FreeVar, Box<Judgment<T, S>>),
     Pi(Box<Judgment<T, S>>, Box<Judgment<T, S>>),
     Lam(Box<Judgment<T, S>>, Box<Judgment<T, S>>),
     BoundVar(u32, Box<Judgment<T, S>>),
@@ -131,7 +131,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     //     Judgment::BoundVar(int, Box::new(var_type))
     // }
 
-    pub fn free(int: VarIndex, var_type: Judgment<T, S>, metadata: Option<S>) -> Judgment<T, S> {
+    pub fn free(int: FreeVar, var_type: Judgment<T, S>, metadata: Option<S>) -> Judgment<T, S> {
         Judgment {
             tree: JudgmentKind::FreeVar(int, Box::new(var_type)),
             metadata: metadata.unwrap_or_default(),
@@ -221,10 +221,10 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
         instantiate_rec(expr, elem, 0)
     }
 
-    pub fn rebind(s: Judgment<T, S>, free_var: VarIndex) -> Judgment<T, S> {
+    pub fn rebind(s: Judgment<T, S>, free_var: FreeVar) -> Judgment<T, S> {
         fn rebind_rec<T: Primitive, S: Metadata>(
             s: Judgment<T, S>,
-            free_var: VarIndex,
+            free_var: FreeVar,
             depth: u32,
         ) -> Judgment<T, S> {
             let result_tree = match s.tree {

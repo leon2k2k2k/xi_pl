@@ -4,7 +4,7 @@ use rowan::{NodeOrToken, TextRange};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug)]
-pub struct SourceFile(Vec<Stmt>);
+pub struct SourceFile(pub Vec<Stmt>);
 #[derive(Clone, Debug)]
 pub enum Error {
     Stmt(StmtError),
@@ -62,7 +62,7 @@ pub enum StringTokenKind {
 }
 
 #[derive(Clone, Debug)]
-pub struct Binders(Vec<Var>, Span);
+pub struct Binders(pub Vec<Var>, pub Span);
 #[derive(Clone, Debug)]
 pub struct Var {
     pub index: VarIndex,
@@ -84,7 +84,7 @@ fn default_ctx() -> BTreeMap<String, Var> {
     ctx
 }
 
-fn parse_source_file(node: &SyntaxNode) -> SourceFile {
+pub fn parse_source_file(node: &SyntaxNode) -> SourceFile {
     let mut ctx = default_ctx();
     let mut stmts = vec![];
     // let mut errors = vec![];

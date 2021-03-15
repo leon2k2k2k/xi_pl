@@ -4,11 +4,11 @@ use xi_uuid::VarUuid;
 pub use crate::resolve::Span;
 
 #[derive(Clone, Debug)]
-struct Var {
-    index: VarUuid,
-    var_type: Option<Judg_ment>,
-    name: String,
-    span: Span,
+pub struct Var {
+    pub index: VarUuid,
+    pub var_type: Option<Judg_ment>,
+    pub name: String,
+    pub span: Span,
 }
 
 #[derive(Clone, Debug)]
@@ -16,10 +16,10 @@ pub struct Judg_ment(Box<Judg_mentKind>, Span);
 
 #[derive(Clone, Debug)]
 pub enum Judg_mentKind {
+    None, // the type of Type
     Type,
     VarUuid(Var),
     Fun(Judg_ment, Judg_ment),
-    Undefined,
     Pi(Var, Judg_ment),
     Lam(Var, Judg_ment),
     App(Judg_ment, Judg_ment),
@@ -27,6 +27,7 @@ pub enum Judg_mentKind {
     IdBind(Judg_ment, Var, Judg_ment),
     StringLit(String),
     Iota(Judg_ment),
+    TypeVarUuid(Var), // Type variables, used in type_inference.rs,
 }
 
 fn desugar_stmt_vec(stmts: &[Stmt]) -> Judg_ment {

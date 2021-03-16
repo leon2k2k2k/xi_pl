@@ -1,4 +1,7 @@
-use crate::resolve::{self, Expr, ExprKind, Stmt, StmtKind};
+use crate::{
+    resolve::{self, parse_source_file, Expr, ExprKind, Stmt, StmtKind},
+    syntax_tree::string_to_syntax,
+};
 use xi_uuid::VarUuid;
 
 pub use crate::resolve::Span;
@@ -118,18 +121,16 @@ fn desugar_expr(expr: &Expr) -> Judg_ment {
 
     Judg_ment(Box::new(result_kind), expr.1)
 }
-
+pub fn text_to_judg_ment(text: &str) -> Judg_ment {
+    let node = string_to_syntax(text);
+    let source_file = parse_source_file(&node);
+    let stmts = &source_file.0;
+    desugar_stmt_vec(stmts)
+}
 mod test {
     use crate::{resolve::parse_source_file, syntax_tree::string_to_syntax};
 
     use super::{desugar_stmt_vec, Judg_ment};
-
-    fn text_to_judg_ment(text: &str) -> Judg_ment {
-        let node = string_to_syntax(text);
-        let source_file = parse_source_file(&node);
-        let stmts = &source_file.0;
-        desugar_stmt_vec(stmts)
-    }
 
     #[test]
     fn test_de_sugar() {

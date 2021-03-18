@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, rc::Rc};
 
 use crate::desugar::{text_to_judg_ment, Judg_ment, Judg_mentKind, Var};
-use xi_core::judgment::{Judgment, JudgmentKind, Metadata, Primitive};
+use xi_core::judgment::{Frontend, Judgment, JudgmentKind, Metadata, Primitive};
 use xi_uuid::VarUuid;
 
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
@@ -152,6 +152,46 @@ impl Context {
 
         Ok(result)
     }
+
+    fn final_lookup(
+        &mut self,
+        judgment: Judgment<TypeVar, ()>,
+        seen: &mut Vec<TypeVar>,
+    ) -> Result<Judgment<Frontend, ()>, TypeError> {
+        let result: Judgment<Frontend, ()> = match judgment.tree {
+            JudgmentKind::UInNone => Judgment::u(None),
+            JudgmentKind::Prim(type_var) => {
+                if seen.iter().any(|&i| i.0 == type_var.0) {
+                    panic!("there is an infinite loop in the type variables")
+                }
+                seen.push(type_var);
+                let looked_up = self.lookup_type_var(&type_var);
+                self.final_lookup(looked_up, seen)?
+            }
+            JudgmentKind::FreeVar(int, var_type) => {
+                Judgment::free(int, self.final_lookup(*var_type, seen)?, None)
+            }
+            JudgmentKind::Pi(var_type, expr) => Judgment::pi(
+                self.final_lookup(*var_type, seen)?,
+                self.final_lookup(*expr, seen)?,
+                None,
+            ),
+            JudgmentKind::Lam(var_type, expr) => Judgment::lam(
+                self.final_lookup(*var_type, seen)?,
+                self.final_lookup(*expr, seen)?,
+                None,
+            ),
+            JudgmentKind::BoundVar(int, var_type) => {
+                Judgment::bound_var(int, self.final_lookup(*var_type, seen)?, None)
+            }
+            JudgmentKind::Application(func, arg) => Judgment::app(
+                self.final_lookup(*func, seen)?,
+                self.final_lookup(*arg, seen)?,
+                None,
+            ),
+        };
+        Ok(result)
+    }
 }
 #[derive(Clone, Debug)]
 struct TypeError();
@@ -161,7 +201,7 @@ fn type_infer(
     ctx: &mut Context,
     // TODO: add metadata
 ) -> Result<Judgment<TypeVar, ()>, TypeError> {
-    dbg!(judg_ment.clone());
+    // dbg!(judg_ment.clone());
     let result = match *judg_ment.0 {
         Judg_mentKind::Type => Judgment::u(None),
         Judg_mentKind::Var(var) => {
@@ -241,6 +281,17 @@ fn type_infer(
     Ok(result)
 }
 
+fn to_judgment(judg_ment: Judg_ment) -> Result<Judgment<Frontend, ()>, TypeError> {
+    let ctx = &mut Context::new();
+    let judgment_with_type_var = type_infer(judg_ment, ctx)?;
+    ctx.final_lookup(judgment_with_type_var, &mut vec![])
+}
+
+fn frontend(text: &str) -> Result<Judgment<Frontend, ()>, TypeError> {
+    let judg_ment = text_to_judg_ment(text);
+    to_judgment(judg_ment)
+}
+
 mod test {
 
     #[test]
@@ -249,15 +300,15 @@ mod test {
         let text1 = "fn foo |x : Type| -> Type {val x}
         val foo";
         use crate::desugar::*;
-        let judgment1 = type_infer(text_to_judg_ment(text1), &mut Context::new());
+        let judgment1 = frontend(text1);
         dbg!(judgment1);
 
         let text2 = "fn foo |x| {val x} 
          val foo (Pi|y: Type| y)";
         let ctx2 = &mut Context::new();
-        let judgment2 = type_infer(text_to_judg_ment(text2), ctx2);
+        let judgment2 = frontend(text1);
         dbg!(judgment2);
-        dbg!(ctx2);
+        // dbg!(ctx2);
     }
 
     //     let text2 = "fn foo |x| -> {val x} val foo \"hello world\" ";

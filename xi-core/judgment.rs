@@ -346,7 +346,6 @@ pub enum NatPrim {
     Nat(i32),
     Add,
 }
-
 impl Primitive for NatPrim {
     fn type_of<S: Metadata>(&self) -> Judgment<Self, S> {
         use xi_proc_macro::term;
@@ -354,6 +353,18 @@ impl Primitive for NatPrim {
             NatPrim::NatType => term!(U),
             NatPrim::Nat(_) => term!([NatPrim::NatType]),
             NatPrim::Add => term!([NatPrim::NatType] -> [NatPrim::NatType] -> [NatPrim::NatType]),
+        }
+    }
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Frontend {
+    StringType,
+}
+
+impl Primitive for Frontend {
+    fn type_of<S: Metadata>(&self) -> Judgment<Self, S> {
+        match self {
+            Frontend::StringType => Judgment::u(None),
         }
     }
 }

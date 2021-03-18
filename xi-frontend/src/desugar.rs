@@ -14,23 +14,20 @@ pub struct Var {
     pub span: Span,
 }
 
-#[derive(Clone, Debug)]
-pub struct Judg_ment(Box<Judg_mentKind>, Span);
+#[derive(Clone)]
+pub struct Judg_ment(pub Box<Judg_mentKind>, pub Span);
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum Judg_mentKind {
-    None, // the type of Type
     Type,
-    VarUuid(Var),
+    Var(Var),
     Fun(Judg_ment, Judg_ment),
     Pi(Var, Judg_ment),
     Lam(Var, Judg_ment),
     App(Judg_ment, Judg_ment),
     Bind(Judg_ment, Var, Judg_ment),
-    IdBind(Judg_ment, Var, Judg_ment),
     StringLit(String),
     Iota(Judg_ment),
-    TypeVarUuid(Var), // Type variables, used in type_inference.rs,
 }
 
 fn desugar_stmt_vec(stmts: &[Stmt]) -> Judg_ment {
@@ -53,11 +50,9 @@ fn desugar_stmt_vec(stmts: &[Stmt]) -> Judg_ment {
                     Judg_ment(Box::new(Judg_mentKind::Iota(bind_fun)), bind_fun_span),
                 )
             } else {
-                Judg_mentKind::Bind(
-                    desugar_expr(&expr),
-                    desugar_var(var),
-                    desugar_stmt_vec(stmt_rest),
-                )
+                let func_body = desugar_stmt_vec(stmt_rest);
+                let func = Judg_mentKind::Lam(desugar_var(var), func_body.clone());
+                Judg_mentKind::App(Judg_ment(Box::new(func), func_body.1), desugar_expr(&expr))
             }
         }
         StmtKind::Val(expr) => *desugar_expr(&expr).0,
@@ -84,7 +79,7 @@ fn desugar_var(var: &resolve::Var) -> Var {
 
 fn desugar_expr(expr: &Expr) -> Judg_ment {
     let result_kind: Judg_mentKind = match &*expr.0 {
-        ExprKind::Var(var) => Judg_mentKind::VarUuid(desugar_var(var)),
+        ExprKind::Var(var) => Judg_mentKind::Var(desugar_var(var)),
         ExprKind::Type => Judg_mentKind::Type,
         ExprKind::Bang(expr) => {
             todo!("don't bang please");
@@ -109,7 +104,7 @@ fn desugar_expr(expr: &Expr) -> Judg_ment {
             if var_list.len() == 1 {
                 let var = &var_list[0];
                 let var = desugar_var(var);
-                Judg_mentKind::Lam(var, expr)
+                Judg_mentKind::Pi(var, expr)
             } else {
                 panic!("lam binder should only have one ident for now")
             }
@@ -127,6 +122,43 @@ pub fn text_to_judg_ment(text: &str) -> Judg_ment {
     let stmts = &source_file.0;
     desugar_stmt_vec(stmts)
 }
+
+impl std::fmt::Debug for Judg_ment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self.0.clone() {
+            Judg_mentKind::Type => f.write_str("Type")?,
+            Judg_mentKind::Var(var) => f.write_str(&var.name)?,
+            Judg_mentKind::Fun(func, arg) => {
+                f.write_str(&format!("{:?}", func))?;
+                f.write_str(" -> ")?;
+                f.write_str(&format!("{:?}", arg))?;
+            }
+            Judg_mentKind::Pi(var, body) => {
+                f.write_str("Pi |")?;
+                f.write_str(&var.name)?;
+                f.write_str(&format!(": {:?}", var.var_type))?;
+                f.write_str("| ")?;
+                f.write_str(&format!("{:?}", body))?;
+            }
+            Judg_mentKind::Lam(var, body) => {
+                f.write_str("Lam |")?;
+                f.write_str(&var.name)?;
+                f.write_str(&format!(": {:?}", var.var_type))?;
+                f.write_str("| ")?;
+                f.write_str(&format!("{:?}", body))?;
+            }
+            Judg_mentKind::App(func, arg) => {
+                f.write_str(&format!("{:?}", func))?;
+                f.write_str(&format!("{:?}", arg))?;
+            }
+            Judg_mentKind::Bind(_, _, _) => todo!(),
+            Judg_mentKind::StringLit(_) => todo!(),
+            Judg_mentKind::Iota(_) => todo!(),
+        }
+        Ok(())
+    }
+}
+
 mod test {
     use crate::{resolve::parse_source_file, syntax_tree::string_to_syntax};
 
@@ -135,7 +167,7 @@ mod test {
     #[test]
     fn test_de_sugar() {
         use super::*;
-        let text = "fn foo |x : Type| -> Type {let y = x! val y}
+        let text = "fn foo |x : Type| -> Type { val x}
         val foo
         ";
         let judg_ment = text_to_judg_ment(text);

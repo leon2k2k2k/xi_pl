@@ -28,7 +28,7 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
         fn up<T: Primitive, S: Metadata>(syn: Judgment<T, S>) -> SJudgment<T, S> {
             let syn_clone = syn.clone();
             match syn.type_of() {
-                Some(type_of_syn) => match type_of_syn.tree() {
+                Some(type_of_syn) => match type_of_syn.tree {
                     JudgmentKind::UInNone => SJudgment::Syn(syn),
                     JudgmentKind::Pi(var_type, _expr) => SJudgment::Lam(
                         Box::new(SJudgment::Syn(*var_type)),
@@ -41,7 +41,7 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
                     JudgmentKind::BoundVar(_, _) => SJudgment::Syn(syn),
                     JudgmentKind::Application(_, _) => SJudgment::Syn(syn),
                     JudgmentKind::Prim(_) => SJudgment::Syn(syn),
-                    JudgmentKind::VarUuid(_, _) => SJudgment::Syn(syn),
+                    JudgmentKind::FreeVar(_, _) => SJudgment::Syn(syn),
                 },
                 None => SJudgment::Syn(syn),
             }
@@ -95,7 +95,7 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
 
         let ctx_clone = ctx.clone();
         let ctx_clone2 = ctx.clone();
-        match syn.tree() {
+        match syn.tree {
             JudgmentKind::UInNone => SJudgment::Syn(Judgment::u(None)),
             JudgmentKind::Pi(var_type, expr) => SJudgment::Pi(
                 Box::new(SJudgment::syntax_to_semantics(
@@ -135,7 +135,7 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
                 }
             }
             JudgmentKind::Prim(prim) => U::meaning(prim),
-            JudgmentKind::VarUuid(free_var, var_type) => SJudgment::VarUuid(
+            JudgmentKind::FreeVar(free_var, var_type) => SJudgment::VarUuid(
                 free_var,
                 Box::new(SJudgment::syntax_to_semantics(*var_type, ctx)),
             ),
@@ -163,7 +163,7 @@ impl<T: Primitive> Semantics<T> for T {
             ctx: Vec<SJudgment<T, S>>,
         ) -> SJudgment<T, S> {
             let ctx_clone = ctx.clone();
-            match type_of.tree() {
+            match type_of.tree {
                 JudgmentKind::Pi(var_type, expr) => SJudgment::Lam(
                     Box::new(SJudgment::syntax_to_semantics(
                         *var_type,

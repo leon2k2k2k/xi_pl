@@ -1,5 +1,5 @@
 /// Define a map from Judgment<T,S> to term macros so we can read better.
-use xi_core::judgment::*;
+use crate::judgment::*;
 use xi_uuid::VarUuid;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -18,10 +18,10 @@ pub enum JudgmentTree<T> {
 
 pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> JudgmentTree<T> {
     use JudgmentTree::*;
-    match judgment.tree() {
+    match judgment.tree {
         JudgmentKind::UInNone => JudgmentTree::UinNone,
         JudgmentKind::Prim(prim) => JudgmentTree::Prim(prim),
-        JudgmentKind::VarUuid(free_var, expr) => {
+        JudgmentKind::FreeVar(free_var, expr) => {
             JudgmentTree::VarUuid(free_var, Box::new(judgment_to_tree(*expr)))
         }
         JudgmentKind::Pi(var_type, expr) => {
@@ -192,6 +192,12 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
     }
 }
 
+impl<T: Primitive, S: Metadata> std::fmt::Debug for Judgment<T, S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&tree_to_string(&judgment_to_tree(self.clone())))?;
+        Ok(())
+    }
+}
 mod test {
     #[test]
     fn judgment_to_tree_test() {

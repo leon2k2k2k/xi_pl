@@ -59,10 +59,10 @@ fn make_var_name(ctx: &Vec<Ident>) -> Ident {
     to_js_ident2(format!("var_{}", ctx.len()))
 }
 fn to_js<T: JsOutput, S: Metadata>(judgment: Judgment<T, S>, ctx: Vec<Ident>) -> Expr {
-    match judgment.tree() {
+    match judgment.tree {
         JudgmentKind::UInNone => to_js_str_u(),
         JudgmentKind::Prim(t) => T::to_js_prim(&t),
-        JudgmentKind::VarUuid(_, _) => panic!("Should not have a VarUuid in this expression"),
+        JudgmentKind::FreeVar(_, _) => panic!("Should not have a VarUuid in this expression"),
         JudgmentKind::Pi(_, _) => to_js_str_pi(),
         JudgmentKind::Lam(_var_type, body) => {
             let var_name = make_var_name(&ctx);

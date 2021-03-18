@@ -6,6 +6,8 @@
     beta-reduction and eta-conversion.
 */
 
+use std::rc::Rc;
+
 use crate::nbe::{SJudgment, Semantics};
 use xi_uuid::VarUuid;
 // #[derive(Clone, Debug)]
@@ -14,17 +16,17 @@ use xi_uuid::VarUuid;
 
 // }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Judgment<T, S> {
-    metadata: S,
-    tree: JudgmentKind<T, S>,
+    pub metadata: S,
+    pub tree: JudgmentKind<T, S>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum JudgmentKind<T, S> {
     UInNone,
     Prim(T),
-    VarUuid(VarUuid, Box<Judgment<T, S>>),
+    FreeVar(VarUuid, Box<Judgment<T, S>>),
     Pi(Box<Judgment<T, S>>, Box<Judgment<T, S>>),
     Lam(Box<Judgment<T, S>>, Box<Judgment<T, S>>),
     BoundVar(u32, Box<Judgment<T, S>>),
@@ -37,15 +39,6 @@ impl<T: PartialEq, S: PartialEq> PartialEq for Judgment<T, S> {
     }
 }
 
-impl<T, S> Judgment<T, S> {
-    pub fn tree(self) -> JudgmentKind<T, S> {
-        self.tree
-    }
-    pub fn metadata(self) -> S {
-        self.metadata
-    }
-}
-
 impl<T: PartialEq, S: PartialEq> Eq for Judgment<T, S> {}
 
 pub trait Primitive: Clone + PartialEq + Eq + 'static + std::fmt::Debug
@@ -54,7 +47,6 @@ where
 {
     fn type_of<S: Metadata>(&self) -> Judgment<Self, S>;
 }
-
 pub trait Metadata: Clone + PartialEq + Eq + 'static + std::fmt::Debug + Default {}
 
 impl<T: Primitive, S: Metadata> Judgment<T, S> {
@@ -82,7 +74,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                 }
             }
             JudgmentKind::Prim(prim) => Some(prim.type_of().into()),
-            JudgmentKind::VarUuid(_free_var, var_type) => Some((*var_type).clone()),
+            JudgmentKind::FreeVar(_free_var, var_type) => Some((*var_type).clone()),
         }
     }
 
@@ -126,14 +118,17 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             metadata: metadata.unwrap_or_default(),
         }
     }
-    /// BoundVar constructor
-    // pub fn var(int: u32, var_type: Judgment<T, S>, metadata: Option<S>) -> Judgment<T, S> {
-    //     Judgment::BoundVar(int, Box::new(var_type))
-    // }
+
+    pub fn bound_var(int: u32, var_type: Judgment<T, S>, metadata: Option<S>) -> Judgment<T, S> {
+        Judgment {
+            tree: JudgmentKind::BoundVar(int, Box::new(var_type)),
+            metadata: metadata.unwrap_or_default(),
+        }
+    }
 
     pub fn free(int: VarUuid, var_type: Judgment<T, S>, metadata: Option<S>) -> Judgment<T, S> {
         Judgment {
-            tree: JudgmentKind::VarUuid(int, Box::new(var_type)),
+            tree: JudgmentKind::FreeVar(int, Box::new(var_type)),
             metadata: metadata.unwrap_or_default(),
         }
     }
@@ -169,7 +164,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     }
 
     /// Replace the outermost bound variable in expr with elem.
-    fn instantiate(expr: Judgment<T, S>, elem: &Judgment<T, S>) -> Judgment<T, S> {
+    pub fn instantiate(expr: Judgment<T, S>, elem: &Judgment<T, S>) -> Judgment<T, S> {
         fn instantiate_rec<T: Primitive, S: Metadata>(
             expr: Judgment<T, S>,
             elem: &Judgment<T, S>,
@@ -208,8 +203,8 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                     Box::new(instantiate_rec(*arg, elem, depth)),
                 ),
                 JudgmentKind::Prim(_) => expr.tree.clone(),
-                JudgmentKind::VarUuid(free_var, var_type) => {
-                    JudgmentKind::VarUuid(free_var, var_type.clone())
+                JudgmentKind::FreeVar(free_var, var_type) => {
+                    JudgmentKind::FreeVar(free_var, var_type.clone())
                 }
             };
 
@@ -245,11 +240,11 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                     Box::new(rebind_rec(*rhs, free_var, depth)),
                 ),
                 JudgmentKind::Prim(_) => s.tree.clone(),
-                JudgmentKind::VarUuid(i, var_type) => {
+                JudgmentKind::FreeVar(i, var_type) => {
                     if i == free_var {
                         JudgmentKind::BoundVar(depth, Box::new(*var_type))
                     } else {
-                        JudgmentKind::VarUuid(i, Box::new(rebind_rec(*var_type, free_var, depth)))
+                        JudgmentKind::FreeVar(i, Box::new(rebind_rec(*var_type, free_var, depth)))
                     }
                 }
             };
@@ -294,7 +289,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             match expr.tree {
                 JudgmentKind::UInNone => false,
                 JudgmentKind::Prim(_) => false,
-                JudgmentKind::VarUuid(_, expr) => is_bound_var_used(*expr, depth),
+                JudgmentKind::FreeVar(_, expr) => is_bound_var_used(*expr, depth),
                 JudgmentKind::Pi(var_type, expr) => {
                     is_bound_var_used(*var_type, depth + 1) || is_bound_var_used(*expr, depth + 1)
                 }
@@ -310,6 +305,38 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             }
         }
         is_bound_var_used(self, 0)
+    }
+
+    pub fn define_prim<U: Primitive>(
+        &self,
+        prim_meaning: Rc<dyn Fn(T) -> Judgment<U, S>>,
+    ) -> Judgment<U, S> {
+        let metadata = Some(self.metadata.clone());
+        match &self.tree {
+            JudgmentKind::UInNone => Judgment::u(metadata),
+            JudgmentKind::Prim(prim) => prim_meaning(prim.clone()),
+            JudgmentKind::FreeVar(index, var_type) => {
+                Judgment::free(*index, var_type.define_prim(prim_meaning), metadata)
+            }
+            JudgmentKind::Pi(var_type, body) => Judgment::pi(
+                var_type.define_prim(prim_meaning.clone()),
+                body.define_prim(prim_meaning),
+                metadata,
+            ),
+            JudgmentKind::Lam(var_type, body) => Judgment::lam(
+                var_type.define_prim(prim_meaning.clone()),
+                body.define_prim(prim_meaning),
+                metadata,
+            ),
+            JudgmentKind::BoundVar(index, var_type) => {
+                Judgment::bound_var(*index, var_type.define_prim(prim_meaning), metadata)
+            }
+            JudgmentKind::Application(lhs, rhs) => Judgment::app(
+                lhs.define_prim(prim_meaning.clone()),
+                rhs.define_prim(prim_meaning),
+                metadata,
+            ),
+        }
     }
 }
 

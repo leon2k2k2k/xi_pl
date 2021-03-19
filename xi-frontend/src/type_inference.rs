@@ -194,7 +194,7 @@ impl Context {
     }
 }
 #[derive(Clone, Debug)]
-struct TypeError();
+pub struct TypeError();
 /// Take a Judg_ment and context and infer all the free variables in the Judg_ment, written in the context.
 fn type_infer(
     judg_ment: Judg_ment,
@@ -281,42 +281,10 @@ fn type_infer(
     Ok(result)
 }
 
-fn to_judgment(judg_ment: Judg_ment) -> Result<Judgment<Frontend, ()>, TypeError> {
+pub fn to_judgment(judg_ment: Judg_ment) -> Result<Judgment<Frontend, ()>, TypeError> {
     let ctx = &mut Context::new();
     let judgment_with_type_var = type_infer(judg_ment, ctx)?;
     ctx.final_lookup(judgment_with_type_var, &mut vec![])
 }
 
-fn frontend(text: &str) -> Result<Judgment<Frontend, ()>, TypeError> {
-    let judg_ment = text_to_judg_ment(text);
-    to_judgment(judg_ment)
-}
-
-mod test {
-
-    #[test]
-    fn test_to_judgment() {
-        use super::*;
-        let text1 = "fn foo |x : Type| -> Type {val x}
-        val foo";
-        use crate::desugar::*;
-        let judgment1 = frontend(text1);
-        dbg!(judgment1);
-
-        let text2 = "fn foo |x| {val x} 
-         val foo (Pi|y: Type| y)";
-        let ctx2 = &mut Context::new();
-        let judgment2 = frontend(text1);
-        dbg!(judgment2);
-        // dbg!(ctx2);
-    }
-
-    //     let text2 = "fn foo |x| -> {val x} val foo \"hello world\" ";
-    //     let judgment2 = front_end(text2);
-    //     dbg!(judgment2);
-
-    //     let text3 = "let y = \"hello world\"  let x = y";
-    //     let judgment3 = front_end(text3);
-    //     dbg!(judgment3);
-    // }
-}
+mod test {}

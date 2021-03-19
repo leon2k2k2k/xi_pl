@@ -2,7 +2,10 @@ mod desugar;
 mod resolve;
 mod syntax_tree;
 mod type_inference;
+use desugar::text_to_judg_ment;
 use tree_sitter::{Language, Parser, Tree};
+use type_inference::{to_judgment, TypeError};
+use xi_core::judgment::{Frontend, Judgment};
 
 extern "C" {
     fn tree_sitter_aplite() -> Language;
@@ -13,6 +16,11 @@ pub fn to_tree(source_code: &str) -> Tree {
     let language = unsafe { tree_sitter_aplite() };
     parser.set_language(language).unwrap();
     parser.parse(source_code, None).unwrap()
+}
+
+pub fn frontend(text: &str) -> Result<Judgment<Frontend, ()>, TypeError> {
+    let judg_ment = text_to_judg_ment(text);
+    to_judgment(judg_ment)
 }
 
 #[cfg(test)]
@@ -30,5 +38,33 @@ mod tests {
         println!("{:?}", word);
         let text = &source_code[root_node.child(0).unwrap().child(0).unwrap().byte_range()];
         println!("{}", text);
+    }
+
+    mod test {
+
+        #[test]
+        fn test_to_judgment() {
+            use super::super::*;
+            let text1 = "fn foo |x : Type| -> Type {val x}
+            val foo";
+            use crate::desugar::*;
+            let judgment1 = frontend(text1);
+            dbg!(judgment1);
+
+            let text2 = "fn foo |x| {val x} 
+             val foo (Pi|y: Type| y)";
+            let judgment2 = frontend(text1);
+            dbg!(judgment2);
+            // dbg!(ctx2);
+        }
+
+        //     let text2 = "fn foo |x| -> {val x} val foo \"hello world\" ";
+        //     let judgment2 = front_end(text2);
+        //     dbg!(judgment2);
+
+        //     let text3 = "let y = \"hello world\"  let x = y";
+        //     let judgment3 = front_end(text3);
+        //     dbg!(judgment3);
+        // }
     }
 }

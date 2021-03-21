@@ -1,6 +1,3 @@
-import { readLines } from "https://deno.land/std@0.88.0/io/bufio.ts";
-const stdinReader = readLines(Deno.stdin);
-
 function io_bind2<T, U>(arg: () => T) {
     return (func: ((_: T) => (() => U))) => {
         const value = arg();
@@ -20,15 +17,24 @@ export function io_pure(_: any) {
     return io_pure2;
 }
 
-export function console_input() {
-    return stdinReader.next().then(
-        ({ value }) => {
-            return value;
-        },
-    );
+export function console_input(): string {
+    const input = [];
+    const buf = new Uint8Array(1);
+    while (buf[0] != 0x0a /* \n */) {
+        const num_read = Deno.readSync(Deno.stdin.rid, buf);
+        if (num_read != 1) {
+            throw "Failed to read from stdin"
+        }
+        input.push(buf[0]);
+    }
+    input.pop()
+    return new TextDecoder().decode(new Uint8Array(input));
 }
-export function console_output() {
-    return (out_str: string) => Deno.writeAll(Deno.stdout, new TextEncoder().encode(out_str));
+export function console_output(out_str: string): () => void {
+    return () => {
+        Deno.writeAllSync(Deno.stdout, new TextEncoder().encode(out_str));
+        Deno.writeAllSync(Deno.stdout, new Uint8Array([0x0a])); // newline
+    }
 }
 
 function promise_bind2<T, U>(arg: Promise<T>) {
@@ -51,3 +57,5 @@ export function promise_pure(_: any) {
 export function id(val: any) {
     return val;
 }
+
+io_bind("hi")("hi")(io_bind("hi")("hi")(console_input)((str: string) => console_output(str)))(io_pure("hi"))

@@ -45,10 +45,10 @@ impl Primitive for JsPrim {
                 use JsIO::*;
                 match iomonad {
                     ConsoleOutput => {
-                        term!([IO(IOMonad)] ([Type(JsType::StrType)] -> ([Promise(JsPromise::PromiseMonad)] [Type(JsType::UnitType)])))
+                        term!([Type(JsType::StrType)] -> [IO(JsIO::IOMonad)] [Type(JsType::UnitType)])
                     }
                     ConsoleInput => term!([IO(IOMonad)](
-                        [Promise(JsPromise::PromiseMonad)][Type(JsType::StrType)]
+                        [Type(JsType::StrType)]
                     )),
                     IOMonad => term!(U -> U),
                     Bind => {
@@ -120,9 +120,6 @@ impl JsPrim{
         term!([JsPrim::Type(JsType::StrType)] -> ([JsPrim::Promise(JsPromise::PromiseMonad)] [JsPrim::Type(JsType::UnitType)]))
     }
 
-    pub fn console_output_type<S: Metadata>() -> Judgment<JsPrim, S> {
-        term!([JsPrim::IO(JsIO::Bind)] -> {JsPrim::str_to_promise_unit()})
-    }
 
     pub fn output_str(str: String) -> String {
         use JsPrim::*;
@@ -136,6 +133,42 @@ impl JsPrim{
         // println!("type of str_expression: {:?}", str_expression.type_of());
         output::to_js_program(str_expression)
         
+    }
+
+    // pub fn iobind<S:Metadata>(input : Judgment<JsPrim, S>, output : Judgment<JsPrim,S>) -> Judgment<JsPrim,S> {
+    //     use JsPrim::*;
+    //     use crate::output;
+    //     let input_type =  match input.type_of(){
+    //         Some(input_type) => {
+    //             match input_type.tree{
+
+    //                 xi_core::judgment::JudgmentKind::Application(monad, _type) => {
+    //                     if let JudgmentKind::Prim(JsPrim::IO(IOMonad)) = monad.tree {
+    //                         _type
+    //                     } else{
+    //                         panic!("the type of input should be iobind sometype")
+    //                     }
+    //                 }
+    //                 _ => panic!("the type of inpy should be IOBind sometype")
+    //             }
+    //         }
+    //         None => panic!("this shouldn't happen")
+    //     };
+
+    //     if let JudgmentKind::Pi(input_type, expr) = output.type_of().unwrap().tree{
+    //         if let JudgmentKind::Application(monad, outputtype)
+    //     }
+        
+    //     let ans: Judgment<JsPrim, S>  = term!([IO(JsIO::Bind)]);
+
+    // }
+    
+    pub fn console_output1() -> Judgment<JsPrim, ()> {
+        use JsPrim::*;
+        term!(Lam | input : [Type(JsType:: StrType)] | [IO(JsIO::Bind)] 
+        [Type(JsType::UnitType)] [Type(JsType::UnitType)]
+                    ([IO(JsIO::ConsoleOutput)] input) 
+                    (Lam | star : [Type(JsType::UnitType)]| [IO(JsIO::Pure)] [Type(JsType::UnitType)] [Type(JsType::Unit)]))
     }
 
     // pub fn output_inpt() -> String{
@@ -201,3 +234,4 @@ impl JsPrim{
 //         // panic!(s2);
 //     }
 // }
+

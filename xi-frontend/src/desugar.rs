@@ -1,7 +1,8 @@
 use crate::{
-    resolve::{self, parse_source_file, Expr, ExprKind, Stmt, StmtKind},
+    resolve::{self, parse_source_file, Expr, ExprKind, ResolvePrim, Stmt, StmtKind},
     rowan_ast::string_to_syntax,
 };
+use std::collections::BTreeMap;
 use xi_uuid::VarUuid;
 
 pub use crate::resolve::Span;
@@ -25,9 +26,10 @@ pub enum Judg_mentKind {
     Pi(Var, Judg_ment),
     Lam(Var, Judg_ment),
     App(Judg_ment, Judg_ment),
-    Bind(Judg_ment, Var, Judg_ment),
+    Bind(Judg_ment, Judg_ment),
     StringLit(String),
     Iota(Judg_ment),
+    Pure(Judg_ment),
 }
 
 fn desugar_stmt_vec(stmts: &[Stmt]) -> Judg_ment {
@@ -44,11 +46,9 @@ fn desugar_stmt_vec(stmts: &[Stmt]) -> Judg_ment {
                 let bind_fun = desugar_stmt_vec(stmt_rest);
                 let bind_arg_span = bind_arg.1;
                 let bind_fun_span = bind_fun.1;
-                Judg_mentKind::Bind(
-                    Judg_ment(Box::new(Judg_mentKind::Iota(bind_arg)), bind_arg_span),
-                    desugar_var(var),
-                    Judg_ment(Box::new(Judg_mentKind::Iota(bind_fun)), bind_fun_span),
-                )
+                let rest_kind = Judg_mentKind::Lam(desugar_var(var), bind_fun);
+                let rest = Judg_ment(Box::new(rest_kind), bind_fun_span);
+                Judg_mentKind::Bind(bind_arg, rest)
             } else {
                 let func_body = desugar_stmt_vec(stmt_rest);
                 let func = Judg_mentKind::Lam(desugar_var(var), func_body.clone());
@@ -82,7 +82,7 @@ fn desugar_expr(expr: &Expr) -> Judg_ment {
         ExprKind::Var(var) => Judg_mentKind::Var(desugar_var(var)),
         ExprKind::Type => Judg_mentKind::Type,
         ExprKind::Bang(expr) => {
-            todo!("don't bang please");
+            Judg_mentKind::Pure(desugar_expr(expr)) // val x! => iopure(x)
         }
         ExprKind::App(func, elem) => Judg_mentKind::App(desugar_expr(&func), desugar_expr(&elem)),
         ExprKind::Fun(source, target) => {
@@ -116,11 +116,11 @@ fn desugar_expr(expr: &Expr) -> Judg_ment {
 
     Judg_ment(Box::new(result_kind), expr.1)
 }
-pub fn text_to_judg_ment(text: &str) -> Judg_ment {
+pub fn text_to_judg_ment(text: &str) -> (Judg_ment, BTreeMap<VarUuid, ResolvePrim>) {
     let node = string_to_syntax(text);
     let source_file = parse_source_file(&node);
     let stmts = &source_file.0;
-    desugar_stmt_vec(stmts)
+    (desugar_stmt_vec(stmts), source_file.1)
 }
 
 impl std::fmt::Debug for Judg_ment {
@@ -151,9 +151,14 @@ impl std::fmt::Debug for Judg_ment {
                 f.write_str(&format!("{:?}", func))?;
                 f.write_str(&format!("{:?}", arg))?;
             }
-            Judg_mentKind::Bind(_, _, _) => todo!(),
+            Judg_mentKind::Bind(input, rest) => {
+                f.write_str(&format!("{:?}", input));
+                f.write_str(">=");
+                f.write_str(&format!("{:?}", rest));
+            }
             Judg_mentKind::StringLit(_) => todo!(),
             Judg_mentKind::Iota(_) => todo!(),
+            Judg_mentKind::Pure(expr) => f.write_str(&format!("{:?}", expr))?,
         }
         Ok(())
     }

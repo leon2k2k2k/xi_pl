@@ -1,10 +1,11 @@
 [workspace]
 
 members = [
-    "xi-cli",
-    "xi-frontend",
     "xi-backend",
+    "xi-cli",
     "xi-core",
+    "xi-frontend",
+    "xi-kernel",
     "xi-proc-macro",
     "xi-uuid",
 ]

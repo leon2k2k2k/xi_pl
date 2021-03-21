@@ -3416,7 +3416,10 @@ version = "0.1.0"
 dependencies = [
  "tokio",
  "xi-backend",
+ "xi-core",
  "xi-frontend",
+ "xi-kernel",
+ "xi-proc-macro",
 ]
 
 [[package]]
@@ -3435,7 +3438,18 @@ dependencies = [
  "rowan",
  "tree-sitter",
  "xi-core",
+ "xi-proc-macro",
  "xi-uuid",
+]
+
+[[package]]
+name = "xi-kernel"
+version = "0.1.0"
+dependencies = [
+ "xi-backend",
+ "xi-core",
+ "xi-frontend",
+ "xi-proc-macro",
 ]
 
 [[package]]

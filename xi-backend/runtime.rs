@@ -17,7 +17,7 @@ pub async fn run_js_from_string(source_code: String) -> Result<(), AnyError> {
     let main_module_file = File {
         local: main_module.clone().to_file_path().unwrap(),
         maybe_types: None,
-        media_type: MediaType::TypeScript,
+        media_type: MediaType::JavaScript,
         source: source_code,
         specifier: main_module.clone(),
     };

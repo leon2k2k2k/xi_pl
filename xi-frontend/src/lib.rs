@@ -1,11 +1,11 @@
 mod desugar;
 mod resolve;
 mod rowan_ast;
-mod type_inference;
+pub mod type_inference;
 use desugar::text_to_judg_ment;
 use tree_sitter::{Language, Parser, Tree};
-use type_inference::{to_judgment, TypeError};
-use xi_core::judgment::{Frontend, Judgment};
+use type_inference::{to_judgment, TypeError, UiPrim};
+use xi_core::judgment::Judgment;
 
 extern "C" {
     fn tree_sitter_aplite() -> Language;
@@ -18,9 +18,9 @@ pub fn to_tree(source_code: &str) -> Tree {
     parser.parse(source_code, None).unwrap()
 }
 
-pub fn frontend(text: &str) -> Result<Judgment<Frontend, ()>, TypeError> {
+pub fn frontend(text: &str) -> Result<Judgment<UiPrim, ()>, TypeError> {
     let judg_ment = text_to_judg_ment(text);
-    to_judgment(judg_ment)
+    to_judgment(judg_ment.0, judg_ment.1)
 }
 
 #[cfg(test)]

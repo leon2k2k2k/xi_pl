@@ -1,10 +1,65 @@
 use crate::rowan_ast::{nonextra_children, SyntaxKind, SyntaxNode, SyntaxToken};
-use rowan::{NodeOrToken, TextRange};
+use rowan::{NodeOrToken, TextRange, TextSize};
 use std::collections::BTreeMap;
 use xi_uuid::VarUuid;
 
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum ResolvePrim {
+    IOMonad,
+    StringType,
+    UnitType,
+    UnitElem,
+    ConsoleInput,
+    ConsoleOutput,
+}
+
+impl std::fmt::Display for ResolvePrim {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use ResolvePrim::*;
+        let res = match self {
+            IOMonad => "IO",
+            StringType => "String",
+            UnitType => "Unit",
+            UnitElem => "unit",
+            ConsoleInput => "console_input",
+            ConsoleOutput => "console_output",
+        };
+        write!(f, "{}", res)
+    }
+}
+
+impl ResolvePrim {
+    pub fn prims() -> Vec<ResolvePrim> {
+        use ResolvePrim::*;
+        vec![
+            IOMonad,
+            StringType,
+            UnitType,
+            UnitElem,
+            ConsoleInput,
+            ConsoleOutput,
+        ]
+    }
+    fn get_ctx() -> (Context, BTreeMap<VarUuid, ResolvePrim>) {
+        let mut ident_map = BTreeMap::new();
+        let mut resolve_map = BTreeMap::new();
+        for prim in ResolvePrim::prims() {
+            let var = Var {
+                index: VarUuid::new(),
+                name: prim.to_string(),
+                span: Span::new(TextSize::from(0), TextSize::from(0)),
+                var_type: None,
+            };
+
+            ident_map.insert(prim.to_string(), var.clone());
+            resolve_map.insert(var.index, prim.clone());
+        }
+
+        (ident_map, resolve_map)
+    }
+}
 #[derive(Clone, Debug)]
-pub struct SourceFile(pub Vec<Stmt>);
+pub struct SourceFile(pub Vec<Stmt>, pub BTreeMap<VarUuid, ResolvePrim>);
 #[derive(Clone, Debug)]
 pub enum Error {
     Stmt(StmtError),
@@ -79,13 +134,10 @@ pub struct NameNotFoundError {
 
 pub type Span = rowan::TextRange;
 
-fn default_ctx() -> BTreeMap<String, Var> {
-    let mut ctx = BTreeMap::new();
-    ctx
-}
+type Context = BTreeMap<String, Var>;
 
 pub fn parse_source_file(node: &SyntaxNode) -> SourceFile {
-    let mut ctx = default_ctx();
+    let (mut ctx, resolve_var) = ResolvePrim::get_ctx();
     let mut stmts = vec![];
     // let mut errors = vec![];
     let mut previous_error = false;
@@ -101,10 +153,10 @@ pub fn parse_source_file(node: &SyntaxNode) -> SourceFile {
         //     }
         // }
     }
-    SourceFile(stmts)
+    SourceFile(stmts, resolve_var)
 }
 
-fn create_var(node: &SyntaxNode, var_type: Option<Expr>, ctx: &mut BTreeMap<String, Var>) -> Var {
+fn create_var(node: &SyntaxNode, var_type: Option<Expr>, ctx: &mut Context) -> Var {
     assert_eq!(node.kind(), SyntaxKind::IDENT);
     let index = VarUuid::new();
     let var_name: String = node
@@ -123,7 +175,7 @@ fn create_var(node: &SyntaxNode, var_type: Option<Expr>, ctx: &mut BTreeMap<Stri
     var
 }
 
-fn parse_var(node: &SyntaxNode, ctx: &BTreeMap<String, Var>) -> Result<Var, NameNotFoundError> {
+fn parse_var(node: &SyntaxNode, ctx: &Context) -> Result<Var, NameNotFoundError> {
     assert!(node.kind() == SyntaxKind::IDENT);
     let var_name = node
         .first_token()
@@ -142,7 +194,7 @@ fn parse_var(node: &SyntaxNode, ctx: &BTreeMap<String, Var>) -> Result<Var, Name
     Ok(var)
 }
 
-fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, Var>) -> Stmt {
+fn parse_stmt(node: &SyntaxNode, ctx: &mut Context) -> Stmt {
     // dbg!(node);
     let children = nonextra_children(node).collect::<Vec<_>>();
 
@@ -236,7 +288,7 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut BTreeMap<String, Var>) -> Stmt {
     Stmt(stmt_kind, node.text_range())
 }
 
-fn parse_expr(node: &SyntaxNode, ctx: &BTreeMap<String, Var>) -> Expr {
+fn parse_expr(node: &SyntaxNode, ctx: &Context) -> Expr {
     // dbg!(node);
     let children = nonextra_children(node).collect::<Vec<_>>();
 
@@ -329,10 +381,7 @@ fn parse_expr(node: &SyntaxNode, ctx: &BTreeMap<String, Var>) -> Expr {
     Expr(Box::new(expr_kind), node.text_range())
 }
 
-fn parse_binders(
-    node: &SyntaxNode,
-    ctx: &BTreeMap<String, Var>,
-) -> (Binders, BTreeMap<String, Var>) {
+fn parse_binders(node: &SyntaxNode, ctx: &Context) -> (Binders, BTreeMap<String, Var>) {
     if let SyntaxKind::BINDERS = node.kind() {
         let children = nonextra_children(node).collect::<Vec<_>>();
 

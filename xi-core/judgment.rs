@@ -356,18 +356,6 @@ impl Primitive for NatPrim {
         }
     }
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Frontend {
-    StringType,
-}
-
-impl Primitive for Frontend {
-    fn type_of<S: Metadata>(&self) -> Judgment<Self, S> {
-        match self {
-            Frontend::StringType => Judgment::u(None),
-        }
-    }
-}
 
 impl Primitive for () {
     fn type_of<S: Metadata>(&self) -> Judgment<Self, S> {

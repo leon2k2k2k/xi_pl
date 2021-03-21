@@ -1,18 +1,16 @@
 [package]
-name = "xi-frontend"
+name = "xi-kernel"
 version = "0.1.0"
 authors = ["leon2k2k2k <liuleon4@gmail.com>", "Frank Dai <frank@fyd.ai>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+path = "lib.rs"
+
 [dependencies]
-tree-sitter = "0.17"
-rowan = "0.12"
-xi-uuid = { path = "../xi-uuid" }
+xi-backend = { path = "../xi-backend" }
 xi-core = { path = "../xi-core" }
+xi-frontend = { path = "../xi-frontend" }
 xi-proc-macro = { path = "../xi-proc-macro" }
-
-
-[build-dependencies]
-cc = "*"

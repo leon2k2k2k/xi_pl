@@ -1,6 +1,6 @@
 mod desugar;
 mod resolve;
-mod syntax_tree;
+mod rowan_ast;
 mod type_inference;
 use desugar::text_to_judg_ment;
 use tree_sitter::{Language, Parser, Tree};
@@ -41,6 +41,7 @@ mod tests {
     }
 
     mod test {
+        use std::task::Context;
 
         #[test]
         fn test_to_judgment() {
@@ -52,10 +53,10 @@ mod tests {
             dbg!(judgment1);
 
             let text2 = "fn foo |x| {val x} 
-             val foo (Pi|y: Type| y)";
-            let judgment2 = frontend(text1);
+             val foo (Pi |y: Type| y)";
+            let judgment2 = frontend(text2);
+
             dbg!(judgment2);
-            // dbg!(ctx2);
         }
 
         //     let text2 = "fn foo |x| -> {val x} val foo \"hello world\" ";

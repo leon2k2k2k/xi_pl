@@ -1,4 +1,4 @@
-use crate::syntax_tree::{nonextra_children, SyntaxKind, SyntaxNode, SyntaxToken};
+use crate::rowan_ast::{nonextra_children, SyntaxKind, SyntaxNode, SyntaxToken};
 use rowan::{NodeOrToken, TextRange};
 use std::collections::BTreeMap;
 use xi_uuid::VarUuid;
@@ -363,7 +363,7 @@ fn parse_binders(
 
 mod test {
     use super::{parse_source_file, SourceFile};
-    use crate::syntax_tree::string_to_syntax;
+    use crate::rowan_ast::string_to_syntax;
     fn source_code_to_parse(text: &str) -> SourceFile {
         let node = string_to_syntax(text);
         parse_source_file(&node)
@@ -376,5 +376,10 @@ mod test {
             val x}";
         let node = source_code_to_parse(text);
         dbg!(node);
+
+        // let text2 = "fn foo |x| {val x}
+        // val foo (Pi |y: Type| y)";
+        // let node2 = source_code_to_parse(text2);
+        // dbg!(node2);
     }
 }

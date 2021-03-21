@@ -5,7 +5,7 @@ use xi_core::judgment::{Frontend, Judgment, JudgmentKind, Metadata, Primitive};
 use xi_uuid::VarUuid;
 
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
-struct TypeVar(u32);
+pub struct TypeVar(u32);
 
 impl Primitive for TypeVar {
     fn type_of<S: Metadata>(&self) -> Judgment<Self, S> {
@@ -20,14 +20,14 @@ fn less_than(type_var1: TypeVar, type_var2: TypeVar) -> bool {
     }
 }
 #[derive(Clone, Debug)]
-struct Context {
+pub struct Context {
     var_map: BTreeMap<VarUuid, TypeVar>,
     type_map: BTreeMap<TypeVar, Judgment<TypeVar, ()>>,
     next: u32,
 }
 
 impl Context {
-    fn new() -> Context {
+    pub fn new() -> Context {
         Context {
             var_map: BTreeMap::new(),
             type_map: BTreeMap::new(),
@@ -153,20 +153,22 @@ impl Context {
         Ok(result)
     }
 
-    fn final_lookup(
+    pub fn final_lookup(
         &mut self,
         judgment: Judgment<TypeVar, ()>,
-        seen: &mut Vec<TypeVar>,
+        seen: &Vec<TypeVar>,
     ) -> Result<Judgment<Frontend, ()>, TypeError> {
+        // dbg!(judgment.clone());
         let result: Judgment<Frontend, ()> = match judgment.tree {
             JudgmentKind::UInNone => Judgment::u(None),
             JudgmentKind::Prim(type_var) => {
                 if seen.iter().any(|&i| i.0 == type_var.0) {
                     panic!("there is an infinite loop in the type variables")
                 }
-                seen.push(type_var);
+                let mut seen2 = seen.clone();
+                seen2.push(type_var);
                 let looked_up = self.lookup_type_var(&type_var);
-                self.final_lookup(looked_up, seen)?
+                self.final_lookup(looked_up, &seen2)?
             }
             JudgmentKind::FreeVar(int, var_type) => {
                 Judgment::free(int, self.final_lookup(*var_type, seen)?, None)
@@ -196,7 +198,7 @@ impl Context {
 #[derive(Clone, Debug)]
 pub struct TypeError();
 /// Take a Judg_ment and context and infer all the free variables in the Judg_ment, written in the context.
-fn type_infer(
+pub fn type_infer(
     judg_ment: Judg_ment,
     ctx: &mut Context,
     // TODO: add metadata
@@ -247,7 +249,7 @@ fn type_infer(
             Judgment::lam(ctx.lookup_type_var(&beta), body_bound, None)
         }
         Judg_mentKind::App(func, arg) => {
-            let func_expr = type_infer(func, ctx)?;
+            let func_expr = type_infer(func.clone(), ctx)?;
             match func_expr.type_of().expect("please not none").tree {
                 JudgmentKind::Pi(var_type, expr) => {
                     let new_arg = type_infer(arg, ctx)?;
@@ -266,6 +268,7 @@ fn type_infer(
                             None,
                         ),
                     );
+
                     let new_func_expr = ctx.update_one(func_expr, type_var);
                     let new_body = type_infer(arg, ctx)?;
                     ctx.add_constraint(epsilon, new_body.type_of().expect("failure"));
@@ -284,7 +287,7 @@ fn type_infer(
 pub fn to_judgment(judg_ment: Judg_ment) -> Result<Judgment<Frontend, ()>, TypeError> {
     let ctx = &mut Context::new();
     let judgment_with_type_var = type_infer(judg_ment, ctx)?;
-    ctx.final_lookup(judgment_with_type_var, &mut vec![])
+    ctx.final_lookup(judgment_with_type_var, &vec![])
 }
 
 mod test {}

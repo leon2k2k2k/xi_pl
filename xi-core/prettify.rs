@@ -95,9 +95,10 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
                 format!("fv{}", free_var_index)
             }
             // we put VarUuid in the beginning.
-            JudgmentTree::BoundVar(index, _var_type) => {
-                format!("v{}", depth - 1 - index)
-            }
+            JudgmentTree::BoundVar(index, _var_type) => match depth.checked_sub(1 + index) {
+                Some(value) => format!("v{}", value),
+                None => format!("f{}", 1 + index - depth),
+            },
             JudgmentTree::Fun(vec) => {
                 let mut str_vec: Vec<String> = vec[0..vec.len() - 1]
                     .iter()

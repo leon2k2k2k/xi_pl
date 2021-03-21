@@ -27,7 +27,6 @@ export function console_input() {
         },
     );
 }
-
 export function console_output() {
     return (out_str: string) => Deno.writeAll(Deno.stdout, new TextEncoder().encode(out_str));
 }

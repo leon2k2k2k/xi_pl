@@ -1,6 +1,6 @@
 use crate::{
     resolve::{self, parse_source_file, Expr, ExprKind, Stmt, StmtKind},
-    syntax_tree::string_to_syntax,
+    rowan_ast::string_to_syntax,
 };
 use xi_uuid::VarUuid;
 
@@ -127,7 +127,7 @@ impl std::fmt::Debug for Judg_ment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self.0.clone() {
             Judg_mentKind::Type => f.write_str("Type")?,
-            Judg_mentKind::Var(var) => f.write_str(&var.name)?,
+            Judg_mentKind::Var(var) => f.write_str(&format!("{:?} {:?}", &var.name, &var.index))?,
             Judg_mentKind::Fun(func, arg) => {
                 f.write_str(&format!("{:?}", func))?;
                 f.write_str(" -> ")?;
@@ -160,7 +160,7 @@ impl std::fmt::Debug for Judg_ment {
 }
 
 mod test {
-    use crate::{resolve::parse_source_file, syntax_tree::string_to_syntax};
+    use crate::{resolve::parse_source_file, rowan_ast::string_to_syntax};
 
     use super::{desugar_stmt_vec, Judg_ment};
 
@@ -172,5 +172,10 @@ mod test {
         ";
         let judg_ment = text_to_judg_ment(text);
         dbg!(judg_ment);
+
+        let text2 = "fn foo |x| {val x} 
+        val foo (Pi |y: Type| y)";
+        let judg_ment2 = text_to_judg_ment(text2);
+        dbg!(judg_ment2);
     }
 }

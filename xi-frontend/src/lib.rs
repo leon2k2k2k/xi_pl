@@ -20,7 +20,7 @@ pub fn to_tree(source_code: &str) -> Tree {
 
 pub fn frontend(text: &str) -> Result<Judgment<UiPrim, ()>, TypeError> {
     let judg_ment = text_to_judg_ment(text);
-    to_judgment(judg_ment.0, judg_ment.1)
+    to_judgment(judg_ment)
 }
 
 #[cfg(test)]
@@ -40,32 +40,27 @@ mod tests {
         println!("{}", text);
     }
 
-    mod test {
-        use std::task::Context;
-
-        #[test]
-        fn test_to_judgment() {
-            use super::super::*;
-            let text1 = "fn foo |x : Type| -> Type {val x}
+    #[test]
+    fn test_to_judgment() {
+        use crate::frontend;
+        let text1 = "fn foo |x : Type| -> Type {val x}
             val foo";
-            use crate::desugar::*;
-            let judgment1 = frontend(text1);
-            dbg!(judgment1);
+        let judgment1 = frontend(text1).unwrap();
+        dbg!(judgment1);
 
-            let text2 = "fn foo |x| {val x} 
+        let text2 = "fn foo |x| {val x} 
              val foo (Pi |y: Type| y)";
-            let judgment2 = frontend(text2);
+        let judgment2 = frontend(text2).unwrap();
 
-            dbg!(judgment2);
-        }
-
-        //     let text2 = "fn foo |x| -> {val x} val foo \"hello world\" ";
-        //     let judgment2 = front_end(text2);
-        //     dbg!(judgment2);
-
-        //     let text3 = "let y = \"hello world\"  let x = y";
-        //     let judgment3 = front_end(text3);
-        //     dbg!(judgment3);
-        // }
+        dbg!(judgment2);
     }
+
+    //     let text2 = "fn foo |x| -> {val x} val foo \"hello world\" ";
+    //     let judgment2 = front_end(text2);
+    //     dbg!(judgment2);
+
+    //     let text3 = "let y = \"hello world\"  let x = y";
+    //     let judgment3 = front_end(text3);
+    //     dbg!(judgment3);
+    // }
 }

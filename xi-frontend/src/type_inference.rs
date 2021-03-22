@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, rc::Rc};
 
-use crate::desugar::{text_to_judg_ment, Judg_ment, Judg_mentKind, Var};
+use crate::desugar::{Judg_ment, Judg_mentKind, Var};
 use crate::resolve::ResolvePrim;
 use xi_core::judgment::{Judgment, JudgmentKind, Metadata, Primitive};
 use xi_uuid::VarUuid;
@@ -13,27 +13,19 @@ impl Primitive for TypeVar {
         Judgment::u(None)
     }
 }
-fn less_than(type_var1: TypeVar, type_var2: TypeVar) -> bool {
-    if type_var1.0 < type_var2.0 {
-        return true;
-    } else {
-        return false;
-    }
-}
+
 #[derive(Clone, Debug)]
 pub struct Context {
     var_map: BTreeMap<VarUuid, TypeVar>,
     type_map: BTreeMap<TypeVar, Judgment<TypeVarPrim, ()>>,
-    prim_map: BTreeMap<VarUuid, ResolvePrim>,
     next: u32,
 }
 
 impl Context {
-    pub fn new(prim_map: BTreeMap<VarUuid, ResolvePrim>) -> Context {
+    pub fn new() -> Context {
         Context {
             var_map: BTreeMap::new(),
             type_map: BTreeMap::new(),
-            prim_map,
             next: 0,
         }
     }
@@ -45,7 +37,8 @@ impl Context {
     ) -> Result<(), TypeError> {
         match self.type_map.get(&type_var) {
             Some(result) => {
-                let new_type = self.unify(result.clone(), replacement)?;
+                let result = result.clone();
+                let new_type = self.unify(result, replacement)?;
                 self.type_map.insert(type_var, new_type);
             }
             None => {
@@ -115,8 +108,8 @@ impl Context {
         lhs: Judgment<TypeVarPrim, ()>,
         rhs: Judgment<TypeVarPrim, ()>,
     ) -> Result<Judgment<TypeVarPrim, ()>, TypeError> {
-        let lhs = lhs.nbe().clone();
-        let rhs = rhs.nbe().clone();
+        let lhs = lhs.clone();
+        let rhs = rhs.clone();
 
         if let JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var)) = &lhs.tree {
             self.add_constraint(*type_var, rhs.clone())?;
@@ -135,6 +128,11 @@ impl Context {
                 Judgment::free(index1, *var_type, None)
             }
 
+            (
+                JudgmentKind::Prim(TypeVarPrim::Prim(prim1)),
+                JudgmentKind::Prim(TypeVarPrim::Prim(prim2)),
+            ) if prim1 == prim2 => Judgment::prim(TypeVarPrim::Prim(prim1), None),
+
             (JudgmentKind::Pi(var_type1, expr1), JudgmentKind::Pi(var_type2, expr2)) => {
                 Judgment::pi(
                     self.unify(*var_type1, *var_type2)?,
@@ -144,7 +142,7 @@ impl Context {
             }
 
             (JudgmentKind::Lam(_, _), _) => {
-                panic!("our nbe lord has failed us, this is all over... here goes dong")
+                panic!("our nbe lord has failed us, this is all over... here goes dongi")
             }
             (JudgmentKind::BoundVar(index1, var_type), JudgmentKind::BoundVar(index2, _))
                 if index1 == index2 =>
@@ -221,24 +219,10 @@ pub fn type_infer(
     // dbg!(judg_ment.clone());
     let result = match *judg_ment.0 {
         Judg_mentKind::Type => Judgment::u(None),
-        Judg_mentKind::Var(var) => match ctx.prim_map.get(&var.index) {
-            Some(prim) => {
-                use UiPrim::*;
-                let ui_prim = match prim {
-                    ResolvePrim::IOMonad => IOMonad,
-                    ResolvePrim::StringType => StringType,
-                    ResolvePrim::UnitType => UnitType,
-                    ResolvePrim::UnitElem => UnitElem,
-                    ResolvePrim::ConsoleInput => ConsoleInput,
-                    ResolvePrim::ConsoleOutput => ConsoleOutput,
-                };
-                Judgment::prim(TypeVarPrim::Prim(ui_prim), None)
-            }
-            None => {
-                let var_type = ctx.lookup_var(&var);
-                Judgment::free(var.index, var_type, None)
-            }
-        },
+        Judg_mentKind::Var(var) => {
+            let var_type = ctx.lookup_var(&var);
+            Judgment::free(var.index, var_type, None)
+        }
         Judg_mentKind::Fun(lhs, rhs) => {
             let new_lhs = type_infer(lhs, ctx)?;
             let new_rhs = type_infer(rhs, ctx)?;
@@ -280,7 +264,7 @@ pub fn type_infer(
         Judg_mentKind::App(func, arg) => {
             let func_expr = type_infer(func.clone(), ctx)?;
             match func_expr.type_of().expect("please not none").tree {
-                JudgmentKind::Pi(var_type, expr) => {
+                JudgmentKind::Pi(var_type, _expr) => {
                     let new_arg = type_infer(arg, ctx)?;
                     ctx.unify(*var_type, new_arg.type_of().expect("failure"))?;
 
@@ -311,6 +295,7 @@ pub fn type_infer(
             // Bind TV(0) TV(1) input rest)
             // App IOMOnad TV(0) = infer_input.type_of.ok_or(TypeError())?);
             // TV(0) -> App IOMonad TV(1) = infer_rest.type_of.ok_or(TypeError())?);
+            use xi_core::judgment::Judgment;
             use TypeVarPrim::*;
             use UiPrim::*;
             let tv0 = ctx.new_type_var();
@@ -321,17 +306,24 @@ pub fn type_infer(
             let judgment_tv0 = Judgment::prim(TypeVarPrim::TypeVar(tv0), None);
             let lhs1 = term!([Prim(IOMonad)] {judgment_tv0});
             ctx.unify(lhs1, infer_input.type_of().ok_or(TypeError())?)?;
+
             let judgment_tv1 = Judgment::prim(TypeVarPrim::TypeVar(tv1), None);
             let lhs2 = term!({judgment_tv0} -> [Prim(UiPrim::IOMonad)] {judgment_tv1});
             ctx.unify(lhs2, infer_rest.type_of().ok_or(TypeError())?)?;
-            let ans: Judgment<TypeVarPrim, ()> =
-                term!([Prim(IOBind)] {judgment_tv0} {judgment_tv1} {infer_input} {infer_rest});
-            ans
+
+            // let ans: Judgment<TypeVarPrim, ()> =
+            //     term!([Prim(IOBind)] {judgment_tv0} {judgment_tv1} {infer_input} {infer_rest});
+
+            Judgment::app_unchecked_vec(
+                Judgment::prim(Prim(IOBind), None),
+                &mut vec![judgment_tv0, judgment_tv1, infer_input, infer_rest],
+                None,
+            )
+            // todo! change
+            // ans
         }
         Judg_mentKind::StringLit(_) => todo!(),
-        Judg_mentKind::Iota(_) => todo!(),
         Judg_mentKind::Pure(expr) => {
-            use xi_proc_macro::term;
             use TypeVarPrim::*;
             use UiPrim::*;
             let epsilon = ctx.new_type_var();
@@ -339,9 +331,23 @@ pub fn type_infer(
             ctx.add_constraint(epsilon, infer_expr.type_of().ok_or(TypeError())?)?;
             let judgment_epsilon = Judgment::prim(TypeVarPrim::TypeVar(epsilon), None);
 
-            let ans: Judgment<TypeVarPrim, ()> =
-                term!([Prim(IOPure)] {judgment_epsilon} {infer_expr});
-            ans
+            Judgment::app_unchecked_vec(
+                Judgment::prim(Prim(IOPure), None),
+                &mut vec![judgment_epsilon, infer_expr],
+                None,
+            )
+        }
+        Judg_mentKind::Prim(prim) => {
+            use UiPrim::*;
+            let ui_prim = match prim {
+                ResolvePrim::IOMonad => IOMonad,
+                ResolvePrim::StringType => StringType,
+                ResolvePrim::UnitType => UnitType,
+                ResolvePrim::UnitElem => UnitElem,
+                ResolvePrim::ConsoleInput => ConsoleInput,
+                ResolvePrim::ConsoleOutput => ConsoleOutput,
+            };
+            Judgment::prim(TypeVarPrim::Prim(ui_prim), None)
         }
     };
     Ok(result)
@@ -384,11 +390,8 @@ impl Primitive for UiPrim {
     }
 }
 
-pub fn to_judgment(
-    judg_ment: Judg_ment,
-    prim_vars: BTreeMap<VarUuid, ResolvePrim>,
-) -> Result<Judgment<UiPrim, ()>, TypeError> {
-    let ctx = &mut Context::new(prim_vars);
+pub fn to_judgment(judg_ment: Judg_ment) -> Result<Judgment<UiPrim, ()>, TypeError> {
+    let ctx = &mut Context::new();
     let judgment_with_type_var = type_infer(judg_ment, ctx)?;
     ctx.final_lookup(judgment_with_type_var, &vec![])
 }

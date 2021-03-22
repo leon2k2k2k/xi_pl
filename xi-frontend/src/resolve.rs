@@ -1,5 +1,5 @@
-use crate::rowan_ast::{nonextra_children, SyntaxKind, SyntaxNode, SyntaxToken};
-use rowan::{NodeOrToken, TextRange, TextSize};
+use crate::rowan_ast::{nonextra_children, SyntaxKind, SyntaxNode};
+use rowan::{TextRange, TextSize};
 use std::collections::BTreeMap;
 use xi_uuid::VarUuid;
 
@@ -62,10 +62,10 @@ impl ResolvePrim {
 pub struct SourceFile(pub Vec<Stmt>, pub BTreeMap<VarUuid, ResolvePrim>);
 #[derive(Clone, Debug)]
 pub enum Error {
-    Stmt(StmtError),
-    // Expr(ExprError),
-    // Ident(IdentError),
-    // Binder(BinderError),
+    // Stmt(StmtError),
+// Expr(ExprError),
+// Ident(IdentError),
+// Binder(BinderError),
 }
 
 #[derive(Clone, Debug)]
@@ -77,19 +77,19 @@ pub enum StmtKind {
     // Do(Expr),
     Val(Expr),
     // Fn(Ident, Binders, Option<Expr>, Expr), // Expr should be a stmt_expr.
-    Import(Var),
-    Error(StmtError),
+    // Import(Var),
+    // Error(StmtError),
 }
-#[derive(Clone, Debug)]
-pub struct StmtError(StmtErrorKind, Span);
-#[derive(Clone, Debug)]
-pub enum StmtErrorKind {
-    InvalidStmt,
-    FnStmt,
-    DoStmt,
-    LetStmt,
-    ImportStmt,
-}
+// #[derive(Clone, Debug)]
+// pub struct StmtError(StmtErrorKind, Span);
+// #[derive(Clone, Debug)]
+// pub enum StmtErrorKind {
+//     InvalidStmt,
+//     FnStmt,
+//     DoStmt,
+//     LetStmt,
+//     ImportStmt,
+// }
 
 #[derive(Clone, Debug)]
 pub struct Expr(pub Box<ExprKind>, pub Span);
@@ -140,7 +140,7 @@ pub fn parse_source_file(node: &SyntaxNode) -> SourceFile {
     let (mut ctx, resolve_var) = ResolvePrim::get_ctx();
     let mut stmts = vec![];
     // let mut errors = vec![];
-    let mut previous_error = false;
+    // let mut previous_error = false;
 
     for child in nonextra_children(node) {
         let child_stmt = parse_stmt(&child, &mut ctx);
@@ -271,12 +271,7 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut Context) -> Stmt {
             }
         }
         SyntaxKind::IMPORT_STMT => {
-            if children.len() == 1 {
-                let var = create_var(&children[0], None, ctx);
-                todo!()
-            } else {
-                panic!("import_stmt have to be of the form import [import]")
-            }
+            todo!()
         }
         // SyntaxKind::ERROR => {
         //     let first_word = &children[0];
@@ -410,9 +405,11 @@ fn parse_binders(node: &SyntaxNode, ctx: &Context) -> (Binders, BTreeMap<String,
     }
 }
 
+#[cfg(test)]
 mod test {
     use super::{parse_source_file, SourceFile};
     use crate::rowan_ast::string_to_syntax;
+
     fn source_code_to_parse(text: &str) -> SourceFile {
         let node = string_to_syntax(text);
         parse_source_file(&node)
@@ -420,7 +417,6 @@ mod test {
 
     #[test]
     fn test_parser() {
-        use super::*;
         let text = "fn foo |x : Type, y : Type| -> Type {
             val x}";
         let node = source_code_to_parse(text);
@@ -430,5 +426,9 @@ mod test {
         // val foo (Pi |y: Type| y)";
         // let node2 = source_code_to_parse(text2);
         // dbg!(node2);
+
+        let text = "val \"hello\"";
+        let node = source_code_to_parse(text);
+        dbg!(node);
     }
 }

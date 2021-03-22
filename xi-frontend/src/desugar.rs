@@ -28,99 +28,118 @@ pub enum Judg_mentKind {
     App(Judg_ment, Judg_ment),
     Bind(Judg_ment, Judg_ment),
     StringLit(String),
-    Iota(Judg_ment),
     Pure(Judg_ment),
+    Prim(ResolvePrim),
 }
 
-fn desugar_stmt_vec(stmts: &[Stmt]) -> Judg_ment {
-    if stmts.is_empty() {
-        panic!("expected a val or something");
+struct Context {
+    prim_map: BTreeMap<VarUuid, ResolvePrim>,
+}
+
+impl Context {
+    fn desugar_stmt_vec(&self, stmts: &[Stmt]) -> Judg_ment {
+        if stmts.is_empty() {
+            panic!("expected a val or something");
+        }
+
+        let stmt = &stmts[0];
+        let result_kind = match &stmt.0 {
+            StmtKind::Let(var, expr) => {
+                let stmt_rest = &stmts[1..];
+                if let ExprKind::Bang(expr1) = &*expr.0 {
+                    let bind_arg = self.desugar_expr(&expr1);
+                    let bind_fun = self.desugar_stmt_vec(stmt_rest);
+
+                    let bind_fun_span = bind_fun.1;
+
+                    let rest_kind = Judg_mentKind::Lam(self.desugar_var(var), bind_fun);
+                    let rest = Judg_ment(Box::new(rest_kind), bind_fun_span);
+                    Judg_mentKind::Bind(bind_arg, rest)
+                } else {
+                    let func_body = self.desugar_stmt_vec(stmt_rest);
+                    let func = Judg_mentKind::Lam(self.desugar_var(var), func_body.clone());
+                    Judg_mentKind::App(
+                        Judg_ment(Box::new(func), func_body.1),
+                        self.desugar_expr(&expr),
+                    )
+                }
+            }
+            StmtKind::Val(expr) => *self.desugar_expr(&expr).0,
+            // StmtKind::Import(_) => todo!(),
+            // StmtKind::Error(_) => todo!(),
+        };
+
+        let first_span = stmts[0].1;
+        let last_span = stmts[stmts.len() - 1].1;
+        Judg_ment(Box::new(result_kind), first_span.cover(last_span))
     }
 
-    let stmt = &stmts[0];
-    let result_kind = match &stmt.0 {
-        StmtKind::Let(var, expr) => {
-            let stmt_rest = &stmts[1..];
-            if let ExprKind::Bang(expr1) = &*expr.0 {
-                let bind_arg = desugar_expr(&expr1);
-                let bind_fun = desugar_stmt_vec(stmt_rest);
-                let bind_arg_span = bind_arg.1;
-                let bind_fun_span = bind_fun.1;
-                let rest_kind = Judg_mentKind::Lam(desugar_var(var), bind_fun);
-                let rest = Judg_ment(Box::new(rest_kind), bind_fun_span);
-                Judg_mentKind::Bind(bind_arg, rest)
-            } else {
-                let func_body = desugar_stmt_vec(stmt_rest);
-                let func = Judg_mentKind::Lam(desugar_var(var), func_body.clone());
-                Judg_mentKind::App(Judg_ment(Box::new(func), func_body.1), desugar_expr(&expr))
-            }
+    fn desugar_var(&self, var: &resolve::Var) -> Var {
+        Var {
+            index: var.index,
+            var_type: var
+                .var_type
+                .as_ref()
+                .map(|var_type| self.desugar_expr(&var_type)),
+            name: var.name.clone(),
+            span: var.span,
         }
-        StmtKind::Val(expr) => *desugar_expr(&expr).0,
-        StmtKind::Import(_) => todo!(),
-        StmtKind::Error(_) => todo!(),
-    };
+    }
 
-    let first_span = stmts[0].1;
-    let last_span = stmts[stmts.len() - 1].1;
-    Judg_ment(Box::new(result_kind), first_span.cover(last_span))
-}
+    fn desugar_expr(&self, expr: &Expr) -> Judg_ment {
+        let result_kind: Judg_mentKind = match &*expr.0 {
+            ExprKind::Var(var) => match self.prim_map.get(&var.index) {
+                Some(prim) => Judg_mentKind::Prim(prim.clone()),
+                None => Judg_mentKind::Var(self.desugar_var(var)),
+            },
+            ExprKind::Type => Judg_mentKind::Type,
+            ExprKind::Bang(expr) => {
+                Judg_mentKind::Pure(self.desugar_expr(expr)) // val x! => iopure(x)
+            }
+            ExprKind::App(func, elem) => {
+                Judg_mentKind::App(self.desugar_expr(&func), self.desugar_expr(&elem))
+            }
+            ExprKind::Fun(source, target) => {
+                Judg_mentKind::Fun(self.desugar_expr(&source), self.desugar_expr(&target))
+            }
+            ExprKind::Lam(binders, lam_expr) => {
+                let var_list = &binders.0;
+                let expr = self.desugar_expr(&lam_expr);
+                if var_list.len() == 1 {
+                    let var = self.desugar_var(&var_list[0]);
+                    Judg_mentKind::Lam(var, expr)
+                } else {
+                    panic!("lam binder should only have one ident for now")
+                }
+            }
+            ExprKind::Pi(binders, pi_expr) => {
+                let var_list = &binders.0;
+                let expr = self.desugar_expr(&pi_expr);
+                if var_list.len() == 1 {
+                    let var = &var_list[0];
+                    let var = self.desugar_var(var);
+                    Judg_mentKind::Pi(var, expr)
+                } else {
+                    panic!("lam binder should only have one ident for now")
+                }
+            }
+            ExprKind::Stmt(stmt_vec) => *self.desugar_stmt_vec(&stmt_vec).0,
+            ExprKind::Member(_, _) => todo!(),
+            ExprKind::StringLit(_) => todo!(),
+        };
 
-fn desugar_var(var: &resolve::Var) -> Var {
-    Var {
-        index: var.index,
-        var_type: var
-            .var_type
-            .as_ref()
-            .map(|var_type| desugar_expr(&var_type)),
-        name: var.name.clone(),
-        span: var.span,
+        Judg_ment(Box::new(result_kind), expr.1)
     }
 }
-
-fn desugar_expr(expr: &Expr) -> Judg_ment {
-    let result_kind: Judg_mentKind = match &*expr.0 {
-        ExprKind::Var(var) => Judg_mentKind::Var(desugar_var(var)),
-        ExprKind::Type => Judg_mentKind::Type,
-        ExprKind::Bang(expr) => {
-            Judg_mentKind::Pure(desugar_expr(expr)) // val x! => iopure(x)
-        }
-        ExprKind::App(func, elem) => Judg_mentKind::App(desugar_expr(&func), desugar_expr(&elem)),
-        ExprKind::Fun(source, target) => {
-            Judg_mentKind::Fun(desugar_expr(&source), desugar_expr(&target))
-        }
-        ExprKind::Lam(binders, lam_expr) => {
-            let var_list = &binders.0;
-            let expr = desugar_expr(&lam_expr);
-            if var_list.len() == 1 {
-                let var = desugar_var(&var_list[0]);
-                Judg_mentKind::Lam(var, expr)
-            } else {
-                panic!("lam binder should only have one ident for now")
-            }
-        }
-        ExprKind::Pi(binders, pi_expr) => {
-            let var_list = &binders.0;
-            let expr = desugar_expr(&pi_expr);
-            if var_list.len() == 1 {
-                let var = &var_list[0];
-                let var = desugar_var(var);
-                Judg_mentKind::Pi(var, expr)
-            } else {
-                panic!("lam binder should only have one ident for now")
-            }
-        }
-        ExprKind::Stmt(stmt_vec) => *desugar_stmt_vec(&stmt_vec).0,
-        ExprKind::Member(_, _) => todo!(),
-        ExprKind::StringLit(_) => todo!(),
-    };
-
-    Judg_ment(Box::new(result_kind), expr.1)
-}
-pub fn text_to_judg_ment(text: &str) -> (Judg_ment, BTreeMap<VarUuid, ResolvePrim>) {
+pub fn text_to_judg_ment(text: &str) -> Judg_ment {
     let node = string_to_syntax(text);
     let source_file = parse_source_file(&node);
     let stmts = &source_file.0;
-    (desugar_stmt_vec(stmts), source_file.1)
+    let ctx = Context {
+        prim_map: source_file.1,
+    };
+
+    ctx.desugar_stmt_vec(stmts)
 }
 
 impl std::fmt::Debug for Judg_ment {
@@ -152,23 +171,19 @@ impl std::fmt::Debug for Judg_ment {
                 f.write_str(&format!("{:?}", arg))?;
             }
             Judg_mentKind::Bind(input, rest) => {
-                f.write_str(&format!("{:?}", input));
-                f.write_str(">=");
-                f.write_str(&format!("{:?}", rest));
+                f.write_str(&format!("{:?}", input))?;
+                f.write_str(">=")?;
+                f.write_str(&format!("{:?}", rest))?;
             }
             Judg_mentKind::StringLit(_) => todo!(),
-            Judg_mentKind::Iota(_) => todo!(),
             Judg_mentKind::Pure(expr) => f.write_str(&format!("{:?}", expr))?,
+            Judg_mentKind::Prim(prim) => f.write_str(&format!("{:?}", prim))?,
         }
         Ok(())
     }
 }
 
 mod test {
-    use crate::{resolve::parse_source_file, rowan_ast::string_to_syntax};
-
-    use super::{desugar_stmt_vec, Judg_ment};
-
     #[test]
     fn test_de_sugar() {
         use super::*;
@@ -182,5 +197,11 @@ mod test {
         val foo (Pi |y: Type| y)";
         let judg_ment2 = text_to_judg_ment(text2);
         dbg!(judg_ment2);
+
+        let text3 = "let in = console_input!
+        let y = console_output(in)!
+        val unit!";
+        let judg_ment3 = text_to_judg_ment(text3);
+        dbg!(judg_ment3);
     }
 }

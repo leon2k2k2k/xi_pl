@@ -13,7 +13,7 @@ pub fn front_to_back(front: Judgment<UiPrim, ()>) -> Judgment<JsPrim, ()> {
             term!([IO(JsIO::IOMonad)])
         }
         UiPrim::IOBind => {
-            term!([IO(JsIO::IOBind)])
+            term!([IO(JsIO::Bind)])
         }
         UiPrim::StringType => {
             term!([Type(JsType::StrType)])

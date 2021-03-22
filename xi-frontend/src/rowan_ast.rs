@@ -1,8 +1,5 @@
-use std::fmt::Display;
-
 use rowan::GreenNode;
 use rowan::GreenNodeBuilder;
-use rowan::Language;
 use tree_sitter::Node;
 
 use crate::to_tree;
@@ -70,21 +67,12 @@ impl rowan::Language for Lang {
 }
 
 pub type SyntaxNode = rowan::SyntaxNode<Lang>;
-pub type SyntaxToken = rowan::SyntaxToken<Lang>;
-/// The parse results are stored as a "green tree".
-struct Parse {
-    green_node: GreenNode,
-    #[allow(unused)]
-    errors: Vec<String>,
-}
 
 /// take a string and give back a GreenNode and a list of errors.
 fn parse(text: &str) -> GreenNode {
-    use SyntaxKind::*;
-
     let tree = to_tree(text.into());
     let root_node = tree.root_node();
-    /// initiate our GreenNodeBuilder
+    // initiate our GreenNodeBuilder
     let mut builder = GreenNodeBuilder::new();
     parse_rec(text, root_node, &mut builder);
 
@@ -139,52 +127,54 @@ pub fn parse_rec(text: &str, node: Node, builder: &mut GreenNodeBuilder) {
     builder.finish_node();
 }
 
-fn syntax(node: GreenNode) -> SyntaxNode {
-    SyntaxNode::new_root(node.clone())
-}
+// fn syntax(node: GreenNode) -> SyntaxNode {
+//     SyntaxNode::new_root(node.clone())
+// }
 
 pub fn string_to_syntax(text: &str) -> SyntaxNode {
     SyntaxNode::new_root(parse(text))
 }
 
-fn syntax_node_to_string(node: SyntaxNode) -> String {
-    let mut str: String = "".into();
-    for child in node.children_with_tokens() {
-        match child {
-            rowan::NodeOrToken::Node(node_child) => {
-                str.push_str(&format!("{:?}(", node_child.kind()));
-                str.push_str(syntax_node_to_string(node_child.clone()).as_str());
-                str.push_str(")");
-            }
-
-            rowan::NodeOrToken::Token(node_token) => str.push_str(node_token.text()),
-        }
-    }
-    str
-}
-
-fn geometric_realization(node: SyntaxNode) -> String {
-    let mut str: String = "".into();
-    for child in node.children_with_tokens() {
-        match child {
-            rowan::NodeOrToken::Node(node_child) => {
-                str.push_str(geometric_realization(node_child.clone()).as_str());
-            }
-
-            rowan::NodeOrToken::Token(node_token) => str.push_str(node_token.text()),
-        }
-    }
-    str
-}
-
 pub fn nonextra_children(node: &SyntaxNode) -> impl Iterator<Item = SyntaxNode> {
     node.children().filter(|node| !node.kind().is_extra())
 }
+#[cfg(test)]
 
 mod test {
+    use super::*;
+
+    fn syntax_node_to_string(node: SyntaxNode) -> String {
+        let mut str: String = "".into();
+        for child in node.children_with_tokens() {
+            match child {
+                rowan::NodeOrToken::Node(node_child) => {
+                    str.push_str(&format!("{:?}(", node_child.kind()));
+                    str.push_str(syntax_node_to_string(node_child.clone()).as_str());
+                    str.push_str(")");
+                }
+
+                rowan::NodeOrToken::Token(node_token) => str.push_str(node_token.text()),
+            }
+        }
+        str
+    }
+
+    #[cfg(test)]
+    fn geometric_realization(node: SyntaxNode) -> String {
+        let mut str: String = "".into();
+        for child in node.children_with_tokens() {
+            match child {
+                rowan::NodeOrToken::Node(node_child) => {
+                    str.push_str(geometric_realization(node_child.clone()).as_str());
+                }
+
+                rowan::NodeOrToken::Token(node_token) => str.push_str(node_token.text()),
+            }
+        }
+        str
+    }
     #[test]
     fn test_syntax_tree() {
-        use super::*;
         let text = "lt x = 5  let y = 5";
         // let tree_sitter_node = to_tree(text).root_node();
         // println!("{:?}", tree_sitter_node);

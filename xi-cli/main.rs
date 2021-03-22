@@ -1,7 +1,4 @@
-use xi_backend::output;
-
 // #![allow(dead_code)]
-// #[tokio::main]
 // // Take an Aplite UI &str and returns a string of JavaScript.
 fn ui_to_js(text: &str) -> String {
     use xi_backend::output::to_js_program;
@@ -9,8 +6,7 @@ fn ui_to_js(text: &str) -> String {
     use xi_kernel::front_to_back::front_to_back;
     let frontend_judgment = frontend(text).expect("error lol");
     let backend_judgment = front_to_back(frontend_judgment);
-    let js_out = to_js_program(backend_judgment);
-    dbg!(js_out)
+    to_js_program(backend_judgment)
 }
 
 #[tokio::main]
@@ -25,29 +21,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Ok(());
 
     // output(in) >= pure()
-    use xi_backend::jsprim::{
-        JsIO,
-        JsPrim::{self, *},
-        JsType,
-    };
-    use xi_core::judgment::Judgment;
-    use xi_proc_macro::term;
+    // use xi_backend::jsprim::{
+    //     JsIO,
+    //     JsPrim::{self, *},
+    //     JsType,
+    // };
+    // use xi_core::judgment::Judgment;
+    // use xi_proc_macro::term;
 
-    let string = "let in = console_input!
-    let y = console_output(in)
-    val unit";
+    // let string = "let in = console_input!
+    // let y = console_output(in)!
+    // val unit!";
 
-    runtime::run_js_from_string(ui_to_js(string)).await;
+    // runtime::run_js_from_string(ui_to_js(string)).await?;
+    // println!("hi");
+
+    let string2 = "let str = \" hello \"
+    let y = console_output(str)!
+    val unit!";
+
+    runtime::run_js_from_string(ui_to_js(string2)).await?;
     println!("hi");
-    Ok(());
-
-    let string2 = "let str = \" hello \" 
-    let y = console_output(in)
-    val unit";
-
-    runtime::run_js_from_string(ui_to_js(string2)).await;
-    println!("hi");
-    Ok(());
+    Ok(())
     // // dbg!(JsPrim::console_output1());
     // let judgment: Judgment<JsPrim, ()> = term!([IO(JsIO::Bind)] [Type(JsType:: StrType)] [Type(JsType::UnitType)]
     //     [IO(JsIO::ConsoleInput)] {JsPrim::console_output1()});

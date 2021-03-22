@@ -268,6 +268,24 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
         }
     }
 
+    pub fn app_unchecked_vec(
+        func: Judgment<T, S>,
+        args: &mut Vec<Judgment<T, S>>,
+        metadata: Option<S>,
+    ) -> Judgment<T, S> {
+        if args.len() == 0 {
+            panic!("empty arg")
+        } else if args.len() == 1 {
+            Judgment::app_unchecked(func, args.pop().unwrap(), None)
+        } else {
+            let arg = args.pop();
+            Judgment::app_unchecked(
+                Judgment::app_unchecked_vec(func, args, metadata),
+                arg.unwrap(),
+                None,
+            )
+        }
+    }
     pub fn pi_unchecked(
         var_type: Judgment<T, S>,
         expr: Judgment<T, S>,

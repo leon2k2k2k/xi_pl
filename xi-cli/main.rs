@@ -5,7 +5,9 @@ fn ui_to_js(text: &str) -> String {
     use xi_frontend::frontend;
     use xi_kernel::front_to_back::front_to_back;
     let frontend_judgment = frontend(text).expect("error lol");
+    dbg!(&frontend_judgment);
     let backend_judgment = front_to_back(frontend_judgment);
+    dbg!(&backend_judgment);
     to_js_program(backend_judgment)
 }
 
@@ -36,12 +38,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // runtime::run_js_from_string(ui_to_js(string)).await?;
     // println!("hi");
 
-    let string2 = "let str = \" hello \"
-    let y = console_output(str)!
-    val unit!";
+    // let string2 = "let str = \" hello \"
+    // let y = console_output(str)!
+    // val unit!";
+    let file_name = std::env::args().collect::<Vec<_>>();
+    let string = std::fs::read_to_string(file_name[1].clone())?;
 
-    runtime::run_js_from_string(ui_to_js(string2)).await?;
-    println!("hi");
+    let js = ui_to_js(&string);
+
+    println!("{}", js);
+    runtime::run_js_from_string(js).await?;
     Ok(())
     // // dbg!(JsPrim::console_output1());
     // let judgment: Judgment<JsPrim, ()> = term!([IO(JsIO::Bind)] [Type(JsType:: StrType)] [Type(JsType::UnitType)]

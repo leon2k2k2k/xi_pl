@@ -15,6 +15,9 @@ pub fn front_to_back(front: Judgment<UiPrim, ()>) -> Judgment<JsPrim, ()> {
         UiPrim::IOBind => {
             term!([IO(JsIO::Bind)])
         }
+        UiPrim::StringElem(str) => {
+            term!([Type(JsType::Str(str))])
+        }
         UiPrim::StringType => {
             term!([Type(JsType::StrType)])
         }

@@ -13,11 +13,11 @@ path = "lib.rs"
 xi-proc-macro = { path = "../xi-proc-macro" }
 xi-uuid = { path = "../xi-uuid" }
 xi-core = { path = "../xi-core" }
-swc_ecma_ast = "0.39"
+swc_ecma_ast = "0.40"
 swc_common = "0.10"
-swc_ecma_codegen = "0.46"
+swc_ecma_codegen = "0.48"
 url = "2.2"
 
-deno = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.7.5" }
-deno_core = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.7.5" }
-deno_runtime = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.7.5" }
+deno = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.8.2" }
+deno_core = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.8.2" }
+deno_runtime = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.8.2" }

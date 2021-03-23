@@ -108,7 +108,7 @@ pub enum ExprKind {
 }
 
 #[derive(Clone, Debug)]
-pub struct StringToken(StringTokenKind, Span);
+pub struct StringToken(pub StringTokenKind, pub Span);
 
 #[derive(Clone, Debug)]
 pub enum StringTokenKind {

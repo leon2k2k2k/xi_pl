@@ -295,7 +295,6 @@ pub fn type_infer(
             // Bind TV(0) TV(1) input rest)
             // App IOMOnad TV(0) = infer_input.type_of.ok_or(TypeError())?);
             // TV(0) -> App IOMonad TV(1) = infer_rest.type_of.ok_or(TypeError())?);
-            use xi_core::judgment::Judgment;
             use TypeVarPrim::*;
             use UiPrim::*;
             let tv0 = ctx.new_type_var();
@@ -311,18 +310,15 @@ pub fn type_infer(
             let lhs2 = term!({judgment_tv0} -> [Prim(UiPrim::IOMonad)] {judgment_tv1});
             ctx.unify(lhs2, infer_rest.type_of().ok_or(TypeError())?)?;
 
-            // let ans: Judgment<TypeVarPrim, ()> =
-            //     term!([Prim(IOBind)] {judgment_tv0} {judgment_tv1} {infer_input} {infer_rest});
-
             Judgment::app_unchecked_vec(
                 Judgment::prim(Prim(IOBind), None),
                 &mut vec![judgment_tv0, judgment_tv1, infer_input, infer_rest],
                 None,
             )
-            // todo! change
-            // ans
         }
-        Judg_mentKind::StringLit(_) => todo!(),
+        Judg_mentKind::StringLit(str) => {
+            Judgment::prim(TypeVarPrim::Prim(UiPrim::StringElem(str)), None)
+        }
         Judg_mentKind::Pure(expr) => {
             use TypeVarPrim::*;
             use UiPrim::*;
@@ -358,6 +354,7 @@ pub enum UiPrim {
     IOMonad,
     IOBind,
     StringType,
+    StringElem(String),
     UnitType,
     UnitElem,
     ConsoleInput,
@@ -371,6 +368,7 @@ impl Primitive for UiPrim {
         use UiPrim::*;
         match self {
             UiPrim::StringType => Judgment::u(None),
+            UiPrim::StringElem(_) => Judgment::prim(UiPrim::StringType, None),
             UiPrim::IOMonad => term!(U -> U),
             UiPrim::IOBind => {
                 term!(Pi |A : U, B : U| [IOMonad] A -> (A -> [IOMonad] B) -> [IOMonad] B)

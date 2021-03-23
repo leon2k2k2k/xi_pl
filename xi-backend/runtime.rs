@@ -11,7 +11,7 @@ pub async fn run_js_from_string(source_code: String) -> Result<(), AnyError> {
 
     let main_module = resolve_url_or_path("./$deno$eval.ts").unwrap();
     let permissions = Permissions::from_options(&flags.clone().into());
-    let program_state = ProgramState::new(flags)?;
+    let program_state = ProgramState::build(flags.clone()).await?;
     let mut worker = create_main_worker(&program_state, main_module.clone(), permissions);
 
     let main_module_file = File {

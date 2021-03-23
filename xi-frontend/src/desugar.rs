@@ -2,6 +2,7 @@ use crate::{
     resolve::{self, parse_source_file, Expr, ExprKind, ResolvePrim, Stmt, StmtKind},
     rowan_ast::string_to_syntax,
 };
+use resolve::StringTokenKind;
 use std::collections::BTreeMap;
 use xi_uuid::VarUuid;
 
@@ -118,14 +119,25 @@ impl Context {
                 if var_list.len() == 1 {
                     let var = &var_list[0];
                     let var = self.desugar_var(var);
-                    Judg_mentKind::Pi(var, expr)
+                Judg_mentKind::Pi(var, expr)
                 } else {
                     panic!("lam binder should only have one ident for now")
                 }
             }
             ExprKind::Stmt(stmt_vec) => *self.desugar_stmt_vec(&stmt_vec).0,
             ExprKind::Member(_, _) => todo!(),
-            ExprKind::StringLit(_) => todo!(),
+            ExprKind::StringLit(string_components) => {
+                if string_components.len() > 1 {
+                    panic!("we don't support string escapes yet :)");
+                }
+
+                match string_components[0].0.clone() {
+                    StringTokenKind::Escape(_) => {
+                        panic!("we don't support string escapes yet :)");
+                    }
+                    StringTokenKind::String(mut string) => Judg_mentKind::StringLit(string),
+                }
+            }
         };
 
         Judg_ment(Box::new(result_kind), expr.1)

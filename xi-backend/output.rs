@@ -14,6 +14,7 @@ pub fn to_js_program<T: JsOutput, S: Metadata>(judgment: Judgment<T, S>) -> Stri
         expr: Box::new(to_js(judgment, vec![])),
     });
 
+    dbg!(&stmt);
     let module_import = ModuleDecl::Import(ImportDecl {
         span: DUMMY_SP,
         specifiers: vec![ImportSpecifier::Namespace(ImportStarAsSpecifier {

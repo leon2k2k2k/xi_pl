@@ -3,7 +3,7 @@ use swc_common::{FilePathMapping, SourceMap, DUMMY_SP};
 use swc_ecma_ast::{
     ArrowExpr, BindingIdent, BlockStmtOrExpr, CallExpr, Expr, ExprOrSpread, ExprOrSuper, ExprStmt,
     Ident, ImportDecl, ImportSpecifier, ImportStarAsSpecifier, Lit, MemberExpr, Module, ModuleDecl,
-    ModuleItem, Pat, Stmt, Str,
+    ModuleItem, ParenExpr, Pat, Stmt, Str,
 };
 use swc_ecma_codegen::{text_writer::JsWriter, Config, Emitter};
 use xi_core::judgment::{Judgment, JudgmentKind, Metadata};
@@ -114,7 +114,15 @@ fn to_js_lam(body: BlockStmtOrExpr, var_names: Vec<Ident>) -> Expr {
         return_type: None,
     };
 
-    Expr::Arrow(lam)
+    let arrow_expr = Expr::Arrow(lam);
+
+    // Now we add a parenthesis around it.
+    let paren_expr = ParenExpr {
+        span: DUMMY_SP,
+        expr: Box::new(arrow_expr),
+    };
+
+    Expr::Paren(paren_expr)
 }
 
 pub fn to_js_ident(name: String) -> Expr {

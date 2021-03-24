@@ -63,3 +63,29 @@ export function promise_pure(_: any) {
 export function id(val: any) {
   return val;
 }
+
+function add1(x: number, y: number) {
+  return x + y;
+}
+
+/*
+let add1: int -> int = js.add1 
+foo.bar
+
+let two = js.add1 1
+
+
+
+
+
+
+
+
+a = [1, 2, 3]
+a.append(4)
+
+vec![1, 2, 3]
+
+a = 
+val add1 5
+ */

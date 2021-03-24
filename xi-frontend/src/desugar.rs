@@ -119,7 +119,7 @@ impl Context {
                 if var_list.len() == 1 {
                     let var = &var_list[0];
                     let var = self.desugar_var(var);
-                Judg_mentKind::Pi(var, expr)
+                    Judg_mentKind::Pi(var, expr)
                 } else {
                     panic!("lam binder should only have one ident for now")
                 }

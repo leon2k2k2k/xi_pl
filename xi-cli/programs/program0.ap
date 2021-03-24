@@ -1,3 +1,4 @@
-let str = console_input!
+let str = "hello world"
 do console_output(str)!
 val unit!
+

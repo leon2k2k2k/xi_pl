@@ -1,17 +1,9 @@
-fn problem1 |i : int, sum : int| -> int {
-    if i >= 1000 {
-        val sum
-    } else if i % 3 == 0 || i  % 5 == 0 {
-        val problem1(i + 1, sum + i)
-    } else  {
-        val problem1(i + 1, sum)
-    }    
+ffi "./some_file.js" {
+ concat_hello: String -> String   
 }
 
-let ans : String = int_to_string(problem1(0, 1000))
-
+let ans = concat_hello ("world")
 do console_output(ans)!
-
 val unit!
 
 
@@ -19,23 +11,3 @@ val unit!
 
 
 
-
-
-
-
-/*
-
-Things to do:
-- Don't have int.
-- Don't have multivariable functions
-- don't have arithmetic.
-- Don't have if, else.
-- don't have recursion.
-- Don't have int to string.
-- Have to type value at the end.
-- No imports.
-- No FFI.
-- No multiline comments
-
-
-*/

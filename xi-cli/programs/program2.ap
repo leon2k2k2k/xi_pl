@@ -1,0 +1,14 @@
+ffi "./some_file.js"{
+    Int : Type,
+    five : Int,
+    six : Int,
+    add : Int -> Int -> Int,
+    int_to_string : Int -> String 
+}
+
+let ans = add five six
+let better_ans = add ans six
+let even_better_ans = int_to_string(better_ans)
+
+do console_output(even_better_ans)!
+val unit!

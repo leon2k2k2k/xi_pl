@@ -1,0 +1,4 @@
+Future features for UI:
+
+1. Error handling.
+2. Enum struct, while, for, function default(option) arguments.

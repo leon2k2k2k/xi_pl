@@ -3913,6 +3913,7 @@ dependencies = [
  "swc_ecma_codegen 0.48.0",
  "url",
  "xi-core",
+ "xi-frontend",
  "xi-proc-macro",
  "xi-uuid",
 ]
@@ -3942,6 +3943,7 @@ name = "xi-frontend"
 version = "0.1.0"
 dependencies = [
  "cc",
+ "lazy_static",
  "rowan",
  "tree-sitter",
  "xi-core",

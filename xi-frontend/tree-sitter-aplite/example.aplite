@@ -1,2 +1,7 @@
-fn foo |x : Type, y : Type| -> Type {
-j
+ffi "some_file.js" {
+ concat_hello: String -> String   
+}
+
+let ans = concat_hello ("world")
+do console_output(ans)!
+val unit!

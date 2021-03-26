@@ -349,10 +349,38 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             JudgmentKind::BoundVar(index, var_type) => {
                 Judgment::bound_var(*index, var_type.define_prim(prim_meaning), metadata)
             }
-            JudgmentKind::Application(lhs, rhs) => Judgment::app(
+            JudgmentKind::Application(lhs, rhs) => Judgment::app_unchecked(
                 lhs.define_prim(prim_meaning.clone()),
                 rhs.define_prim(prim_meaning),
                 metadata,
+            ),
+        }
+    }
+
+    pub fn cast_metadata(expr: Judgment<T, ()>) -> Judgment<T, S> {
+        match expr.tree {
+            JudgmentKind::UInNone => Judgment::u(None),
+            JudgmentKind::Prim(prim) => Judgment::prim(prim, None),
+            JudgmentKind::FreeVar(index, var_type) => {
+                Judgment::free(index, Judgment::cast_metadata(*var_type), None)
+            }
+            JudgmentKind::Pi(var_type, body) => Judgment::pi(
+                Judgment::cast_metadata(*var_type),
+                Judgment::cast_metadata(*body),
+                None,
+            ),
+            JudgmentKind::Lam(var_type, body) => Judgment::lam(
+                Judgment::cast_metadata(*var_type),
+                Judgment::cast_metadata(*body),
+                None,
+            ),
+            JudgmentKind::BoundVar(index, var_type) => {
+                Judgment::bound_var(index, Judgment::cast_metadata(*var_type), None)
+            }
+            JudgmentKind::Application(lhs, rhs) => Judgment::app(
+                Judgment::cast_metadata(*lhs),
+                Judgment::cast_metadata(*rhs),
+                None,
             ),
         }
     }

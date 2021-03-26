@@ -1,66 +1,43 @@
+use desugar::text_to_judg_ment;
+use type_inference::{to_judgment, TypeError, UiMetadata, UiPrim};
+use xi_core::judgment::Judgment;
+
 mod desugar;
 mod resolve;
 mod rowan_ast;
 pub mod type_inference;
-use desugar::text_to_judg_ment;
-use tree_sitter::{Language, Parser, Tree};
-use type_inference::{to_judgment, TypeError, UiPrim};
-use xi_core::judgment::Judgment;
 
-extern "C" {
-    fn tree_sitter_aplite() -> Language;
-}
-
-pub fn to_tree(source_code: &str) -> Tree {
-    let mut parser = Parser::new();
-    let language = unsafe { tree_sitter_aplite() };
-    parser.set_language(language).unwrap();
-    parser.parse(source_code, None).unwrap()
-}
-
-pub fn frontend(text: &str) -> Result<Judgment<UiPrim, ()>, TypeError> {
+pub fn frontend(text: &str) -> Result<Judgment<UiPrim, UiMetadata>, TypeError> {
     let judg_ment = text_to_judg_ment(text);
     to_judgment(judg_ment)
 }
 
-#[cfg(test)]
-mod tests {
+mod test {
     #[test]
-    fn parser_test() {
-        use super::*;
-        let source_code = "5";
-        let tree = to_tree(source_code.into());
-        let root_node = tree.root_node();
+    fn test_ffi() {
+        use super::frontend;
+        // let ffi_text = "ffi \"some_file.js\"{
+        //     Int : Type,
+        //     five : Int,
+        //     six : Int,
+        //     add : Int -> Int -> Int,
+        //     int_to_string : Int -> String
+        // }
 
-        // println!("{:?}", root_node.kind());
-        println!("{:?}", root_node.child(0).unwrap().kind());
-        let word = root_node.child(0).unwrap().child(0).unwrap();
-        println!("{:?}", word);
-        let text = &source_code[root_node.child(0).unwrap().child(0).unwrap().byte_range()];
-        println!("{}", text);
+        // let ans = add five six
+        // let better_ans = add ans six
+        // let even_better_ans = int_to_string(better_ans)
+
+        // do console_output(even_better_ans)!
+        // val unit!";
+        let ffi_text = "ffi \"some_file.js\" {
+            concat_hello: String -> String   
+           }
+           
+           let ans = concat_hello (\"world\")
+           do console_output(ans)!
+           val unit!";
+        let judgment = frontend(ffi_text);
+        dbg!(judgment);
     }
-
-    #[test]
-    fn test_to_judgment() {
-        use crate::frontend;
-        let text1 = "fn foo |x : Type| -> Type {val x}
-            val foo";
-        let judgment1 = frontend(text1).unwrap();
-        dbg!(judgment1);
-
-        let text2 = "fn foo |x| {val x} 
-             val foo (Pi |y: Type| y)";
-        let judgment2 = frontend(text2).unwrap();
-
-        dbg!(judgment2);
-    }
-
-    //     let text2 = "fn foo |x| -> {val x} val foo \"hello world\" ";
-    //     let judgment2 = front_end(text2);
-    //     dbg!(judgment2);
-
-    //     let text3 = "let y = \"hello world\"  let x = y";
-    //     let judgment3 = front_end(text3);
-    //     dbg!(judgment3);
-    // }
 }

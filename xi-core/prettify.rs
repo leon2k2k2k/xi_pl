@@ -14,11 +14,12 @@ pub enum JudgmentTree<T> {
     Pi(Vec<JudgmentTree<T>>, Box<JudgmentTree<T>>),
     Lam(Vec<JudgmentTree<T>>, Box<JudgmentTree<T>>),
     App(Vec<JudgmentTree<T>>),
+    Metadata(Box<JudgmentTree<T>>, String),
 }
 
 pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> JudgmentTree<T> {
     use JudgmentTree::*;
-    match judgment.tree {
+    let judgment_tree = match judgment.tree {
         JudgmentKind::UInNone => JudgmentTree::UinNone,
         JudgmentKind::Prim(prim) => JudgmentTree::Prim(prim),
         JudgmentKind::FreeVar(free_var, expr) => {
@@ -66,6 +67,11 @@ pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> 
                 App(vec![func_tree, elem_tree])
             }
         }
+    };
+    if judgment.metadata == S::default() {
+        judgment_tree
+    } else {
+        JudgmentTree::Metadata(Box::new(judgment_tree), format!("{:?}", judgment.metadata))
     }
 }
 
@@ -87,17 +93,26 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
         let body_str = match judg_tree {
             JudgmentTree::UinNone => "U".into(),
             JudgmentTree::Prim(prim) => format!("{:?}", prim),
-            JudgmentTree::VarUuid(_free_var, var_type) => {
-                let free_var_index = free_vars.len();
-                free_vars
-                    .clone()
-                    .push(tts_rec(&*var_type, free_vars, Precedence::Top, depth));
-                format!("fv{}", free_var_index)
+            JudgmentTree::VarUuid(var_index, var_type) => {
+                format!(
+                    "(fv{} : {})",
+                    var_index.index(),
+                    tts_rec(&*var_type, free_vars, Precedence::Top, depth)
+                )
+                // let free_var_index = free_vars.len();
+                // free_vars
+                //     .clone()
+                //     .push(tts_rec(&*var_type, free_vars, Precedence::Top, depth));
+                // format!("fv{}", free_var_index)
             }
             // we put VarUuid in the beginning.
-            JudgmentTree::BoundVar(index, _var_type) => match depth.checked_sub(1 + index) {
+            JudgmentTree::BoundVar(index, var_type) => match depth.checked_sub(1 + index) {
                 Some(value) => format!("v{}", value),
-                None => format!("f{}", 1 + index - depth),
+                None => format!(
+                    "(f{}: {})",
+                    1 + index - depth,
+                    tts_rec(&*var_type, free_vars, Precedence::Top, depth)
+                ),
             },
             JudgmentTree::Fun(vec) => {
                 let mut str_vec: Vec<String> = vec[0..vec.len() - 1]
@@ -158,6 +173,13 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
                     .collect();
                 str_vec.join(" ")
             }
+            JudgmentTree::Metadata(tree, metadata) => {
+                format!(
+                    "Metadata({}, {})",
+                    tts_rec(&*tree, free_vars, Precedence::Top, depth),
+                    metadata
+                )
+            }
         };
 
         let my_precedence = match judg_tree {
@@ -169,6 +191,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
             JudgmentTree::Pi(_, _) => Precedence::Top,
             JudgmentTree::Lam(_, _) => Precedence::Top,
             JudgmentTree::App(_) => Precedence::App,
+            JudgmentTree::Metadata(_, _) => Precedence::Top,
         };
 
         if precedence > my_precedence {

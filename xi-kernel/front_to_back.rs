@@ -2,9 +2,9 @@ use std::rc::Rc;
 
 use xi_backend::jsprim::{JsIO, JsPrim, JsType};
 use xi_core::judgment::Judgment;
-use xi_frontend::type_inference::UiPrim;
+use xi_frontend::type_inference::{UiMetadata, UiPrim};
 
-pub fn front_to_back(front: Judgment<UiPrim, ()>) -> Judgment<JsPrim, ()> {
+pub fn front_to_back(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim, UiMetadata> {
     use xi_proc_macro::term;
     use JsPrim::*;
 

@@ -76,9 +76,10 @@ pub enum StmtKind {
     Let(Var, Expr),
     // Do(Expr),
     Val(Expr),
+    Ffi(String, Vec<Var>),
     // Fn(Ident, Binders, Option<Expr>, Expr), // Expr should be a stmt_expr.
     // Import(Var),
-    // Error(StmtError),
+    // Error(StmtError)
 }
 // #[derive(Clone, Debug)]
 // pub struct StmtError(StmtErrorKind, Span);
@@ -273,14 +274,52 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut Context) -> Stmt {
         SyntaxKind::IMPORT_STMT => {
             todo!()
         }
+        SyntaxKind::FFI_STMT => {
+            if children.len() == 2 {
+                let file_name = children[0]
+                    .first_token()
+                    .unwrap()
+                    .next_token()
+                    .unwrap()
+                    .text()
+                    .into();
+                let dict = &children[1];
+                let result = parse_ffi_dict(&dict, ctx);
+
+                StmtKind::Ffi(file_name, result)
+            } else {
+                panic!("ffi_stmt should only have two children")
+            }
+        }
         // SyntaxKind::ERROR => {
         //     let first_word = &children[0];
         //     todo!();
         // }
-        _ => panic!("parse_stmt can only parse a stmt"),
+        _ => panic!("parse_stmt can only parse an stmt, got {:?}", node.kind()),
     };
 
     Stmt(stmt_kind, node.text_range())
+}
+
+fn parse_ffi_dict(node: &SyntaxNode, ctx: &mut Context) -> Vec<(Var)> {
+    let children = nonextra_children(node).collect::<Vec<_>>();
+    assert!(node.kind() == SyntaxKind::DICT_EXPR);
+    let mut components = vec![];
+
+    for child in children {
+        let grandchildren = nonextra_children(&child).collect::<Vec<_>>();
+        if grandchildren.len() == 2 {
+            let ffi_type = parse_expr(&grandchildren[1], &ctx);
+
+            let ffi_var = create_var(&grandchildren[0], Some(ffi_type), ctx);
+
+            components.push(ffi_var);
+        } else {
+            panic!("dict component should have 3 things")
+        }
+    }
+
+    components
 }
 
 fn parse_expr(node: &SyntaxNode, ctx: &Context) -> Expr {
@@ -371,7 +410,7 @@ fn parse_expr(node: &SyntaxNode, ctx: &Context) -> Expr {
             }
             ExprKind::StringLit(string_component)
         }
-        _ => panic!("parse_expr can only parse an expr"),
+        _ => panic!("parse_expr can only parse an expr, got {:?}", node.kind()),
     };
     Expr(Box::new(expr_kind), node.text_range())
 }
@@ -417,17 +456,26 @@ mod test {
 
     #[test]
     fn test_parser() {
-        let text = "fn foo |x : Type, y : Type| -> Type {
-            val x}";
-        let node = source_code_to_parse(text);
-        dbg!(node);
+        // let text = "fn foo |x : Type, y : Type| -> Type {
+        //     val x}";
+        // let node = source_code_to_parse(text);
+        // dbg!(node);
 
-        // let text2 = "fn foo |x| {val x}
-        // val foo (Pi |y: Type| y)";
-        // let node2 = source_code_to_parse(text2);
-        // dbg!(node2);
+        // // let text2 = "fn foo |x| {val x}
+        // // val foo (Pi |y: Type| y)";
+        // // let node2 = source_code_to_parse(text2);
+        // // dbg!(node2);
 
-        let text = "val \"hello\"";
+        // let text = "val \"hello\"";
+        // let node = source_code_to_parse(text);
+        // dbg!(node);
+
+        let text = "ffi \"some_file.js\" {
+            add1: Type -> Type,
+            add2: Type -> Type,
+            Justin: Type,
+        }
+        val add1 add2 Justin";
         let node = source_code_to_parse(text);
         dbg!(node);
     }

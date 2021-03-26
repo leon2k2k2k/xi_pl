@@ -9,4 +9,8 @@ impl VarUuid {
         let next_id = UUID_COUNTER.fetch_add(1, Ordering::SeqCst);
         VarUuid(next_id)
     }
+
+    pub fn index(&self) -> u32 {
+        self.0
+    }
 }

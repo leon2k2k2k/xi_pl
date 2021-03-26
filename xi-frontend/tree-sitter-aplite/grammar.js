@@ -1,124 +1,178 @@
-function separated(expr, seperator) {
-    const no_trailing_sep = seq(expr, repeat(seq(seperator, expr)));
+// we need to rewrite grammar to make it better with error handling, and allow multi-line comment.
 
-    return seq(no_trailing_sep, optional(seperator));
+function separated(expr, seperator) {
+  const no_trailing_sep = seq(expr, repeat(seq(seperator, expr)));
+
+  return seq(no_trailing_sep, optional(seperator));
 }
 
 const PRECEDENCE = {
-    MEM: 4,
-    APP: 3,
-    FUN: 2,
-    LAM: 1,
-}
+  MEM: 40,
+  APP: 30,
+  FUN: 20,
+  LAM: 10,
+  AND: 2,
+  OR: 1,
+  COMP: 3,
+  ADD: 4,
+  MUL: 5,
+};
 
 module.exports = grammar({
-    name: 'aplite',
-    extras: $ => [
-        $.line_comment,
-        $.newline,
-        $.whitespace,
-    ],
+  name: "aplite",
 
-    rules: {
-        // a source file is a list of statements
+  extras: ($) => [
+    $.line_comment,
+    $.newline,
+    $.whitespace,
+  ],
 
-        source_file: $ => repeat($._stmt),
+  word: ($) => $.ident,
 
-        line_comment: $ => token(seq(
-            '//', /.*/
-        )),
+  rules: {
+    source_file: ($) => repeat($._stmt),
 
-        whitespace: $ => / +/g,
+    line_comment: ($) =>
+      token(seq(
+        "//",
+        /.*/,
+      )),
 
-        newline: $ => /\r\n|\n|\r/,
+    whitespace: ($) => / +/g,
 
-        // a Stmt is
-        // 1. let < var_name : Ident> <var_type: Expr>? = <body: Expr>
-        // 2. do <body: Expr>
-        // 3. val <body: Expr>
+    newline: ($) => /\r\n|\n|\r/,
 
-        _stmt: $ => choice(
-            $.let_stmt,
-            $.do_stmt,
-            $.val_stmt,
-            $.fn_stmt,
-            $.import_stmt,
+    _stmt: ($) =>
+      choice(
+        $.let_stmt,
+        $.do_stmt,
+        $.val_stmt,
+        $.fn_stmt,
+        $.import_stmt,
+        $.ffi_stmt,
+        $.if_stmt,
+      ),
+
+    let_stmt: ($) =>
+      seq("let", $.ident, optional(seq(":", $._expr)), "=", $._expr),
+
+    do_stmt: ($) => seq("do", $._expr),
+
+    val_stmt: ($) => seq("val", $._expr),
+
+    fn_stmt: ($) =>
+      seq("fn", $.ident, $.binders, optional(seq("->", $._expr)), $.stmt_expr),
+
+    import_stmt: ($) => seq("import", $.string_expr),
+
+    ffi_stmt: ($) => seq("ffi", $.string_expr, $.dict_expr),
+
+    if_stmt: ($) =>
+      seq(
+        $.if_phrase,
+        optional(seq(repeat($.else_if_phrase), $.else_phrase)),
+      ),
+
+    if_phrase: ($) => seq("if", $._expr, $._expr),
+
+    else_if_phrase: ($) => seq("else if", $._expr, $._expr),
+
+    else_phrase: ($) => seq("else", $._expr),
+
+    ident: ($) => /\p{XID_Start}\p{XID_Continue}*/u,
+
+    _expr: ($) =>
+      choice(
+        $.ident_expr,
+        $.type_expr,
+        $.bang_expr,
+        $.app_expr,
+        $.fun_expr,
+        $.lambda_expr,
+        $.pi_expr,
+        $.stmt_expr,
+        $.member_expr,
+        $.string_expr,
+        $.number_expr,
+        $.binary_expr,
+        $.dict_expr,
+        $.tuple_expr,
+        $._paren_expr,
+        $.list_expr,
+      ),
+
+    ident_expr: ($) => $.ident,
+    type_expr: ($) => "Type",
+
+    bang_expr: ($) => seq($._expr, "!"),
+
+    app_expr: ($) => prec.left(PRECEDENCE.APP, seq($._expr, $._expr)),
+
+    fun_expr: ($) => prec.right(PRECEDENCE.FUN, seq($._expr, "->", $._expr)),
+
+    lambda_expr: ($) => prec(PRECEDENCE.LAM, seq("lambda", $.binders, $._expr)),
+
+    pi_expr: ($) => prec(PRECEDENCE.LAM, seq("Pi", $.binders, $._expr)),
+
+    stmt_expr: ($) => seq("{", repeat($._stmt), "}"),
+
+    member_expr: ($) => prec.left(PRECEDENCE.MEM, seq($._expr, ".", $._expr)),
+
+    string_expr: ($) =>
+      seq(
+        '"',
+        repeat($.string_component),
+        '"',
+      ),
+
+    string_component: ($) =>
+      token.immediate(choice(
+        /[^"\\]+/,
+        /\\[^xu0-7]/,
+        /\\[0-7]{1,3}/,
+        /\\x[0-9a-fA-F]{2}/,
+        /\\u[0-9a-fA-F]{4}/,
+        /\\u{[0-9a-fA-F]+}/,
+      )),
+
+    number_expr: ($) => /-?[\d]+/,
+
+    binary_expr: ($) => {
+      const precedence_table = [
+        [PRECEDENCE.AND, "&&"],
+        [PRECEDENCE.OR, "||"],
+        [PRECEDENCE.COMP, choice("==", "!=", "<", "<=", ">", ">=")],
+        [PRECEDENCE.ADD, choice("+", "-")],
+        [PRECEDENCE.MUL, choice("*", "/", "%")],
+      ];
+
+      return choice(
+        ...precedence_table.map(([precedence, op]) =>
+          prec.left(
+            precedence,
+            seq($._expr, op, $._expr),
+          )
         ),
+      );
+    },
 
-        let_stmt: $ => seq("let", $.ident, optional(seq(":", $._expr)), "=", $._expr),
+    // a Binder is | <one or more of var_name : Expr> |
+    binders: ($) => seq("|", separated($.binder_component, ","), "|"),
 
-        do_stmt: $ => seq("do", $._expr),
+    binder_component: ($) => seq($.ident, optional(seq(":", $._expr))),
 
-        val_stmt: $ => seq("val", $._expr),
+    dict_expr: ($) => seq("{", separated($.dict_component, ","), "}"),
 
-        fn_stmt: $ => seq("fn", $.ident, $.binders, optional(seq("->", $._expr)), $.stmt_expr),
+    dict_component: ($) => seq($.ident, ":", $._expr),
 
-        import_stmt: $ => seq("import", $.ident),
-        // an Ident is a sequence of alphanumeric characters
-        ident: $ => /\w+/,
+    tuple_expr: ($) =>
+      choice(
+        seq("(", ")"),
+        seq("(", $._expr, ",", optional(separated($._expr, ",")), ")"),
+      ),
 
-        // an Expr is
-        // 1. an Ident
-        // 2. "Type"
-        // 3. <body : Expr>!
-        // 4. <lhs: <rhs: Expr>
-        // 5. {a list of statements }
-        // 6. lambda <binders: <body: Expr>
-        // 7. Pi <binder: <body: Expr>
+    _paren_expr: ($) => seq("(", $._expr, ")"),
 
-        _expr: $ => choice(
-            $.ident_expr,
-            $.type_expr,
-            $.bang_expr,
-            $.app_expr,
-            $.fun_expr,
-            $.lambda_expr,
-            $.pi_expr,
-            $.stmt_expr,
-            $.member_expr,
-            $.string_expr,
-            $._paren_expr,
-        ),
-
-        ident_expr: $ => $.ident,
-        type_expr: $ => "Type",
-
-        bang_expr: $ => seq($._expr, "!"),
-
-        app_expr: $ => prec.left(PRECEDENCE.APP, seq($._expr, $._expr)),
-
-        fun_expr: $ => prec.right(PRECEDENCE.FUN, seq($._expr, "->", $._expr)),
-
-        lambda_expr: $ => prec(PRECEDENCE.LAM, seq("lambda", $.binders, $._expr)),
-
-        pi_expr: $ => prec(PRECEDENCE.LAM, seq("Pi", $.binders, $._expr)),
-
-        stmt_expr: $ => seq("{", repeat($._stmt), "}"),
-
-        _paren_expr: $ => seq("(", $._expr, ")"),
-
-        member_expr: $ => prec.left(PRECEDENCE.MEM, seq($._expr, ".", $._expr)),
-
-        string_expr: $ => seq(
-            '"',
-            repeat($.string_component),
-            '"'
-        ),
-
-        string_component: $ => token.immediate(choice(
-            /[^"\\]+/,
-            /\\[^xu0-7]/,
-            /\\[0-7]{1,3}/,
-            /\\x[0-9a-fA-F]{2}/,
-            /\\u[0-9a-fA-F]{4}/,
-            /\\u{[0-9a-fA-F]+}/
-        )),
-
-        // a Binder is | <one or more of var_name : Expr> |
-        binders: $ => seq("|", separated($.binder_component, ","), "|"),
-
-        binder_component: $ => seq($.ident, optional(seq(":", $._expr))),
-
-    }
+    list_expr: ($) => seq("[", optional(separated($._expr, ",")), "]"),
+  },
 });
-

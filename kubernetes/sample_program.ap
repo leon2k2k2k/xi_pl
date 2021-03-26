@@ -1,0 +1,19 @@
+import kubernetes.ap
+
+// create a Docker image object in Aplite.
+let image = create_docker_image([path]) 
+
+// create_docker_image : Path -> Result<Docker>
+
+let deployment =  deployment(image: Docker, ??, optional arguments)
+
+/// deployment: Image x DeploymentStrategy etc. -> Result<Deployment>
+
+/// deployment.to_yaml: Deployment -> YAML.
+
+// let k8s be a Kubernetes object. 
+
+k8s.create(deployment, ... other things).
+
+k8s  makeKubeCluster(...)
+ 

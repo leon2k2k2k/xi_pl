@@ -1,20 +1,43 @@
-use std::rc::Rc;
+use std::{fs::metadata, rc::Rc};
 use swc_common::{FilePathMapping, SourceMap, DUMMY_SP};
 use swc_ecma_ast::{
     ArrowExpr, BindingIdent, BlockStmtOrExpr, CallExpr, Expr, ExprOrSpread, ExprOrSuper, ExprStmt,
-    Ident, ImportDecl, ImportSpecifier, ImportStarAsSpecifier, Lit, MemberExpr, Module, ModuleDecl,
-    ModuleItem, ParenExpr, Pat, Stmt, Str,
+    Ident, ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, Lit,
+    MemberExpr, Module, ModuleDecl, ModuleItem, ParenExpr, Pat, Stmt, Str,
 };
 use swc_ecma_codegen::{text_writer::JsWriter, Config, Emitter};
 use xi_core::judgment::{Judgment, JudgmentKind, Metadata};
+use xi_frontend::type_inference::UiMetadata;
+use xi_uuid::VarUuid;
 
-pub fn to_js_program<T: JsOutput, S: Metadata>(judgment: Judgment<T, S>) -> String {
+pub fn to_js_program<T: JsOutput>(judgment: Judgment<T, UiMetadata>) -> String {
+    let mut ffi_functions = vec![];
     let stmt = Stmt::Expr(ExprStmt {
         span: DUMMY_SP,
-        expr: Box::new(to_js(judgment, vec![])),
+        expr: Box::new(to_js(judgment, vec![], &mut ffi_functions)),
     });
 
     dbg!(&stmt);
+    let mut ffi_imports = vec![];
+    for (var_index, (file_name, function_name)) in ffi_functions {
+        let module_import = ModuleDecl::Import(ImportDecl {
+            span: DUMMY_SP,
+            specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                span: DUMMY_SP,
+                local: to_js_ident2(format!("ffi{}", var_index.index())),
+                imported: Some(to_js_ident2(function_name)),
+            })],
+            src: Str {
+                span: DUMMY_SP,
+                value: file_name.into(),
+                has_escape: false,
+                kind: swc_ecma_ast::StrKind::Synthesized,
+            },
+            type_only: false,
+            asserts: None,
+        });
+        ffi_imports.push(module_import);
+    }
     let module_import = ModuleDecl::Import(ImportDecl {
         span: DUMMY_SP,
         specifiers: vec![ImportSpecifier::Namespace(ImportStarAsSpecifier {
@@ -31,12 +54,16 @@ pub fn to_js_program<T: JsOutput, S: Metadata>(judgment: Judgment<T, S>) -> Stri
         asserts: None,
     });
 
+    let mut module_body: Vec<ModuleItem> = ffi_imports
+        .iter()
+        .map(|module| ModuleItem::ModuleDecl(module.clone()))
+        .collect();
+    module_body.push(ModuleItem::ModuleDecl(module_import));
+    module_body.push(ModuleItem::Stmt(stmt));
+
     let module: Module = Module {
         span: DUMMY_SP,
-        body: vec![
-            ModuleItem::ModuleDecl(module_import),
-            ModuleItem::Stmt(stmt),
-        ],
+        body: module_body,
         shebang: None,
     };
 
@@ -59,11 +86,20 @@ pub fn to_js_program<T: JsOutput, S: Metadata>(judgment: Judgment<T, S>) -> Stri
 fn make_var_name(ctx: &Vec<Ident>) -> Ident {
     to_js_ident2(format!("var_{}", ctx.len()))
 }
-fn to_js<T: JsOutput, S: Metadata>(judgment: Judgment<T, S>, ctx: Vec<Ident>) -> Expr {
+
+fn to_js<T: JsOutput>(
+    judgment: Judgment<T, UiMetadata>,
+    ctx: Vec<Ident>,
+    ffi: &mut Vec<(VarUuid, (String, String))>,
+) -> Expr {
     match judgment.tree {
         JudgmentKind::UInNone => to_js_str_u(),
         JudgmentKind::Prim(t) => T::to_js_prim(&t),
-        JudgmentKind::FreeVar(_, _) => panic!("Should not have a VarUuid in this expression"),
+        JudgmentKind::FreeVar(var_index, _var_type) => {
+            let metadata = judgment.metadata.ffi.unwrap();
+            ffi.push((var_index, metadata));
+            to_js_ident(format!("ffi{}", var_index.index()))
+        }
         JudgmentKind::Pi(_, _) => to_js_str_pi(),
         JudgmentKind::Lam(_var_type, body) => {
             let var_name = make_var_name(&ctx);
@@ -71,6 +107,7 @@ fn to_js<T: JsOutput, S: Metadata>(judgment: Judgment<T, S>, ctx: Vec<Ident>) ->
                 swc_ecma_ast::BlockStmtOrExpr::Expr(Box::new(to_js(
                     *body,
                     add_to_ctx(ctx, var_name.clone()),
+                    ffi,
                 ))),
                 vec![var_name],
             )
@@ -79,7 +116,7 @@ fn to_js<T: JsOutput, S: Metadata>(judgment: Judgment<T, S>, ctx: Vec<Ident>) ->
             to_js_ident1(ctx[ctx.len() - 1 - index as usize].clone())
         }
         JudgmentKind::Application(func, arg) => {
-            to_js_app(to_js(*func, ctx.clone()), vec![to_js(*arg, ctx)])
+            to_js_app(to_js(*func, ctx.clone(), ffi), vec![to_js(*arg, ctx, ffi)])
         }
     }
 }

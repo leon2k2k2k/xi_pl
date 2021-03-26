@@ -1,4 +1,5 @@
 use xi_core::judgment::{Judgment, Metadata, Primitive};
+use xi_frontend::type_inference::UiMetadata;
 use crate::output::{ JsOutput};
 use xi_uuid::VarUuid;
 use swc_ecma_ast::{
@@ -11,6 +12,7 @@ pub enum JsPrim {
     IO(JsIO),
     Promise(JsPromise),
     Type(JsType),
+    FFI(Expr, Box<Judgment<JsPrim, ()>>),
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -77,6 +79,9 @@ impl Primitive for JsPrim {
                     JsType::Unit => term!([Type(UnitType)]),
                 }
             }
+            JsPrim::FFI(_expr, expr_type) => {
+                Judgment::cast_metadata((**expr_type).clone())
+            }
         }
     }
 }
@@ -107,6 +112,9 @@ impl JsOutput for JsPrim {
                 JsType::UnitType =>  to_js_str("UnitType".into()),
                 JsType::Unit =>  to_js_str("Unit".into()),
             },
+            FFI(expr, _expr_type) => {
+                expr.clone()
+            }
         }
     }
 }
@@ -129,7 +137,7 @@ impl JsPrim{
         let func = term!((Lam |func1 : {JsPrim::str_to_promise_unit()}| 
                 ([IO(JsIO::Pure)] {JsPrim::promise_unit()} (func1 {str_judgment}))));
 
-        let str_expression:Judgment<JsPrim, ()> = term!([IO(JsIO::Bind)]{JsPrim::str_to_promise_unit()} {JsPrim::promise_unit()} [IO(JsIO::ConsoleOutput)] {func});
+        let str_expression:Judgment<JsPrim, UiMetadata> = term!([IO(JsIO::Bind)]{JsPrim::str_to_promise_unit()} {JsPrim::promise_unit()} [IO(JsIO::ConsoleOutput)] {func});
         // println!("type of str_expression: {:?}", str_expression.type_of());
         output::to_js_program(str_expression)
         

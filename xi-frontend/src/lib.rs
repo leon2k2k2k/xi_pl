@@ -38,6 +38,6 @@ mod test {
            do console_output(ans)!
            val unit!";
         let judgment = frontend(ffi_text);
-        dbg!(judgment);
+        dbg!(judgment).unwrap();
     }
 }

@@ -1,10 +1,16 @@
 ffi "./some_file.js"{
+    UnitType : Type,
+    String : Type,
+    unit : UnitType,
     Int : Type,
     five : Int,
     six : Int,
     add : Int -> Int -> Int,
-    int_to_string : Int -> String 
+    int_to_string : Int -> String,
+    console_output: String -> IO(UnitType),
 }
+
+
 
 let ans = add five six
 let better_ans = add ans six

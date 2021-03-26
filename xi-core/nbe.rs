@@ -10,7 +10,8 @@ use xi_uuid::VarUuid;
 #[derive(Clone)]
 pub enum SJudgment<T, S> {
     // TODO: do we need this?
-    VarUuid(VarUuid, Box<SJudgment<T, S>>),
+    FreeVar(VarUuid, Box<SJudgment<T, S>>),
+    BoundVar(u32, Box<SJudgment<T, S>>),
     Syn(Judgment<T, S>),
     Lam(
         Box<SJudgment<T, S>>,
@@ -72,8 +73,11 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
 
                     Judgment::pi(down(*svar_type.clone()), expr_rebound, None)
                 }
-                SJudgment::VarUuid(free_var, var_type) => {
+                SJudgment::FreeVar(free_var, var_type) => {
                     Judgment::free(free_var, down(*var_type), None)
+                }
+                SJudgment::BoundVar(var_index, var_type) => {
+                    Judgment::bound_var(var_index, down(*var_type), None)
                 }
             }
         }
@@ -121,7 +125,13 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
                     )
                 }),
             ),
-            JudgmentKind::BoundVar(i, _var_type) => ctx[ctx.len() - 1 - i as usize].clone(),
+            JudgmentKind::BoundVar(i, var_type) => {
+                if ctx.len() < i as usize {
+                    SJudgment::BoundVar(i, Box::new(SJudgment::syntax_to_semantics(*var_type, ctx)))
+                } else {
+                    ctx[ctx.len() - 1 - i as usize].clone()
+                }
+            }
             JudgmentKind::Application(func, elem) => {
                 match SJudgment::syntax_to_semantics(*func, ctx.clone()) {
                     SJudgment::Syn(a) => {
@@ -129,13 +139,16 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
                     }
                     SJudgment::Lam(_, sfunc) => sfunc(SJudgment::syntax_to_semantics(*elem, ctx)),
                     SJudgment::Pi(_, _) => panic!("syntax_to_semantics(func) should match to Lam"),
-                    SJudgment::VarUuid(_, _) => {
+                    SJudgment::FreeVar(_, _) => {
+                        panic!("syntax_to_semantics(func) should match to Lam")
+                    }
+                    SJudgment::BoundVar(_, _) => {
                         panic!("syntax_to_semantics(func) should match to Lam")
                     }
                 }
             }
             JudgmentKind::Prim(prim) => U::meaning(prim),
-            JudgmentKind::FreeVar(free_var, var_type) => SJudgment::VarUuid(
+            JudgmentKind::FreeVar(free_var, var_type) => SJudgment::FreeVar(
                 free_var,
                 Box::new(SJudgment::syntax_to_semantics(*var_type, ctx)),
             ),

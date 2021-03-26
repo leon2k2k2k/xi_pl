@@ -1,4 +1,4 @@
-use std::{fs::metadata, rc::Rc};
+use std::rc::Rc;
 use swc_common::{FilePathMapping, SourceMap, DUMMY_SP};
 use swc_ecma_ast::{
     ArrowExpr, BindingIdent, BlockStmtOrExpr, CallExpr, Expr, ExprOrSpread, ExprOrSuper, ExprStmt,
@@ -6,7 +6,7 @@ use swc_ecma_ast::{
     MemberExpr, Module, ModuleDecl, ModuleItem, ParenExpr, Pat, Stmt, Str,
 };
 use swc_ecma_codegen::{text_writer::JsWriter, Config, Emitter};
-use xi_core::judgment::{Judgment, JudgmentKind, Metadata};
+use xi_core::judgment::{Judgment, JudgmentKind};
 use xi_frontend::type_inference::UiMetadata;
 use xi_uuid::VarUuid;
 

@@ -68,7 +68,8 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                 }) = func.type_of()
                 {
                     let new_result_type = Judgment::instantiate(*func_expr_type, &*elem.clone());
-                    Some(new_result_type.normalize())
+                    Some(new_result_type)
+                // Some(new_result_type.normalize())
                 } else {
                     panic!("type of func should be a Pi")
                 }

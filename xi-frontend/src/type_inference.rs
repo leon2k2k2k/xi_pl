@@ -38,7 +38,7 @@ impl Context {
         match self.type_map.get(&type_var) {
             Some(result) => {
                 let result = result.clone();
-                let new_type = self.unify(result, replacement)?;
+                let new_type = self.unify(&result, &replacement)?;
                 self.type_map.insert(type_var, new_type);
             }
             None => {
@@ -107,8 +107,8 @@ impl Context {
     // This is the unify function in Hindley-Milner systems.
     fn unify(
         &mut self,
-        lhs: Judgment<TypeVarPrim, UiMetadata>,
-        rhs: Judgment<TypeVarPrim, UiMetadata>,
+        lhs: &Judgment<TypeVarPrim, UiMetadata>,
+        rhs: &Judgment<TypeVarPrim, UiMetadata>,
     ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
         let lhs = lhs.clone();
         let rhs = rhs.clone();
@@ -122,23 +122,23 @@ impl Context {
             return Ok(lhs);
         }
 
-        let result = match (lhs.tree, rhs.tree) {
+        let result = match (&lhs.tree, &rhs.tree) {
             (JudgmentKind::UInNone, JudgmentKind::UInNone) => Judgment::u(None),
             (JudgmentKind::FreeVar(index1, var_type), JudgmentKind::FreeVar(index2, _))
                 if index1 == index2 =>
             {
-                Judgment::free(index1, *var_type, None)
+                Judgment::free(*index1, *var_type.clone(), None)
             }
 
             (
                 JudgmentKind::Prim(TypeVarPrim::Prim(prim1)),
                 JudgmentKind::Prim(TypeVarPrim::Prim(prim2)),
-            ) if prim1 == prim2 => Judgment::prim(TypeVarPrim::Prim(prim1), None),
+            ) if prim1 == prim2 => Judgment::prim(TypeVarPrim::Prim(prim1.clone()), None),
 
             (JudgmentKind::Pi(var_type1, expr1), JudgmentKind::Pi(var_type2, expr2)) => {
                 Judgment::pi(
-                    self.unify(*var_type1, *var_type2)?,
-                    self.unify(*expr1, *expr2)?,
+                    self.unify(&*var_type1, &*var_type2)?,
+                    self.unify(&*expr1, &*expr2)?,
                     None,
                 )
             }
@@ -149,17 +149,25 @@ impl Context {
             (JudgmentKind::BoundVar(index1, var_type), JudgmentKind::BoundVar(index2, _))
                 if index1 == index2 =>
             {
-                Judgment::bound_var(index1, *var_type, None)
+                Judgment::bound_var(*index1, *var_type.clone(), None)
             }
 
             (JudgmentKind::Application(func1, elem1), JudgmentKind::Application(func2, elem2)) => {
                 Judgment::app_unchecked(
-                    self.unify(*func1, *func2)?,
-                    self.unify(*elem1, *elem2)?,
+                    self.unify(&*func1, &*func2)?,
+                    self.unify(&*elem1, &*elem2)?,
                     None,
                 )
             }
-            _ => return Err(TypeError()),
+            _ => {
+                panic!();
+                return Err(TypeError {
+                    string: format!(
+                        "lhs and rhs failed to unify, lhs: {:?}, rhs: {:?}",
+                        lhs, rhs
+                    ),
+                });
+            }
         };
 
         Ok(result)
@@ -171,7 +179,6 @@ impl Context {
         seen: &Vec<TypeVar>,
     ) -> Result<Judgment<UiPrim, UiMetadata>, TypeError> {
         // dbg!(judgment.clone());
-        dbg!(&self);
         let metadata = judgment.metadata;
         let result: Judgment<UiPrim, UiMetadata> = match judgment.tree {
             JudgmentKind::UInNone => Judgment::u(Some(metadata)),
@@ -201,9 +208,9 @@ impl Context {
             JudgmentKind::BoundVar(int, var_type) => {
                 Judgment::bound_var(int, self.final_lookup(*var_type, seen)?, Some(metadata))
             }
-            JudgmentKind::Application(func, arg) => Judgment::app_unchecked(
-                dbg!(self.final_lookup(*func, seen)?),
-                dbg!(self.final_lookup(*arg, seen)?),
+            JudgmentKind::Application(func, arg) => Judgment::app(
+                self.final_lookup(*func, seen)?,
+                self.final_lookup(*arg, seen)?,
                 Some(metadata),
             ),
         };
@@ -211,17 +218,19 @@ impl Context {
     }
 }
 #[derive(Clone, Debug)]
-pub struct TypeError();
+pub struct TypeError {
+    string: String,
+}
 /// Take a Judg_ment and context and infer all the free variables in the Judg_ment, written in the context.
 pub fn type_infer(
-    judg_ment: Judg_ment,
+    judg_ment: &Judg_ment,
     ctx: &mut Context,
     // TODO: add metadata
 ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
     use xi_proc_macro::term;
 
     // dbg!(judg_ment.clone());
-    let result = match *judg_ment.0 {
+    let result = match &*judg_ment.0 {
         Judg_mentKind::Type => Judgment::u(None),
         Judg_mentKind::Var(var) => {
             let var_type = ctx.lookup_var(&var);
@@ -235,9 +244,9 @@ pub fn type_infer(
         }
         Judg_mentKind::Pi(var, expr) => {
             let beta = ctx.new_expicit_type_var(var.index);
-            match var.var_type {
+            match &var.var_type {
                 Some(var_type) => {
-                    let infered_type = type_infer(var_type, ctx)?;
+                    let infered_type = type_infer(&var_type, ctx)?;
                     ctx.type_map.insert(beta, infered_type);
                 }
                 None => {}
@@ -251,9 +260,9 @@ pub fn type_infer(
         }
         Judg_mentKind::Lam(var, expr) => {
             let beta = ctx.new_expicit_type_var(var.index);
-            match var.var_type {
+            match &var.var_type {
                 Some(var_type) => {
-                    let infered_type = type_infer(var_type, ctx)?;
+                    let infered_type = type_infer(&var_type, ctx)?;
                     ctx.type_map.insert(beta, infered_type);
                 }
                 None => {}
@@ -266,11 +275,11 @@ pub fn type_infer(
             Judgment::lam(ctx.lookup_type_var(&beta), body_bound, None)
         }
         Judg_mentKind::App(func, arg) => {
-            let func_expr = type_infer(func.clone(), ctx)?;
+            let func_expr = type_infer(func, ctx)?;
             match func_expr.type_of().expect("please not none").tree {
                 JudgmentKind::Pi(var_type, _expr) => {
                     let new_arg = type_infer(arg, ctx)?;
-                    ctx.unify(*var_type, new_arg.type_of().expect("failure"))?;
+                    ctx.unify(&*var_type, &new_arg.type_of().expect("failure"))?;
 
                     Judgment::app_unchecked(func_expr, new_arg, None)
                 }
@@ -291,7 +300,8 @@ pub fn type_infer(
                     ctx.add_constraint(epsilon, new_body.type_of().expect("failure"))?;
                     Judgment::app_unchecked(new_func_expr, new_body, None)
                 }
-                _ => return Err(TypeError()),
+                _ => return Err(TypeError{
+                    string: format!("func_expr doesn't have the correct type, func_expr : {:?}, expr.type_of: {:?}", func_expr, func_expr.type_of())}),
             }
         }
         Judg_mentKind::Bind(input, rest) => {
@@ -308,11 +318,22 @@ pub fn type_infer(
 
             let judgment_tv0 = Judgment::prim(TypeVarPrim::TypeVar(tv0), None);
             let lhs1 = term!([Prim(IOMonad)] {judgment_tv0});
-            ctx.unify(lhs1, infer_input.type_of().ok_or(TypeError())?)?;
+
+            ctx.unify(
+                &lhs1,
+                &infer_input.type_of().ok_or(TypeError {
+                    string: format!("infer_input has None type, infer_input: {:?}", infer_input),
+                })?,
+            )?;
 
             let judgment_tv1 = Judgment::prim(TypeVarPrim::TypeVar(tv1), None);
             let lhs2 = term!({judgment_tv0} -> [Prim(UiPrim::IOMonad)] {judgment_tv1});
-            ctx.unify(lhs2, infer_rest.type_of().ok_or(TypeError())?)?;
+            ctx.unify(
+                &lhs2,
+                &infer_rest.type_of().ok_or(TypeError {
+                    string: format!("infer_rest has None type, infer_rest: {:?}", infer_rest),
+                })?,
+            )?;
 
             Judgment::app_unchecked_vec(
                 Judgment::prim(Prim(IOBind), None),
@@ -321,14 +342,19 @@ pub fn type_infer(
             )
         }
         Judg_mentKind::StringLit(str) => {
-            Judgment::prim(TypeVarPrim::Prim(UiPrim::StringElem(str)), None)
+            Judgment::prim(TypeVarPrim::Prim(UiPrim::StringElem(str.clone())), None)
         }
         Judg_mentKind::Pure(expr) => {
             use TypeVarPrim::*;
             use UiPrim::*;
             let epsilon = ctx.new_type_var();
             let infer_expr = type_infer(expr, ctx)?;
-            ctx.add_constraint(epsilon, infer_expr.type_of().ok_or(TypeError())?)?;
+            ctx.add_constraint(
+                epsilon,
+                infer_expr.type_of().ok_or(TypeError {
+                    string: format!("infer_expr has None type, infer_expr: {:?}", infer_expr),
+                })?,
+            )?;
             let judgment_epsilon = Judgment::prim(TypeVarPrim::TypeVar(epsilon), None);
 
             Judgment::app_unchecked_vec(
@@ -341,11 +367,6 @@ pub fn type_infer(
             use UiPrim::*;
             let ui_prim = match prim {
                 ResolvePrim::IOMonad => IOMonad,
-                ResolvePrim::StringType => StringType,
-                ResolvePrim::UnitType => UnitType,
-                ResolvePrim::UnitElem => UnitElem,
-                ResolvePrim::ConsoleInput => ConsoleInput,
-                ResolvePrim::ConsoleOutput => ConsoleOutput,
             };
             Judgment::prim(TypeVarPrim::Prim(ui_prim), None)
         }
@@ -357,7 +378,7 @@ pub fn type_infer(
                 index,
                 Judgment::prim(TypeVarPrim::TypeVar(var_type), None),
                 Some(UiMetadata {
-                    ffi: Some((file_name, func_name)),
+                    ffi: Some((file_name.clone(), func_name.clone())),
                 }),
             )
         }
@@ -406,7 +427,7 @@ impl Primitive for UiPrim {
 
 pub fn to_judgment(judg_ment: Judg_ment) -> Result<Judgment<UiPrim, UiMetadata>, TypeError> {
     let ctx = &mut Context::new();
-    let judgment_with_type_var = type_infer(judg_ment, ctx)?;
+    let judgment_with_type_var = type_infer(&judg_ment, ctx)?;
     ctx.final_lookup(judgment_with_type_var, &vec![])
 }
 

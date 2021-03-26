@@ -7,7 +7,7 @@ use xi_uuid::VarUuid;
 pub enum JudgmentTree<T> {
     UinNone,
     Prim(T),
-    VarUuid(VarUuid, Box<JudgmentTree<T>>),
+    FreeVar(VarUuid, Box<JudgmentTree<T>>),
     BoundVar(u32, Box<JudgmentTree<T>>),
     /// I should add metadata here.
     Fun(Vec<JudgmentTree<T>>),
@@ -23,7 +23,7 @@ pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> 
         JudgmentKind::UInNone => JudgmentTree::UinNone,
         JudgmentKind::Prim(prim) => JudgmentTree::Prim(prim),
         JudgmentKind::FreeVar(free_var, expr) => {
-            JudgmentTree::VarUuid(free_var, Box::new(judgment_to_tree(*expr)))
+            JudgmentTree::FreeVar(free_var, Box::new(judgment_to_tree(*expr)))
         }
         JudgmentKind::Pi(var_type, expr) => {
             let expr_tree = judgment_to_tree(*expr.clone());
@@ -93,7 +93,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
         let body_str = match judg_tree {
             JudgmentTree::UinNone => "U".into(),
             JudgmentTree::Prim(prim) => format!("{:?}", prim),
-            JudgmentTree::VarUuid(var_index, var_type) => {
+            JudgmentTree::FreeVar(var_index, var_type) => {
                 format!(
                     "(fv{} : {})",
                     var_index.index(),
@@ -109,7 +109,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
             JudgmentTree::BoundVar(index, var_type) => match depth.checked_sub(1 + index) {
                 Some(value) => format!("v{}", value),
                 None => format!(
-                    "(f{}: {})",
+                    "(bv{}: {})",
                     1 + index - depth,
                     tts_rec(&*var_type, free_vars, Precedence::Top, depth)
                 ),
@@ -185,7 +185,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
         let my_precedence = match judg_tree {
             JudgmentTree::UinNone => Precedence::Var,
             JudgmentTree::Prim(_) => Precedence::Var,
-            JudgmentTree::VarUuid(_, _) => Precedence::Var,
+            JudgmentTree::FreeVar(_, _) => Precedence::Var,
             JudgmentTree::BoundVar(_, _) => Precedence::Var,
             JudgmentTree::Fun(_) => Precedence::Fun,
             JudgmentTree::Pi(_, _) => Precedence::Top,

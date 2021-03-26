@@ -6,11 +6,6 @@ use xi_uuid::VarUuid;
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum ResolvePrim {
     IOMonad,
-    StringType,
-    UnitType,
-    UnitElem,
-    ConsoleInput,
-    ConsoleOutput,
 }
 
 impl std::fmt::Display for ResolvePrim {
@@ -18,11 +13,6 @@ impl std::fmt::Display for ResolvePrim {
         use ResolvePrim::*;
         let res = match self {
             IOMonad => "IO",
-            StringType => "String",
-            UnitType => "Unit",
-            UnitElem => "unit",
-            ConsoleInput => "console_input",
-            ConsoleOutput => "console_output",
         };
         write!(f, "{}", res)
     }
@@ -31,14 +21,7 @@ impl std::fmt::Display for ResolvePrim {
 impl ResolvePrim {
     pub fn prims() -> Vec<ResolvePrim> {
         use ResolvePrim::*;
-        vec![
-            IOMonad,
-            StringType,
-            UnitType,
-            UnitElem,
-            ConsoleInput,
-            ConsoleOutput,
-        ]
+        vec![IOMonad]
     }
     fn get_ctx() -> (Context, BTreeMap<VarUuid, ResolvePrim>) {
         let mut ident_map = BTreeMap::new();
@@ -301,7 +284,7 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut Context) -> Stmt {
     Stmt(stmt_kind, node.text_range())
 }
 
-fn parse_ffi_dict(node: &SyntaxNode, ctx: &mut Context) -> Vec<(Var)> {
+fn parse_ffi_dict(node: &SyntaxNode, ctx: &mut Context) -> Vec<Var> {
     let children = nonextra_children(node).collect::<Vec<_>>();
     assert!(node.kind() == SyntaxKind::DICT_EXPR);
     let mut components = vec![];

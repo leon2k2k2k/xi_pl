@@ -158,7 +158,7 @@ impl Context {
                     StringTokenKind::Escape(_) => {
                         panic!("we don't support string escapes yet :)");
                     }
-                    StringTokenKind::String(mut string) => Judg_mentKind::StringLit(string),
+                    StringTokenKind::String(string) => Judg_mentKind::StringLit(string),
                 }
             }
         };

@@ -210,7 +210,7 @@ impl std::fmt::Debug for Judg_ment {
                 f.write_str(">=")?;
                 f.write_str(&format!("{:?}", rest))?;
             }
-            Judg_mentKind::StringLit(_) => todo!(),
+            Judg_mentKind::StringLit(str) => f.write_str(&format!("\"{}\"", str))?,
             Judg_mentKind::Pure(expr) => f.write_str(&format!("{:?}", expr))?,
             Judg_mentKind::Prim(prim) => f.write_str(&format!("{:?}", prim))?,
             Judg_mentKind::Ffi(filename, func_name) => {

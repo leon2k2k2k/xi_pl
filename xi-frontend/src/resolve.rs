@@ -3,9 +3,11 @@ use rowan::{TextRange, TextSize};
 use std::collections::BTreeMap;
 use xi_uuid::VarUuid;
 
+// remember to change the prims() method below
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum ResolvePrim {
     IOMonad,
+    String,
 }
 
 impl std::fmt::Display for ResolvePrim {
@@ -13,6 +15,7 @@ impl std::fmt::Display for ResolvePrim {
         use ResolvePrim::*;
         let res = match self {
             IOMonad => "IO",
+            String => "String",
         };
         write!(f, "{}", res)
     }
@@ -21,7 +24,7 @@ impl std::fmt::Display for ResolvePrim {
 impl ResolvePrim {
     pub fn prims() -> Vec<ResolvePrim> {
         use ResolvePrim::*;
-        vec![IOMonad]
+        vec![IOMonad, String]
     }
     fn get_ctx() -> (Context, BTreeMap<VarUuid, ResolvePrim>) {
         let mut ident_map = BTreeMap::new();

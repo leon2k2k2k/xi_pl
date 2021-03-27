@@ -17,6 +17,7 @@ impl Primitive for TypeVar {
 #[derive(Clone, Debug)]
 pub struct Context {
     var_map: BTreeMap<VarUuid, TypeVar>,
+    var_map_inv: BTreeMap<TypeVar, VarUuid>,
     type_map: BTreeMap<TypeVar, Judgment<TypeVarPrim, UiMetadata>>,
     next: u32,
 }
@@ -25,6 +26,7 @@ impl Context {
     pub fn new() -> Context {
         Context {
             var_map: BTreeMap::new(),
+            var_map_inv: BTreeMap::new(),
             type_map: BTreeMap::new(),
             next: 0,
         }
@@ -68,6 +70,7 @@ impl Context {
     fn new_expicit_type_var(&mut self, var_index: VarUuid) -> TypeVar {
         let type_var = self.new_type_var();
         self.var_map.insert(var_index, type_var);
+        self.var_map_inv.insert(type_var, var_index);
         type_var
     }
 
@@ -160,7 +163,6 @@ impl Context {
                 )
             }
             _ => {
-                panic!();
                 return Err(TypeError {
                     string: format!(
                         "lhs and rhs failed to unify, lhs: {:?}, rhs: {:?}",
@@ -195,16 +197,40 @@ impl Context {
             JudgmentKind::FreeVar(int, var_type) => {
                 Judgment::free(int, self.final_lookup(*var_type, seen)?, Some(metadata))
             }
-            JudgmentKind::Pi(var_type, expr) => Judgment::pi(
-                self.final_lookup(*var_type, seen)?,
-                self.final_lookup(*expr, seen)?,
-                Some(metadata),
-            ),
-            JudgmentKind::Lam(var_type, expr) => Judgment::lam(
-                self.final_lookup(*var_type, seen)?,
-                self.final_lookup(*expr, seen)?,
-                Some(metadata),
-            ),
+            JudgmentKind::Pi(var_type, expr) => {
+                if let JudgmentKind::Prim(TypeVarPrim::TypeVar(beta)) = var_type.tree {
+                    // we need to find the free variable corresponding to beta and then rebind using that variable
+                    let var_index = self.var_map_inv.get(&beta).unwrap().clone();
+                    let body = self.final_lookup(*expr, seen)?;
+                    let real_body = Judgment::rebind(body, var_index);
+                    Judgment::pi(
+                        self.final_lookup(*var_type, seen)?,
+                        real_body,
+                        Some(metadata),
+                    )
+                } else {
+                    Judgment::pi(
+                        self.final_lookup(*var_type, seen)?,
+                        self.final_lookup(*expr, seen)?,
+                        Some(metadata),
+                    )
+                }
+            }
+            JudgmentKind::Lam(var_type, expr) => {
+                if let JudgmentKind::Prim(TypeVarPrim::TypeVar(beta)) = var_type.tree {
+                    // we need to find the free variable corresponding to beta and then rebind using that variable
+                    let var_index = self.var_map_inv.get(&beta).unwrap().clone();
+                    let body = self.final_lookup(*expr, seen)?;
+                    let real_body = Judgment::rebind(body, var_index);
+                    Judgment::lam(
+                        self.final_lookup(*var_type, seen)?,
+                        real_body,
+                        Some(metadata),
+                    )
+                } else {
+                    panic!("var_type here should be a type_Variable")
+                }
+            }
             JudgmentKind::BoundVar(int, var_type) => {
                 Judgment::bound_var(int, self.final_lookup(*var_type, seen)?, Some(metadata))
             }
@@ -230,7 +256,7 @@ pub fn type_infer(
     use xi_proc_macro::term;
 
     // dbg!(judg_ment.clone());
-    let result = match &*judg_ment.0 {
+    let result: Judgment<TypeVarPrim, UiMetadata> = match &*judg_ment.0 {
         Judg_mentKind::Type => Judgment::u(None),
         Judg_mentKind::Var(var) => {
             dbg!(var.clone());
@@ -255,9 +281,7 @@ pub fn type_infer(
 
             let body = type_infer(expr, ctx)?;
 
-            let body_bound = Judgment::rebind(body, var.index);
-
-            Judgment::pi(ctx.lookup_type_var(&beta), body_bound, None)
+            Judgment::pi(Judgment::prim(TypeVarPrim::TypeVar(beta), None), body, None)
         }
         Judg_mentKind::Lam(var, expr) => {
             let beta = ctx.new_expicit_type_var(var.index);
@@ -273,9 +297,7 @@ pub fn type_infer(
 
             let body = type_infer(expr, ctx)?;
 
-            let body_bound = Judgment::rebind(body, var.index);
-
-            Judgment::lam(ctx.lookup_type_var(&beta), body_bound, None)
+            Judgment::lam(Judgment::prim(TypeVarPrim::TypeVar(beta), None), body, None)
         }
         Judg_mentKind::App(func, arg) => {
             let func_expr = type_infer(func, ctx)?;
@@ -370,6 +392,7 @@ pub fn type_infer(
             use UiPrim::*;
             let ui_prim = match prim {
                 ResolvePrim::IOMonad => IOMonad,
+                ResolvePrim::String => StringType,
             };
             Judgment::prim(TypeVarPrim::Prim(ui_prim), None)
         }
@@ -462,3 +485,11 @@ pub struct UiMetadata {
 }
 
 impl Metadata for UiMetadata {}
+
+// #[derive(Clone, Default, PartialEq, Eq, Debug)]
+// pub struct UiMetadataHelper {
+//     pub ffi: Option<(String, String)>,
+//     pub bind_var_index: Option<VarUuid>,
+// }
+
+// impl Metadata for UiMetadataHelper {}

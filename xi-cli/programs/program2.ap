@@ -1,14 +1,20 @@
+let a = "hello"
+
+
 ffi "./some_file.js"{
     UnitType : Type,
-    String2 : Type,
     unit : UnitType,
     Int : Type,
     six : Int,
-    int_to_string : Int -> String2,
-    console_output: String2 -> IO(UnitType),
+    five : Int,
+    add : Int -> Int -> Int,
+    int_to_string : Int -> String,
+    console_output: String -> IO UnitType,
+    console_input: IO String,
 }
 
-let even_better_ans = int_to_string(six)
 
-do console_output(even_better_ans)!
+// let in = console_input!
+
+let me = console_output(a)!
 val unit!

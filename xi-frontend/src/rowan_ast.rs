@@ -60,7 +60,7 @@ impl SyntaxKind {
     pub fn is_extra(&self) -> bool {
         use SyntaxKind::*;
         match self {
-            UNKNOWN | WHITESPACE | NEWLINE => true,
+            UNKNOWN | WHITESPACE | NEWLINE | LINE_COMMENT => true,
             _ => false,
         }
     }

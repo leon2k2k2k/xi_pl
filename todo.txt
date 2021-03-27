@@ -1,5 +1,13 @@
 todo list:
 
+0. Important:
+Fix NBE.
+write a type check function 
+write a function that checks a judgment used the same VarUuid for two different Lams (or Pis). 
+Write a function that checks if a judgment is of the closed form (very free variable VarUuid has been used and type checks?)
+
+
+
 1. Output:
     a. do some tests: console_input testing, 
     b. implement fix point, int. String, 

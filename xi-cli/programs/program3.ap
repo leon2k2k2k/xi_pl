@@ -1,0 +1,5 @@
+ffi "./some_file.js" {
+    six : Type,
+    five : six,
+}
+val five

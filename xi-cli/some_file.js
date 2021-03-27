@@ -1,4 +1,7 @@
 export const Int = "Int";
+export const UnitType = "UnitType";
+export const String2 = "String2";
+export const unit = "unit";
 
 export const five = 5;
 

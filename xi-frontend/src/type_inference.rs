@@ -49,8 +49,8 @@ impl Context {
     }
 
     fn lookup_var(&self, var: &Var) -> Judgment<TypeVarPrim, UiMetadata> {
-        dbg!(self);
-        dbg!(var);
+        // dbg!(self);
+        // dbg!(var);
         let type_var = self
             .var_map
             .get(&var.index)
@@ -208,7 +208,7 @@ impl Context {
             JudgmentKind::BoundVar(int, var_type) => {
                 Judgment::bound_var(int, self.final_lookup(*var_type, seen)?, Some(metadata))
             }
-            JudgmentKind::Application(func, arg) => Judgment::app(
+            JudgmentKind::Application(func, arg) => Judgment::app_unchecked(
                 self.final_lookup(*func, seen)?,
                 self.final_lookup(*arg, seen)?,
                 Some(metadata),
@@ -233,6 +233,7 @@ pub fn type_infer(
     let result = match &*judg_ment.0 {
         Judg_mentKind::Type => Judgment::u(None),
         Judg_mentKind::Var(var) => {
+            dbg!(var.clone());
             let var_type = ctx.lookup_var(&var);
             Judgment::free(var.index, var_type, None)
         }
@@ -262,6 +263,8 @@ pub fn type_infer(
             let beta = ctx.new_expicit_type_var(var.index);
             match &var.var_type {
                 Some(var_type) => {
+                    dbg!(var_type.clone());
+                    dbg!(ctx.clone());
                     let infered_type = type_infer(&var_type, ctx)?;
                     ctx.type_map.insert(beta, infered_type);
                 }
@@ -371,7 +374,7 @@ pub fn type_infer(
             Judgment::prim(TypeVarPrim::Prim(ui_prim), None)
         }
         Judg_mentKind::Ffi(file_name, func_name) => {
-            dbg!(&func_name);
+            // dbg!(&func_name);
             let index = VarUuid::new();
             let var_type = ctx.new_expicit_type_var(index);
             Judgment::free(
@@ -428,6 +431,8 @@ impl Primitive for UiPrim {
 pub fn to_judgment(judg_ment: Judg_ment) -> Result<Judgment<UiPrim, UiMetadata>, TypeError> {
     let ctx = &mut Context::new();
     let judgment_with_type_var = type_infer(&judg_ment, ctx)?;
+    dbg!(ctx.clone());
+    dbg!(judgment_with_type_var.clone());
     ctx.final_lookup(judgment_with_type_var, &vec![])
 }
 

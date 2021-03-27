@@ -9,7 +9,6 @@ use xi_uuid::VarUuid;
 
 #[derive(Clone)]
 pub enum SJudgment<T, S> {
-    // TODO: do we need this?
     FreeVar(VarUuid, Box<SJudgment<T, S>>),
     BoundVar(u32, Box<SJudgment<T, S>>),
     Syn(Judgment<T, S>),

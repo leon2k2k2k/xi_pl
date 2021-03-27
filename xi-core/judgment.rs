@@ -183,20 +183,18 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                 ),
 
                 JudgmentKind::BoundVar(index, var_type) => {
-                    if index < depth {
+                    if index != depth {
                         JudgmentKind::BoundVar(
                             index,
                             Box::new(instantiate_rec(*var_type, elem, depth)),
                         )
-                    } else if index == depth {
+                    } else {
                         if *var_type == elem.clone().type_of().unwrap() {
                             // Note: early return!
                             return elem.clone();
                         } else {
                             panic!("The types of the elem and boundVar are wrong")
                         }
-                    } else {
-                        panic!("free variable present")
                     }
                 }
                 JudgmentKind::Application(func, arg) => JudgmentKind::Application(

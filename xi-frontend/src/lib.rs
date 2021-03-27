@@ -9,6 +9,7 @@ pub mod type_inference;
 
 pub fn frontend(text: &str) -> Result<Judgment<UiPrim, UiMetadata>, TypeError> {
     let judg_ment = text_to_judg_ment(text);
+    dbg!(&judg_ment);
     to_judgment(judg_ment)
 }
 

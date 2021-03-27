@@ -181,7 +181,7 @@ impl std::fmt::Debug for Judg_ment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self.0.clone() {
             Judg_mentKind::Type => f.write_str("Type")?,
-            Judg_mentKind::Var(var) => f.write_str(&format!("{:?} {:?}", &var.name, &var.index))?,
+            Judg_mentKind::Var(var) => f.write_str(&format!("({:?} : {:?})", &var.name, &var.index))?,
             Judg_mentKind::Fun(func, arg) => {
                 f.write_str(&format!("{:?}", func))?;
                 f.write_str(" -> ")?;
@@ -196,14 +196,14 @@ impl std::fmt::Debug for Judg_ment {
             }
             Judg_mentKind::Lam(var, body) => {
                 f.write_str("Lam |")?;
-                f.write_str(&var.name)?;
+                f.write_str(&format!("{} {:?}", &var.name, &var.index))?;
                 f.write_str(&format!(": {:?}", var.var_type))?;
                 f.write_str("| ")?;
                 f.write_str(&format!("{:?}", body))?;
             }
             Judg_mentKind::App(func, arg) => {
-                f.write_str(&format!("{:?}", func))?;
-                f.write_str(&format!("{:?}", arg))?;
+                f.write_str(&format!("({:?}) ", func))?;
+                f.write_str(&format!("({:?})", arg))?;
             }
             Judg_mentKind::Bind(input, rest) => {
                 f.write_str(&format!("{:?}", input))?;
@@ -214,7 +214,7 @@ impl std::fmt::Debug for Judg_ment {
             Judg_mentKind::Pure(expr) => f.write_str(&format!("{:?}", expr))?,
             Judg_mentKind::Prim(prim) => f.write_str(&format!("{:?}", prim))?,
             Judg_mentKind::Ffi(filename, func_name) => {
-                f.write_str(&format!("{:?}, {:?}", filename, func_name))?
+                f.write_str(&format!("Ffi({}:{})", filename, func_name))?
             }
         }
         Ok(())

@@ -6,6 +6,8 @@ use deno_core::error::AnyError;
 use deno_core::resolve_url_or_path;
 use deno_runtime::permissions::Permissions;
 
+pub const RUNTIME_FILE: &str = "./$deno$runtime.ts";
+
 pub async fn run_js_from_string(source_code: String) -> Result<(), AnyError> {
     let flags = deno::flags::flags_from_vec(vec!["eval".into()])?;
 
@@ -24,7 +26,7 @@ pub async fn run_js_from_string(source_code: String) -> Result<(), AnyError> {
 
     program_state.file_fetcher.insert_cached(main_module_file);
 
-    let runtime_module = resolve_url_or_path("./$deno$runtime.ts").unwrap();
+    let runtime_module = resolve_url_or_path(RUNTIME_FILE).unwrap();
     let runtime_code = include_str!("runtime.ts");
 
     let runtime_module_file = File {

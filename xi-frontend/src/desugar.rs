@@ -1,7 +1,5 @@
-use crate::{
-    resolve::{self, parse_source_file, Expr, ExprKind, ResolvePrim, Stmt, StmtKind},
-    rowan_ast::string_to_syntax,
-};
+use crate::{resolve::{self, Expr, ExprKind, ResolvePrim, SourceFile, Stmt, StmtKind, parse_source_file}, rowan_ast::string_to_syntax};
+use crate::type_inference::UiBinaryOp as Op;
 use resolve::StringTokenKind;
 use std::collections::BTreeMap;
 use xi_uuid::VarUuid;
@@ -32,6 +30,8 @@ pub enum Judg_mentKind {
     StringLit(String),
     Pure(Judg_ment),
     Prim(ResolvePrim),
+    Binary(Op),
+    Number(String),
 }
 
 struct Context {
@@ -161,14 +161,23 @@ impl Context {
                     StringTokenKind::String(string) => Judg_mentKind::StringLit(string),
                 }
             }
+            ExprKind::Binary(op, lhs, rhs) => {
+                let judg_ment_op = Judg_ment(Box::new(Judg_mentKind::Binary(op.clone())), lhs.1);
+                let inner_judg_ment_kind = Judg_mentKind::App(judg_ment_op, self.desugar_expr(lhs));
+                let inner_judg_ment = Judg_ment(Box::new(inner_judg_ment_kind), lhs.1);
+                Judg_mentKind::App(inner_judg_ment, self.desugar_expr(rhs))
+                
+            }
+            ExprKind::Number(num) => {
+                Judg_mentKind::Number(num.clone())
+            }
         };
 
         Judg_ment(Box::new(result_kind), expr.1)
     }
 }
-pub fn text_to_judg_ment(text: &str) -> Judg_ment {
-    let node = string_to_syntax(text);
-    let source_file = parse_source_file(&node);
+pub fn source_file_to_judg_ment(source_file: SourceFile) -> Judg_ment {
+
     let stmts = &source_file.0;
     let ctx = Context {
         prim_map: source_file.1,
@@ -216,6 +225,8 @@ impl std::fmt::Debug for Judg_ment {
             Judg_mentKind::Ffi(filename, func_name) => {
                 f.write_str(&format!("Ffi({}:{})", filename, func_name))?
             }
+            Judg_mentKind::Binary(op) => f.write_str(&format!("{:?}", op))?,
+            Judg_mentKind::Number(num) => f.write_str(&num)?,
         }
         Ok(())
     }
@@ -257,7 +268,7 @@ mod test {
         do console_output(even_better_ans)!
         val unit!";
 
-        let judg_ment4 = text_to_judg_ment(ffi_text);
-        dbg!(judg_ment4);
+        // let judg_ment = frontend(ffi_text);
+        // dbg!(judg_ment);
     }
 }

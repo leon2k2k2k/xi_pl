@@ -1,9 +1,9 @@
 use std::rc::Rc;
 use swc_common::{FilePathMapping, SourceMap, DUMMY_SP};
 use swc_ecma_ast::{
-    ArrowExpr, BindingIdent, BlockStmtOrExpr, CallExpr, Expr, ExprOrSpread, ExprOrSuper, ExprStmt,
-    Ident, ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, Lit,
-    MemberExpr, Module, ModuleDecl, ModuleItem, ParenExpr, Pat, Stmt, Str,
+    ArrowExpr, BigInt, BindingIdent, BlockStmtOrExpr, CallExpr, Expr, ExprOrSpread, ExprOrSuper,
+    ExprStmt, Ident, ImportDecl, ImportNamedSpecifier, ImportSpecifier, Lit, MemberExpr, Module,
+    ModuleDecl, ModuleItem, Number, ParenExpr, Pat, Stmt, Str,
 };
 use swc_ecma_codegen::{text_writer::JsWriter, Config, Emitter};
 use xi_core::judgment::{Judgment, JudgmentKind, Primitive};
@@ -38,27 +38,27 @@ pub fn to_js_program<T: JsOutput + Primitive>(judgment: Judgment<T, UiMetadata>)
         });
         ffi_imports.push(module_import);
     }
-    let module_import = ModuleDecl::Import(ImportDecl {
-        span: DUMMY_SP,
-        specifiers: vec![ImportSpecifier::Namespace(ImportStarAsSpecifier {
-            span: DUMMY_SP,
-            local: to_js_ident2("runtime".into()),
-        })],
-        src: Str {
-            span: DUMMY_SP,
-            value: "./$deno$runtime.ts".into(),
-            has_escape: false,
-            kind: swc_ecma_ast::StrKind::Synthesized,
-        },
-        type_only: false,
-        asserts: None,
-    });
+    // let module_import = ModuleDecl::Import(ImportDecl {
+    //     span: DUMMY_SP,
+    //     specifiers: vec![ImportSpecifier::Namespace(ImportStarAsSpecifier {
+    //         span: DUMMY_SP,
+    //         local: to_js_ident2("runtime".into()),
+    //     })],
+    //     src: Str {
+    //         span: DUMMY_SP,
+    //         value: "./$deno$runtime.ts".into(),
+    //         has_escape: false,
+    //         kind: swc_ecma_ast::StrKind::Synthesized,
+    //     },
+    //     type_only: false,
+    //     asserts: None,
+    // });
 
     let mut module_body: Vec<ModuleItem> = ffi_imports
         .iter()
         .map(|module| ModuleItem::ModuleDecl(module.clone()))
         .collect();
-    module_body.push(ModuleItem::ModuleDecl(module_import));
+    // module_body.push(ModuleItem::ModuleDecl(module_import));
     module_body.push(ModuleItem::Stmt(stmt));
 
     let module: Module = Module {
@@ -96,7 +96,6 @@ fn to_js<T: Primitive + JsOutput>(
         JudgmentKind::UInNone => to_js_str_u(),
         JudgmentKind::Prim(t) => T::to_js_prim(&t),
         JudgmentKind::FreeVar(var_index, _var_type) => {
-            // dbg!(judgment.clone());
             let metadata = judgment.metadata.ffi.clone().unwrap();
             ffi.push((*var_index, metadata));
             to_js_ident(format!("ffi{}", var_index.index()))
@@ -219,6 +218,15 @@ pub fn to_js_str(string: String) -> Expr {
         kind: swc_ecma_ast::StrKind::Synthesized,
     };
     Expr::Lit(Lit::Str(str))
+}
+
+pub fn to_js_num(num: String) -> Expr {
+    let bigint_oops = num_bigint::BigInt::parse_bytes(&num.into_bytes(), 10).unwrap();
+    let bigint = BigInt {
+        span: DUMMY_SP,
+        value: bigint_oops,
+    };
+    Expr::Lit(Lit::BigInt(bigint))
 }
 
 fn to_js_str_u() -> Expr {

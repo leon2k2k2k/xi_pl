@@ -1,4 +1,5 @@
 use crate::rowan_ast::{nonextra_children, SyntaxKind, SyntaxNode};
+use crate::type_inference::UiBinaryOp as BinaryOp;
 use rowan::{TextRange, TextSize};
 use std::collections::BTreeMap;
 use xi_uuid::VarUuid;
@@ -8,6 +9,13 @@ use xi_uuid::VarUuid;
 pub enum ResolvePrim {
     IOMonad,
     String,
+    Int,
+}
+impl ResolvePrim {
+    pub fn prims() -> Vec<ResolvePrim> {
+        use ResolvePrim::*;
+        vec![IOMonad, String, Int]
+    }
 }
 
 impl std::fmt::Display for ResolvePrim {
@@ -16,16 +24,13 @@ impl std::fmt::Display for ResolvePrim {
         let res = match self {
             IOMonad => "IO",
             String => "String",
+            Int => "Int",
         };
         write!(f, "{}", res)
     }
 }
 
 impl ResolvePrim {
-    pub fn prims() -> Vec<ResolvePrim> {
-        use ResolvePrim::*;
-        vec![IOMonad, String]
-    }
     fn get_ctx() -> (Context, BTreeMap<VarUuid, ResolvePrim>) {
         let mut ident_map = BTreeMap::new();
         let mut resolve_map = BTreeMap::new();
@@ -92,6 +97,8 @@ pub enum ExprKind {
     Stmt(Vec<Stmt>),
     Member(Expr, Expr),
     StringLit(Vec<StringToken>),
+    Number(String),
+    Binary(BinaryOp, Expr, Expr),
 }
 
 #[derive(Clone, Debug)]
@@ -396,6 +403,53 @@ fn parse_expr(node: &SyntaxNode, ctx: &Context) -> Expr {
             }
             ExprKind::StringLit(string_component)
         }
+        SyntaxKind::BINARY_EXPR => {
+            if children.len() == 2 {
+                let operator = node
+                    .children()
+                    .filter(|node| node.kind() == SyntaxKind::UNKNOWN)
+                    .next()
+                    .unwrap();
+                let token = operator.first_token().unwrap();
+                let op_name = token.text();
+
+                use BinaryOp::*;
+                let operator = match op_name {
+                    "&&" => Minus,
+                    "//" => Or,
+                    "==" => Equal,
+                    "!=" => NotEqual,
+                    "<" => LessThan,
+                    "<=" => LessThanEqual,
+                    ">" => GreaterThan,
+                    ">=" => GreaterThanEqual,
+                    "+" => Plus,
+                    "-" => Minus,
+                    "*" => Multiply,
+                    "/" => Divide,
+                    "%" => Modulo,
+                    _ => panic!(format!("the binary operator {} is not defined", op_name)),
+                };
+
+                ExprKind::Binary(
+                    operator,
+                    parse_expr(&children[0], ctx),
+                    parse_expr(&children[1], ctx),
+                )
+            } else {
+                panic!("binary expression should have two children");
+            }
+        }
+
+        SyntaxKind::NUMBER_EXPR => {
+            let token = node.first_token().unwrap();
+            let number = token.text();
+            ExprKind::Number(number.into())
+        }
+        SyntaxKind::DICT_EXPR => todo!(),
+        SyntaxKind::TUPLE_EXPR => todo!(),
+        SyntaxKind::LIST_EXPR => todo!(),
+
         _ => panic!("parse_expr can only parse an expr, got {:?}", node.kind()),
     };
     Expr(Box::new(expr_kind), node.text_range())

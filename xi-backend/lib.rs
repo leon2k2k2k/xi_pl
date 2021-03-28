@@ -1,3 +1,3 @@
-pub mod jsprim;
+pub mod js_prim;
 pub mod output;
 pub mod runtime;

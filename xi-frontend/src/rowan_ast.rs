@@ -238,40 +238,41 @@ mod test {
 
     #[test]
     fn test_syntax() {
+        fn dbg_string(text: &str) {
+            let node = string_to_syntax(text);
+            println!("{:?}", syntax_node_to_string(node.clone()));
+            println!("{:?}", geometric_realization(node));
+        }
         let ffi_text = "
         ffi test.js {
             add1 : int -> int,
             add2 : int -> int,
         } 
         
-        val add1 add2 4";
-        let ffi_node = string_to_syntax(ffi_text);
-        println!("{:?}", syntax_node_to_string(ffi_node.clone()));
-        println!("{:?}", geometric_realization(ffi_node));
+        val 4 + 5";
+        dbg_string(ffi_text);
 
-        let import_text = "
-        import aplite.ap 
-        // add1 is a function in aplite.ap
-        val add1 2";
-        let import_node = string_to_syntax(import_text);
-        println!("{:?}", syntax_node_to_string(import_node.clone()));
-        println!("{:?}", geometric_realization(import_node));
-        let arithemetic_text = "
-        val 5 * 10 > 2";
+        // let import_text = "
+        // import aplite.ap
+        // // add1 is a function in aplite.ap
+        // val add1 2";
+        // dbg_string(import_text);
+        // let arithemetic_text = "
+        // val 5 * 10 > 2";
 
-        let pair_text = "
-        let a = (3,2)
-        val a.0";
+        // let pair_text = "
+        // let a = (3,2)
+        // val a.0";
 
-        let list_text = "
-        let a = [2,3,4]";
+        // let list_text = "
+        // let a = [2,3,4]";
 
-        let multivariable_text = "
-        let f = add
-        val f(3,4)";
+        // let multivariable_text = "
+        // let f = add
+        // val f(3,4)";
 
-        let if_text = "
-        if false 1 else if false 2 else 3";
+        // let if_text = "
+        // if false 1 else if false 2 else 3";
     }
 
     #[test]

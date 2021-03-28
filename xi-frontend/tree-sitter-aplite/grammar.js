@@ -11,11 +11,14 @@ const PRECEDENCE = {
   APP: 30,
   FUN: 20,
   LAM: 10,
-  AND: 2,
-  OR: 1,
-  COMP: 3,
-  ADD: 4,
-  MUL: 5,
+  BANG: 0,
+  BINARY: 1,
+  OR: 2,
+  AND: 3,
+  COMP: 4,
+  ADD: 5,
+  MUL: 6,
+  EXP: 7,
 };
 
 module.exports = grammar({
@@ -104,7 +107,7 @@ module.exports = grammar({
     ident_expr: ($) => $.ident,
     type_expr: ($) => "Type",
 
-    bang_expr: ($) => seq($._expr, "!"),
+    bang_expr: ($) => prec(PRECEDENCE.BANG, seq($._expr, "!")),
 
     app_expr: ($) => prec.left(PRECEDENCE.APP, seq($._expr, $._expr)),
 
@@ -144,6 +147,7 @@ module.exports = grammar({
         [PRECEDENCE.COMP, choice("==", "!=", "<", "<=", ">", ">=")],
         [PRECEDENCE.ADD, choice("+", "-")],
         [PRECEDENCE.MUL, choice("*", "/", "%")],
+        [PRECEDENCE.EXP, choice("^")],
       ];
 
       return choice(
@@ -155,6 +159,11 @@ module.exports = grammar({
         ),
       );
     },
+
+    // binary_expr: ($) =>
+    //   prec(PRECEDENCE.BINARY, seq($._expr, $.binary_op, $._expr)),
+
+    // binary_op: ($) => choice("&&", "//", "==", "!=", "<", "<=", ">", ">="),
 
     // a Binder is | <one or more of var_name : Expr> |
     binders: ($) => seq("|", separated($.binder_component, ","), "|"),

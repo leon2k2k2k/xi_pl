@@ -1,13 +1,16 @@
-
-
 ffi "./some_file.js"{
     UnitType : Type,
     unit : UnitType,
+    Int : Type,
+    six : Int,
+    five : Int,
+    add : Int -> Int -> Int,
     int_to_string : Int -> String,
     console_output: String -> IO UnitType,
     console_input: IO String,
 }
-let num = 3 * 4 + 6 % 5
 
-let ok = console_output(int_to_string(num))!
+let ans = 5 + 6
+let str = ans.int_to_string
+let me = console_output(str)!
 val unit!

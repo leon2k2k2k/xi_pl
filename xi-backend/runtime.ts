@@ -43,10 +43,21 @@ export function id(val: any) {
   return val;
 }
 
-function add1(x: number, y: number) {
-  return x + y;
+export function plus(a: any) {
+  return (b: any) => a + b;
 }
 
+export function minus(a: any) {
+  return (b: any) => a - b;
+}
+
+export function multiply(a: any) {
+  return (b: any) => a * b;
+}
+
+export function modulo(a: any) {
+  return (b: any) => a % b;
+}
 /*
 let add1: int -> int = js.add1 
 foo.bar

@@ -228,7 +228,7 @@ impl Context {
                         Some(metadata),
                     )
                 } else {
-                    panic!("var_type here should be a type_Variable")
+                    panic!("var_type here should be a type variable")
                 }
             }
             JudgmentKind::BoundVar(int, var_type) => {
@@ -393,6 +393,7 @@ pub fn type_infer(
             let ui_prim = match prim {
                 ResolvePrim::IOMonad => IOMonad,
                 ResolvePrim::String => StringType,
+                ResolvePrim::Int => NumberType,
             };
             Judgment::prim(TypeVarPrim::Prim(ui_prim), None)
         }
@@ -408,6 +409,12 @@ pub fn type_infer(
                 }),
             )
         }
+        Judg_mentKind::Binary(op) => {
+            Judgment::prim(TypeVarPrim::Prim(UiPrim::Binary(op.clone())), None)
+        }
+        Judg_mentKind::Number(num) => {
+            Judgment::prim(TypeVarPrim::Prim(UiPrim::NumberElem(num.clone())), None)
+        }
     };
     Ok(result)
 }
@@ -416,13 +423,30 @@ pub fn type_infer(
 pub enum UiPrim {
     IOMonad,
     IOBind,
+    IOPure,
     StringType,
     StringElem(String),
-    UnitType,
-    UnitElem,
-    ConsoleInput,
-    ConsoleOutput,
-    IOPure,
+    NumberType,
+    NumberElem(String),
+    Binary(UiBinaryOp),
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum UiBinaryOp {
+    And,
+    Or,
+    Equal,
+    NotEqual,
+    LessThan,
+    LessThanEqual,
+    GreaterThan,
+    GreaterThanEqual,
+
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    Modulo,
 }
 
 impl Primitive for UiPrim {
@@ -430,23 +454,35 @@ impl Primitive for UiPrim {
         use xi_proc_macro::term;
         use UiPrim::*;
         match self {
-            UiPrim::StringType => Judgment::u(None),
-            UiPrim::StringElem(_) => Judgment::prim(UiPrim::StringType, None),
-            UiPrim::IOMonad => term!(U -> U),
-            UiPrim::IOBind => {
+            StringType => Judgment::u(None),
+            StringElem(_) => Judgment::prim(UiPrim::StringType, None),
+            NumberType => Judgment::u(None),
+            NumberElem(_) => Judgment::prim(UiPrim::NumberType, None),
+            IOMonad => term!(U -> U),
+            IOBind => {
                 term!(Pi |A : U, B : U| [IOMonad] A -> (A -> [IOMonad] B) -> [IOMonad] B)
             }
-            UiPrim::UnitType => term!(U),
-            UiPrim::UnitElem => Judgment::prim(UiPrim::UnitType, None),
-            UiPrim::ConsoleInput => {
-                term!([IOMonad][StringType])
-            }
-            UiPrim::ConsoleOutput => {
-                term!([StringType] -> [IOMonad] [UnitType])
-            }
-            UiPrim::IOPure => {
+            IOPure => {
                 term!(Pi |T : U| T -> [IOMonad] T)
             }
+            NumberType => {
+                term!(U)
+            }
+            Binary(operator) => match operator {
+                UiBinaryOp::And => todo!(),
+                UiBinaryOp::Or => todo!(),
+                UiBinaryOp::Equal => todo!(),
+                UiBinaryOp::NotEqual => todo!(),
+                UiBinaryOp::LessThan => todo!(),
+                UiBinaryOp::LessThanEqual => todo!(),
+                UiBinaryOp::GreaterThan => todo!(),
+                UiBinaryOp::GreaterThanEqual => todo!(),
+                UiBinaryOp::Plus => term!([NumberType] -> [NumberType] -> [NumberType]),
+                UiBinaryOp::Minus => term!([NumberType] -> [NumberType] -> [NumberType]),
+                UiBinaryOp::Multiply => term!([NumberType] -> [NumberType] -> [NumberType]),
+                UiBinaryOp::Divide => term!([NumberType] -> [NumberType] -> [NumberType]),
+                UiBinaryOp::Modulo => term!([NumberType] -> [NumberType] -> [NumberType]),
+            },
         }
     }
 }

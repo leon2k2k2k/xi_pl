@@ -1,13 +1,5 @@
-let a = {
-if bool {
-    val hello
-} else if false {
-    val 3
-    
-    }
-    
-else {
-    val 234
-}}
-
-
+ffi "test.js" {
+            Int : Type,
+        } 
+        
+        val 4 + 5

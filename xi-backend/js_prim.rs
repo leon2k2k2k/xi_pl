@@ -1,4 +1,3 @@
-use swc_ecma_ast::Expr;
 use xi_core::judgment::{Judgment, Primitive};
 
 use crate::output::{to_js_ident, to_js_num, to_js_str, JsOutput};

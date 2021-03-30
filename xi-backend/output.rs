@@ -3,7 +3,7 @@ use swc_common::{FilePathMapping, SourceMap, DUMMY_SP};
 use swc_ecma_ast::{
     ArrowExpr, BigInt, BindingIdent, BlockStmtOrExpr, CallExpr, Expr, ExprOrSpread, ExprOrSuper,
     ExprStmt, Ident, ImportDecl, ImportNamedSpecifier, ImportSpecifier, Lit, MemberExpr, Module,
-    ModuleDecl, ModuleItem, Number, ParenExpr, Pat, Stmt, Str,
+    ModuleDecl, ModuleItem, ParenExpr, Pat, Stmt, Str,
 };
 use swc_ecma_codegen::{text_writer::JsWriter, Config, Emitter};
 use xi_core::judgment::{Judgment, JudgmentKind, Primitive};

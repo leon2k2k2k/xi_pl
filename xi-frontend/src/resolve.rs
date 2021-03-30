@@ -237,13 +237,13 @@ fn parse_stmt(node: &SyntaxNode, ctx: &mut Context) -> Stmt {
         }
         SyntaxKind::FN_STMT => {
             if children.len() == 4 {
-                // fn foo |binders| -> expr  body
-                // becomes let foo (: pi |binders| expr) = lambda |binders| body
+                // fn foo |binders| -> ret_type  body
+                // becomes let foo (: pi |binders| ret_type) = lambda |binders| body
                 let (binders, new_ctx) = parse_binders(&children[1], ctx);
-                let expr = parse_expr(&children[2], ctx);
+                let ret_type = parse_expr(&children[2], &new_ctx);
                 let body = parse_expr(&children[3], &new_ctx);
-                let func_expr_kind = ExprKind::Pi(binders.clone(), expr.clone());
-                let func_span = TextRange::new(binders.1.start(), expr.1.end());
+                let func_expr_kind = ExprKind::Pi(binders.clone(), ret_type.clone());
+                let func_span = TextRange::new(binders.1.start(), ret_type.1.end());
                 let func_expr = Expr(Box::new(func_expr_kind), func_span);
                 let var = create_var(&children[0], Some(func_expr), ctx);
 

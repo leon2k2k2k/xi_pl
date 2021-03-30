@@ -113,6 +113,10 @@ impl Context {
         lhs: &Judgment<TypeVarPrim, UiMetadata>,
         rhs: &Judgment<TypeVarPrim, UiMetadata>,
     ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
+        dbg!(&lhs);
+        dbg!(&rhs);
+        // dbg!(&self);
+        dbg!("");
         let lhs = lhs.clone();
         let rhs = rhs.clone();
 
@@ -163,12 +167,15 @@ impl Context {
                 )
             }
             _ => {
-                return Err(TypeError {
-                    string: format!(
-                        "lhs and rhs failed to unify, lhs: {:?}, rhs: {:?}",
-                        lhs, rhs
-                    ),
-                });
+                return {
+                    panic!();
+                    Err(TypeError {
+                        string: format!(
+                            "lhs and rhs failed to unify, lhs: {:?}, rhs: {:?}",
+                            lhs, rhs
+                        ),
+                    })
+                };
             }
         };
 
@@ -259,7 +266,7 @@ pub fn type_infer(
     let result: Judgment<TypeVarPrim, UiMetadata> = match &*judg_ment.0 {
         Judg_mentKind::Type => Judgment::u(None),
         Judg_mentKind::Var(var) => {
-            dbg!(var.clone());
+            // dbg!(var.clone());
             let var_type = ctx.lookup_var(&var);
             Judgment::free(var.index, var_type, None)
         }
@@ -287,8 +294,8 @@ pub fn type_infer(
             let beta = ctx.new_expicit_type_var(var.index);
             match &var.var_type {
                 Some(var_type) => {
-                    dbg!(var_type.clone());
-                    dbg!(ctx.clone());
+                    // dbg!(var_type.clone());
+                    // dbg!(ctx.clone());
                     let infered_type = type_infer(&var_type, ctx)?;
                     ctx.type_map.insert(beta, infered_type);
                 }
@@ -304,6 +311,7 @@ pub fn type_infer(
             match func_expr.type_of().expect("please not none").tree {
                 JudgmentKind::Pi(var_type, _expr) => {
                     let new_arg = type_infer(arg, ctx)?;
+                    dbg!(arg);
                     ctx.unify(&*var_type, &new_arg.type_of().expect("failure"))?;
 
                     Judgment::app_unchecked(func_expr, new_arg, None)

@@ -8,6 +8,9 @@ Write a function that checks if a judgment is of the closed form (very free vari
 
 
 
+
+
+
 1. Output:
     a. do some tests: console_input testing, 
     b. implement fix point, int. String, 

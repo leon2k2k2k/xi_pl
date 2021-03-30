@@ -1,0 +1,34 @@
+// we are going to make a tic-tac-toe in Aplite.
+
+// a tic tac toe board is a church encoded pair of 9 sqwuare
+
+// a square is a church encoded enum of three things
+
+// let square = Pi |T : Type| T -> T -> T -> T
+
+
+
+// let x = lambda |T : Type, x : T, o : T, empty : T| x
+
+// let o = lambda |T : Type, x : T, o : T, empty : T| o
+
+// let empty = lambda |T : Type, x : T, o : T, empty : T| empty
+
+// this is a triple of squares
+
+
+
+
+
+
+// let triple_eq : Pi |S : Type| triple S = Pi |T : Type| (S -> S -> S -> T) -> T = lambda |S| refl
+
+
+
+
+
+// a board is a triple of triple of squares.
+// let board = triple (triple square)
+
+
+val 5

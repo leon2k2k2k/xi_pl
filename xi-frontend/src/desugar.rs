@@ -1,4 +1,4 @@
-use crate::{resolve::{self, Expr, ExprKind, ResolvePrim, SourceFile, Stmt, StmtKind, parse_source_file}, rowan_ast::string_to_syntax};
+use crate::{resolve::{self, Expr, ExprKind, ResolvePrim, SourceFile, Stmt, StmtKind}};
 use crate::type_inference::UiBinaryOp as Op;
 use resolve::StringTokenKind;
 use std::collections::BTreeMap;
@@ -129,23 +129,27 @@ impl Context {
             ExprKind::Lam(binders, lam_expr) => {
                 let var_list = &binders.0;
                 let expr = self.desugar_expr(&lam_expr);
-                if var_list.len() == 1 {
-                    let var = self.desugar_var(&var_list[0]);
-                    Judg_mentKind::Lam(var, expr)
-                } else {
-                    panic!("lam binder should only have one ident for now")
+
+                let mut result = expr;
+
+                for var in var_list.iter().rev() {
+                    let var = self.desugar_var(&var);
+                    result = Judg_ment(Box::new(Judg_mentKind::Lam(var, result)), lam_expr.1)
                 }
+                *result.0
+
             }
             ExprKind::Pi(binders, pi_expr) => {
                 let var_list = &binders.0;
                 let expr = self.desugar_expr(&pi_expr);
-                if var_list.len() == 1 {
-                    let var = &var_list[0];
-                    let var = self.desugar_var(var);
-                    Judg_mentKind::Pi(var, expr)
-                } else {
-                    panic!("lam binder should only have one ident for now")
+
+                let mut result = expr;
+
+                for var in var_list.iter().rev() {
+                    let var = self.desugar_var(&var);
+                    result = Judg_ment(Box::new(Judg_mentKind::Pi(var, result)), pi_expr.1)
                 }
+                *result.0
             }
             ExprKind::Stmt(stmt_vec) => *self.desugar_stmt_vec(&stmt_vec).0,
             ExprKind::Member(_, _) => todo!(),

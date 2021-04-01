@@ -5,7 +5,7 @@ use xi_uuid::VarUuid;
 #[derive(Clone, PartialEq, Eq, Debug)]
 
 pub enum JudgmentTree<T> {
-    UinNone,
+    Type,
     Prim(T),
     FreeVar(VarUuid, Box<JudgmentTree<T>>),
     BoundVar(u32, Box<JudgmentTree<T>>),
@@ -20,7 +20,7 @@ pub enum JudgmentTree<T> {
 pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> JudgmentTree<T> {
     use JudgmentTree::*;
     let judgment_tree = match judgment.tree {
-        JudgmentKind::UInNone => JudgmentTree::UinNone,
+        JudgmentKind::Type => JudgmentTree::Type,
         JudgmentKind::Prim(prim) => JudgmentTree::Prim(prim),
         JudgmentKind::FreeVar(free_var, expr) => {
             JudgmentTree::FreeVar(free_var, Box::new(judgment_to_tree(*expr)))
@@ -91,7 +91,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
         depth: u32,
     ) -> String {
         let body_str = match judg_tree {
-            JudgmentTree::UinNone => "U".into(),
+            JudgmentTree::Type => "U".into(),
             JudgmentTree::Prim(prim) => format!("{:?}", prim),
             JudgmentTree::FreeVar(var_index, var_type) => {
                 format!(
@@ -183,7 +183,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
         };
 
         let my_precedence = match judg_tree {
-            JudgmentTree::UinNone => Precedence::Var,
+            JudgmentTree::Type => Precedence::Var,
             JudgmentTree::Prim(_) => Precedence::Var,
             JudgmentTree::FreeVar(_, _) => Precedence::Var,
             JudgmentTree::BoundVar(_, _) => Precedence::Var,

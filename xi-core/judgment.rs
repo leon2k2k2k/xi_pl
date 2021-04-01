@@ -24,7 +24,7 @@ pub struct Judgment<T, S> {
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum JudgmentKind<T, S> {
-    UInNone,
+    Type,
     Prim(T),
     FreeVar(VarUuid, Box<Judgment<T, S>>),
     Pi(Box<Judgment<T, S>>, Box<Judgment<T, S>>),
@@ -53,7 +53,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     /// Takes a judgment and returns its the judgment representing its type
     pub fn type_of(&self) -> Option<Judgment<T, S>> {
         match self.tree.clone() {
-            JudgmentKind::UInNone => None,
+            JudgmentKind::Type => None,
             JudgmentKind::Pi(_var_type, expr) => expr.type_of(),
             JudgmentKind::Lam(var_type, expr) => Some(Judgment::pi(
                 (*var_type).clone(),
@@ -86,7 +86,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     /// U:None constructor
     pub fn u(metadata: Option<S>) -> Judgment<T, S> {
         Judgment {
-            tree: JudgmentKind::UInNone,
+            tree: JudgmentKind::Type,
             metadata: metadata.unwrap_or_default(),
         }
     }
@@ -98,7 +98,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     ) -> Judgment<T, S> {
         let type_expr = expr.type_of();
         if let Some(type_expr_) = type_expr {
-            if type_expr_.tree != JudgmentKind::UInNone {
+            if type_expr_.tree != JudgmentKind::Type {
                 panic!("pi type needs a type as expr");
             }
         }
@@ -172,7 +172,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             depth: u32,
         ) -> Judgment<T, S> {
             let result_tree = match expr.tree.clone() {
-                JudgmentKind::UInNone => JudgmentKind::UInNone,
+                JudgmentKind::Type => JudgmentKind::Type,
                 JudgmentKind::Pi(var_type, expr) => JudgmentKind::Pi(
                     Box::new(instantiate_rec(*var_type, elem, depth + 1)),
                     Box::new(instantiate_rec(*expr, elem, depth + 1)),
@@ -222,7 +222,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             depth: u32,
         ) -> Judgment<T, S> {
             let result_tree = match s.tree {
-                JudgmentKind::UInNone => JudgmentKind::UInNone,
+                JudgmentKind::Type => JudgmentKind::Type,
                 JudgmentKind::Pi(var_type, expr) => JudgmentKind::Pi(
                     Box::new(rebind_rec(*var_type, free_var, depth + 1)),
                     Box::new(rebind_rec(*expr, free_var, depth + 1)),
@@ -304,7 +304,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     pub fn is_outermost_bound_var_used(self) -> bool {
         fn is_bound_var_used<T, S>(expr: Judgment<T, S>, depth: u32) -> bool {
             match expr.tree {
-                JudgmentKind::UInNone => false,
+                JudgmentKind::Type => false,
                 JudgmentKind::Prim(_) => false,
                 JudgmentKind::FreeVar(_, expr) => is_bound_var_used(*expr, depth),
                 JudgmentKind::Pi(var_type, expr) => {
@@ -330,7 +330,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     ) -> Judgment<U, S> {
         let metadata = Some(self.metadata.clone());
         match &self.tree {
-            JudgmentKind::UInNone => Judgment::u(metadata),
+            JudgmentKind::Type => Judgment::u(metadata),
             JudgmentKind::Prim(prim) => prim_meaning(prim.clone()),
             JudgmentKind::FreeVar(index, var_type) => {
                 Judgment::free(*index, var_type.define_prim(prim_meaning), metadata)
@@ -358,7 +358,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
 
     pub fn cast_metadata(expr: Judgment<T, ()>) -> Judgment<T, S> {
         match expr.tree {
-            JudgmentKind::UInNone => Judgment::u(None),
+            JudgmentKind::Type => Judgment::u(None),
             JudgmentKind::Prim(prim) => Judgment::prim(prim, None),
             JudgmentKind::FreeVar(index, var_type) => {
                 Judgment::free(index, Judgment::cast_metadata(*var_type), None)
@@ -381,6 +381,32 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                 Judgment::cast_metadata(*rhs),
                 None,
             ),
+        }
+    }
+
+    pub fn contains_free_var(expr: &Judgment<T, S>, var: VarUuid) -> bool {
+        match &expr.tree {
+            JudgmentKind::Type => false,
+            JudgmentKind::Prim(_) => false,
+            JudgmentKind::FreeVar(var_index, var_type) => {
+                if *var_index == var {
+                    return true;
+                } else {
+                    return Judgment::contains_free_var(&*var_type, var);
+                }
+            }
+            JudgmentKind::Pi(var_type, expr) => {
+                Judgment::contains_free_var(&*var_type, var)
+                    || Judgment::contains_free_var(&*expr, var)
+            }
+            JudgmentKind::Lam(var_type, expr) => {
+                Judgment::contains_free_var(&*var_type, var)
+                    || Judgment::contains_free_var(&*expr, var)
+            }
+            JudgmentKind::BoundVar(_, var_type) => Judgment::contains_free_var(&*var_type, var),
+            JudgmentKind::Application(func, arg) => {
+                Judgment::contains_free_var(&*func, var) || Judgment::contains_free_var(&*arg, var)
+            }
         }
     }
 }

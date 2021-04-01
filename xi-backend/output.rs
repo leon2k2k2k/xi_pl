@@ -93,12 +93,13 @@ fn to_js<T: Primitive + JsOutput>(
     ffi: &mut Vec<(VarUuid, (String, String))>,
 ) -> Expr {
     match &judgment.tree {
-        JudgmentKind::UInNone => to_js_str_u(),
+        JudgmentKind::Type => to_js_str_u(),
         JudgmentKind::Prim(t) => T::to_js_prim(&t),
         JudgmentKind::FreeVar(var_index, _var_type) => {
-            let metadata = judgment.metadata.ffi.clone().unwrap();
-            ffi.push((*var_index, metadata));
-            to_js_ident(format!("ffi{}", var_index.index()))
+            panic!();
+            // let metadata = judgment.metadata.ffi.clone().unwrap();
+            // ffi.push((*var_index, metadata));
+            // to_js_ident(format!("ffi{}", var_index.index()))
         }
         JudgmentKind::Pi(_, _) => to_js_str_pi(),
         JudgmentKind::Lam(_var_type, body) => {

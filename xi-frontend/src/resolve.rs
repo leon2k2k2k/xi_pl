@@ -35,7 +35,7 @@ impl ResolvePrim {
         let mut ident_map = BTreeMap::new();
         let mut resolve_map = BTreeMap::new();
         for prim in ResolvePrim::prims() {
-            let var = Var {
+            let var = VarBinder {
                 index: VarUuid::new(),
                 name: prim.to_string(),
                 span: Span::new(TextSize::from(0), TextSize::from(0)),
@@ -46,7 +46,7 @@ impl ResolvePrim {
             resolve_map.insert(var.index, prim.clone());
         }
 
-        (ident_map, resolve_map)
+        (Context(ident_map), resolve_map)
     }
 }
 #[derive(Clone, Debug)]
@@ -64,10 +64,10 @@ pub struct Stmt(pub StmtKind, pub Span);
 
 #[derive(Clone, Debug)]
 pub enum StmtKind {
-    Let(Var, Expr),
+    Let(VarBinder, Expr),
     // Do(Expr),
     Val(Expr),
-    Ffi(String, Vec<Var>),
+    Ffi(String, Vec<VarBinder>),
     // Fn(Ident, Binders, Option<Expr>, Expr), // Expr should be a stmt_expr.
     // Import(Var),
     // Error(StmtError)
@@ -111,11 +111,19 @@ pub enum StringTokenKind {
 }
 
 #[derive(Clone, Debug)]
-pub struct Binders(pub Vec<Var>, pub Span);
+pub struct Binders(pub Vec<VarBinder>, pub Span);
+
+#[derive(Clone, Debug)]
+pub struct VarBinder {
+    pub index: VarUuid,
+    pub var_type: Option<Expr>,
+    pub name: String,
+    pub span: Span,
+}
+
 #[derive(Clone, Debug)]
 pub struct Var {
     pub index: VarUuid,
-    pub var_type: Option<Expr>,
     pub name: String,
     pub span: Span,
 }
@@ -128,7 +136,8 @@ pub struct NameNotFoundError {
 
 pub type Span = rowan::TextRange;
 
-type Context = BTreeMap<String, Var>;
+#[derive(Clone, Debug)]
+struct Context(BTreeMap<String, VarBinder>);
 
 pub fn parse_source_file(node: &SyntaxNode) -> SourceFile {
     let (mut ctx, resolve_var) = ResolvePrim::get_ctx();
@@ -137,7 +146,7 @@ pub fn parse_source_file(node: &SyntaxNode) -> SourceFile {
     // let mut previous_error = false;
 
     for child in nonextra_children(node) {
-        let child_stmt = parse_stmt(&child, &mut ctx);
+        let child_stmt = ctx.parse_stmt(&child);
 
         stmts.push(child_stmt);
         // if let SyntaxKind::ERROR = child.kind() {
@@ -150,337 +159,345 @@ pub fn parse_source_file(node: &SyntaxNode) -> SourceFile {
     SourceFile(stmts, resolve_var)
 }
 
-fn create_var(node: &SyntaxNode, var_type: Option<Expr>, ctx: &mut Context) -> Var {
-    assert_eq!(node.kind(), SyntaxKind::IDENT);
-    let index = VarUuid::new();
-    let var_name: String = node
-        .first_token()
-        .expect("Expected a child for an var")
-        .text()
-        .into();
-    let var = Var {
-        index: index,
-        var_type: var_type,
-        name: var_name.clone(),
-        span: node.text_range(),
-    };
-    ctx.insert(var_name.clone(), var.clone());
+impl Context {
+    fn create_var(&mut self, node: &SyntaxNode, var_type: Option<Expr>) -> VarBinder {
+        assert_eq!(node.kind(), SyntaxKind::IDENT);
+        let index = VarUuid::new();
+        let var_name: String = node
+            .first_token()
+            .expect("Expected a child for an var")
+            .text()
+            .into();
+        let var = VarBinder {
+            index: index,
+            var_type: var_type,
+            name: var_name.clone(),
+            span: node.text_range(),
+        };
+        self.0.insert(var_name.clone(), var.clone());
 
-    var
-}
-
-fn parse_var(node: &SyntaxNode, ctx: &Context) -> Result<Var, NameNotFoundError> {
-    assert!(node.kind() == SyntaxKind::IDENT);
-    let var_name = node
-        .first_token()
-        .expect("Expected a child for an var")
-        .text()
-        .into();
-    let var = match ctx.get(&var_name) {
-        None => {
-            return Err(NameNotFoundError {
-                name: var_name,
-                span: node.text_range(),
-            })
-        }
-        Some(var) => var.clone(),
-    };
-    Ok(var)
-}
-
-fn parse_stmt(node: &SyntaxNode, ctx: &mut Context) -> Stmt {
-    // dbg!(node);
-    let children = nonextra_children(node).collect::<Vec<_>>();
-
-    let stmt_kind = match node.kind() {
-        SyntaxKind::LET_STMT => {
-            if children.len() == 3 {
-                let var_type = parse_expr(&children[1], ctx);
-
-                let var = create_var(&children[0], Some(var_type), ctx);
-                let body = parse_expr(&children[2], ctx);
-                StmtKind::Let(var, body)
-            } else if children.len() == 2 {
-                let var = create_var(&children[0], None, ctx);
-                let body = parse_expr(&children[1], ctx);
-                StmtKind::Let(var, body)
-            } else {
-                panic!("The length of the let_stmt should be 2 or 4.")
-            }
-        }
-        SyntaxKind::DO_STMT => {
-            // do expr
-            // becomes let _ = expr;
-
-            if children.len() == 1 {
-                let expr = parse_expr(&children[0], ctx);
-                let var_index = VarUuid::new();
-                let var = Var {
-                    index: var_index,
-                    var_type: None,
-                    name: "_".into(),
-                    span: TextRange::empty(expr.1.start()),
-                };
-                StmtKind::Let(var, expr)
-            } else {
-                panic!("the length of do_stmt should be 1")
-            }
-        }
-        SyntaxKind::VAL_STMT => {
-            // dbg!(children.clone());
-            if children.len() == 1 {
-                let expr = parse_expr(&children[0], ctx);
-                StmtKind::Val(expr)
-            } else {
-                panic!("the length of val_stmt should be 1")
-            }
-        }
-        SyntaxKind::FN_STMT => {
-            if children.len() == 4 {
-                // fn foo |binders| -> ret_type  body
-                // becomes let foo (: pi |binders| ret_type) = lambda |binders| body
-                let (binders, new_ctx) = parse_binders(&children[1], ctx);
-                let ret_type = parse_expr(&children[2], &new_ctx);
-                let body = parse_expr(&children[3], &new_ctx);
-                let func_expr_kind = ExprKind::Pi(binders.clone(), ret_type.clone());
-                let func_span = TextRange::new(binders.1.start(), ret_type.1.end());
-                let func_expr = Expr(Box::new(func_expr_kind), func_span);
-                let var = create_var(&children[0], Some(func_expr), ctx);
-
-                // StmtKind::Fn(var, binders, Some(expr), body);
-
-                let body_expr_kind = ExprKind::Lam(binders, body.clone());
-                let body_expr = Expr(Box::new(body_expr_kind), body.1);
-                StmtKind::Let(var, body_expr)
-            } else if children.len() == 3 {
-                let (binders, new_ctx) = parse_binders(&children[1], ctx);
-                let body = parse_expr(&children[2], &new_ctx); // lamda |binders| body
-                let body_expr_kind = ExprKind::Lam(binders, body.clone());
-                let body_expr = Expr(Box::new(body_expr_kind), body.1);
-                let var = create_var(&children[0], None, ctx);
-
-                StmtKind::Let(var, body_expr)
-            } else {
-                panic!("the length of fn_stmt should be 4 or 3")
-            }
-        }
-        SyntaxKind::IMPORT_STMT => {
-            todo!()
-        }
-        SyntaxKind::FFI_STMT => {
-            if children.len() == 2 {
-                let file_name = children[0]
-                    .first_token()
-                    .unwrap()
-                    .next_token()
-                    .unwrap()
-                    .text()
-                    .into();
-                let dict = &children[1];
-                let result = parse_ffi_dict(&dict, ctx);
-
-                StmtKind::Ffi(file_name, result)
-            } else {
-                panic!("ffi_stmt should only have two children")
-            }
-        }
-        // SyntaxKind::ERROR => {
-        //     let first_word = &children[0];
-        //     todo!();
-        // }
-        _ => panic!("parse_stmt can only parse an stmt, got {:?}", node.kind()),
-    };
-
-    Stmt(stmt_kind, node.text_range())
-}
-
-fn parse_ffi_dict(node: &SyntaxNode, ctx: &mut Context) -> Vec<Var> {
-    let children = nonextra_children(node).collect::<Vec<_>>();
-    assert!(node.kind() == SyntaxKind::DICT_EXPR);
-    let mut components = vec![];
-
-    for child in children {
-        let grandchildren = nonextra_children(&child).collect::<Vec<_>>();
-        if grandchildren.len() == 2 {
-            let ffi_type = parse_expr(&grandchildren[1], &ctx);
-
-            let ffi_var = create_var(&grandchildren[0], Some(ffi_type), ctx);
-
-            components.push(ffi_var);
-        } else {
-            panic!("dict component should have 3 things")
-        }
+        var
     }
 
-    components
-}
+    fn parse_var(&self, node: &SyntaxNode) -> Result<Var, NameNotFoundError> {
+        assert!(node.kind() == SyntaxKind::IDENT);
+        let var_name = node
+            .first_token()
+            .expect("Expected a child for an var")
+            .text()
+            .into();
+        let var = match self.0.get(&var_name) {
+            None => Err(NameNotFoundError {
+                name: var_name,
+                span: node.text_range(),
+            }),
+            Some(var) => Ok(Var {
+                index: var.index,
+                name: var_name,
+                span: node.text_range(),
+            }),
+        };
 
-fn parse_expr(node: &SyntaxNode, ctx: &Context) -> Expr {
-    // dbg!(node);
-    let children = nonextra_children(node).collect::<Vec<_>>();
+        var
+    }
 
-    let expr_kind = match node.kind() {
-        SyntaxKind::IDENT_EXPR => {
-            if children.len() == 1 {
-                ExprKind::Var(parse_var(&children[0], ctx).unwrap())
-            } else {
-                panic!("var_expr should just have an var")
-            }
-        }
-        SyntaxKind::TYPE_EXPR => ExprKind::Type,
-        SyntaxKind::BANG_EXPR => {
-            if children.len() == 1 {
-                ExprKind::Bang(parse_expr(&children[0], ctx))
-            } else {
-                panic!("bang_expr should be of the form [expr] !")
-            }
-        }
-        SyntaxKind::APP_EXPR => {
-            if children.len() == 2 {
-                let func = parse_expr(&children[0], ctx);
-                let elem = parse_expr(&children[1], ctx);
-                ExprKind::App(func, elem)
-            } else {
-                panic!("app_expr should be of the form [func] [elem]")
-            }
-        }
-        SyntaxKind::FUN_EXPR => {
-            if children.len() == 2 {
-                let expr_1 = parse_expr(&children[0], ctx);
-                let expr_2 = parse_expr(&children[1], ctx);
-                ExprKind::Fun(expr_1, expr_2)
-            } else {
-                panic!("Fun_expr should be of the form [expr_1] -> [expr_2]")
-            }
-        }
-        SyntaxKind::LAMBDA_EXPR => {
-            if children.len() == 2 {
-                let (binders, new_ctx) = parse_binders(&children[0], ctx);
-                let expr = parse_expr(&children[1], &new_ctx);
-                ExprKind::Lam(binders, expr)
-            } else {
-                panic!("lambda_expr should be of the form lambda [binders] [expr]")
-            }
-        }
-        SyntaxKind::PI_EXPR => {
-            if children.len() == 2 {
-                let (binders, new_ctx) = parse_binders(&children[0], ctx);
-                let expr = parse_expr(&children[1], &new_ctx);
-                ExprKind::Pi(binders, expr)
-            } else {
-                panic!("pi_expr should be of the form pi [binders] [expr]")
-            }
-        }
-        SyntaxKind::STMT_EXPR => {
-            let mut stmt = vec![];
-            let mut new_ctx = ctx.clone();
-            for child in children {
-                stmt.push(parse_stmt(&child, &mut new_ctx))
-            }
-            ExprKind::Stmt(stmt)
-        }
-        SyntaxKind::MEMBER_EXPR => {
-            if children.len() == 2 {
-                let lhs = parse_expr(&children[0], ctx);
-                let rhs = parse_expr(&children[1], ctx);
-                ExprKind::Member(lhs, rhs)
-            } else {
-                panic!("member_expr should be of the form [lhs].[rhs]")
-            }
-        }
-        SyntaxKind::STRING_EXPR => {
-            let mut string_component = vec![];
-            for child in children {
-                // dbg!(child.clone());
-                let child_token = child.first_token().expect("Expected token");
-                if child_token.text().chars().next().unwrap() == '\\' {
-                    let string_token_kind = StringTokenKind::Escape(child_token.text()[1..].into());
-                    string_component.push(StringToken(string_token_kind, child_token.text_range()));
-                } else {
-                    let string_token_kind = StringTokenKind::String(child_token.text().into());
-                    string_component.push(StringToken(string_token_kind, child_token.text_range()));
-                }
-            }
-            ExprKind::StringLit(string_component)
-        }
-        SyntaxKind::BINARY_EXPR => {
-            if children.len() == 2 {
-                let operator = node
-                    .children()
-                    .filter(|node| node.kind() == SyntaxKind::UNKNOWN)
-                    .next()
-                    .unwrap();
-                let token = operator.first_token().unwrap();
-                let op_name = token.text();
-
-                use BinaryOp::*;
-                let operator = match op_name {
-                    "&&" => Minus,
-                    "//" => Or,
-                    "==" => Equal,
-                    "!=" => NotEqual,
-                    "<" => LessThan,
-                    "<=" => LessThanEqual,
-                    ">" => GreaterThan,
-                    ">=" => GreaterThanEqual,
-                    "+" => Plus,
-                    "-" => Minus,
-                    "*" => Multiply,
-                    "/" => Divide,
-                    "%" => Modulo,
-                    _ => panic!(format!("the binary operator {} is not defined", op_name)),
-                };
-
-                ExprKind::Binary(
-                    operator,
-                    parse_expr(&children[0], ctx),
-                    parse_expr(&children[1], ctx),
-                )
-            } else {
-                panic!("binary expression should have two children");
-            }
-        }
-
-        SyntaxKind::NUMBER_EXPR => {
-            let token = node.first_token().unwrap();
-            let number = token.text();
-            ExprKind::Number(number.into())
-        }
-        SyntaxKind::DICT_EXPR => todo!(),
-        SyntaxKind::TUPLE_EXPR => todo!(),
-        SyntaxKind::LIST_EXPR => todo!(),
-
-        _ => panic!("parse_expr can only parse an expr, got {:?}", node.kind()),
-    };
-    Expr(Box::new(expr_kind), node.text_range())
-}
-
-fn parse_binders(node: &SyntaxNode, ctx: &Context) -> (Binders, BTreeMap<String, Var>) {
-    if let SyntaxKind::BINDERS = node.kind() {
+    fn parse_stmt(&mut self, node: &SyntaxNode) -> Stmt {
+        // dbg!(node);
         let children = nonextra_children(node).collect::<Vec<_>>();
 
-        let mut ctx = ctx.clone();
+        let stmt_kind = match node.kind() {
+            SyntaxKind::LET_STMT => {
+                if children.len() == 3 {
+                    let var_type = self.parse_expr(&children[1]);
 
-        let mut binders = vec![];
+                    let var = self.create_var(&children[0], Some(var_type));
+                    let body = self.parse_expr(&children[2]);
+                    StmtKind::Let(var, body)
+                } else if children.len() == 2 {
+                    let var = self.create_var(&children[0], None);
+                    let body = self.parse_expr(&children[1]);
+                    StmtKind::Let(var, body)
+                } else {
+                    panic!("The length of the let_stmt should be 2 or 4.")
+                }
+            }
+            SyntaxKind::DO_STMT => {
+                // do expr
+                // becomes let _ = expr;
+
+                if children.len() == 1 {
+                    let expr = self.parse_expr(&children[0]);
+                    let var_index = VarUuid::new();
+                    let var = VarBinder {
+                        index: var_index,
+                        var_type: None,
+                        name: "_".into(),
+                        span: TextRange::empty(expr.1.start()),
+                    };
+                    StmtKind::Let(var, expr)
+                } else {
+                    panic!("the length of do_stmt should be 1")
+                }
+            }
+            SyntaxKind::VAL_STMT => {
+                // dbg!(children.clone());
+                if children.len() == 1 {
+                    let expr = self.parse_expr(&children[0]);
+                    StmtKind::Val(expr)
+                } else {
+                    panic!("the length of val_stmt should be 1")
+                }
+            }
+            SyntaxKind::FN_STMT => {
+                if children.len() == 4 {
+                    // fn foo |binders| -> ret_type  body
+                    // becomes let foo (: pi |binders| ret_type) = lambda |binders| body
+                    let (binders, new_ctx) = self.parse_binders(&children[1]);
+                    let ret_type = new_ctx.parse_expr(&children[2]);
+                    let body = new_ctx.parse_expr(&children[3]);
+                    let func_expr_kind = ExprKind::Pi(binders.clone(), ret_type.clone());
+                    let func_span = TextRange::new(binders.1.start(), ret_type.1.end());
+                    let func_expr = Expr(Box::new(func_expr_kind), func_span);
+                    let var = self.create_var(&children[0], Some(func_expr));
+
+                    // StmtKind::Fn(var, binders, Some(expr), body);
+
+                    let body_expr_kind = ExprKind::Lam(binders, body.clone());
+                    let body_expr = Expr(Box::new(body_expr_kind), body.1);
+                    StmtKind::Let(var, body_expr)
+                } else if children.len() == 3 {
+                    let (binders, new_ctx) = self.parse_binders(&children[1]);
+                    let body = new_ctx.parse_expr(&children[2]); // lamda |binders| body
+                    let body_expr_kind = ExprKind::Lam(binders, body.clone());
+                    let body_expr = Expr(Box::new(body_expr_kind), body.1);
+                    let var = self.create_var(&children[0], None);
+
+                    StmtKind::Let(var, body_expr)
+                } else {
+                    panic!("the length of fn_stmt should be 4 or 3")
+                }
+            }
+            SyntaxKind::IMPORT_STMT => {
+                todo!()
+            }
+            SyntaxKind::FFI_STMT => {
+                if children.len() == 2 {
+                    let file_name = children[0]
+                        .first_token()
+                        .unwrap()
+                        .next_token()
+                        .unwrap()
+                        .text()
+                        .into();
+                    let dict = &children[1];
+                    let result = self.parse_ffi_dict(&dict);
+
+                    StmtKind::Ffi(file_name, result)
+                } else {
+                    panic!("ffi_stmt should only have two children")
+                }
+            }
+            // SyntaxKind::ERROR => {
+            //     let first_word = &children[0];
+            //     todo!();
+            // }
+            _ => panic!("parse_stmt can only parse an stmt, got {:?}", node.kind()),
+        };
+
+        Stmt(stmt_kind, node.text_range())
+    }
+
+    fn parse_ffi_dict(&mut self, node: &SyntaxNode) -> Vec<VarBinder> {
+        let children = nonextra_children(node).collect::<Vec<_>>();
+        assert!(node.kind() == SyntaxKind::DICT_EXPR);
+        let mut components = vec![];
 
         for child in children {
             let grandchildren = nonextra_children(&child).collect::<Vec<_>>();
             if grandchildren.len() == 2 {
-                let expr = parse_expr(&grandchildren[1], &ctx);
+                let ffi_type = self.parse_expr(&grandchildren[1]);
 
-                let binder_name = create_var(&grandchildren[0], Some(expr), &mut ctx);
-                binders.push(binder_name);
-            } else if grandchildren.len() == 1 {
-                let binder_name = create_var(&grandchildren[0], None, &mut ctx);
-                binders.push(binder_name);
+                let ffi_var = self.create_var(&grandchildren[0], Some(ffi_type));
+
+                components.push(ffi_var);
             } else {
-                panic!("bind_components should be of the form x")
+                panic!("dict component should have 3 things")
             }
         }
 
-        (Binders(binders, node.text_range()), ctx)
-    } else {
-        panic!("parse_binder con only parse a binder")
+        components
+    }
+
+    fn parse_expr(&self, node: &SyntaxNode) -> Expr {
+        // dbg!(node);
+        let children = nonextra_children(node).collect::<Vec<_>>();
+
+        let expr_kind = match node.kind() {
+            SyntaxKind::IDENT_EXPR => {
+                if children.len() == 1 {
+                    ExprKind::Var(self.parse_var(&children[0]).unwrap())
+                } else {
+                    panic!("var_expr should just have an var")
+                }
+            }
+            SyntaxKind::TYPE_EXPR => ExprKind::Type,
+            SyntaxKind::BANG_EXPR => {
+                if children.len() == 1 {
+                    ExprKind::Bang(self.parse_expr(&children[0]))
+                } else {
+                    panic!("bang_expr should be of the form [expr] !")
+                }
+            }
+            SyntaxKind::APP_EXPR => {
+                if children.len() == 2 {
+                    let func = self.parse_expr(&children[0]);
+                    let elem = self.parse_expr(&children[1]);
+                    ExprKind::App(func, elem)
+                } else {
+                    panic!("app_expr should be of the form [func] [elem]")
+                }
+            }
+            SyntaxKind::FUN_EXPR => {
+                if children.len() == 2 {
+                    let expr_1 = self.parse_expr(&children[0]);
+                    let expr_2 = self.parse_expr(&children[1]);
+                    ExprKind::Fun(expr_1, expr_2)
+                } else {
+                    panic!("Fun_expr should be of the form [expr_1] -> [expr_2]")
+                }
+            }
+            SyntaxKind::LAMBDA_EXPR => {
+                if children.len() == 2 {
+                    let (binders, new_ctx) = self.parse_binders(&children[0]);
+                    let expr = new_ctx.parse_expr(&children[1]);
+                    ExprKind::Lam(binders, expr)
+                } else {
+                    panic!("lambda_expr should be of the form lambda [binders] [expr]")
+                }
+            }
+            SyntaxKind::PI_EXPR => {
+                if children.len() == 2 {
+                    let (binders, new_ctx) = self.parse_binders(&children[0]);
+                    let expr = new_ctx.parse_expr(&children[1]);
+                    ExprKind::Pi(binders, expr)
+                } else {
+                    panic!("pi_expr should be of the form pi [binders] [expr]")
+                }
+            }
+            SyntaxKind::STMT_EXPR => {
+                let mut stmt = vec![];
+                let mut new_ctx = self.clone();
+                for child in children {
+                    stmt.push(new_ctx.parse_stmt(&child))
+                }
+                ExprKind::Stmt(stmt)
+            }
+            SyntaxKind::MEMBER_EXPR => {
+                if children.len() == 2 {
+                    let lhs = self.parse_expr(&children[0]);
+                    let rhs = self.parse_expr(&children[1]);
+                    ExprKind::Member(lhs, rhs)
+                } else {
+                    panic!("member_expr should be of the form [lhs].[rhs]")
+                }
+            }
+            SyntaxKind::STRING_EXPR => {
+                let mut string_component = vec![];
+                for child in children {
+                    // dbg!(child.clone());
+                    let child_token = child.first_token().expect("Expected token");
+                    if child_token.text().chars().next().unwrap() == '\\' {
+                        let string_token_kind =
+                            StringTokenKind::Escape(child_token.text()[1..].into());
+                        string_component
+                            .push(StringToken(string_token_kind, child_token.text_range()));
+                    } else {
+                        let string_token_kind = StringTokenKind::String(child_token.text().into());
+                        string_component
+                            .push(StringToken(string_token_kind, child_token.text_range()));
+                    }
+                }
+                ExprKind::StringLit(string_component)
+            }
+            SyntaxKind::BINARY_EXPR => {
+                if children.len() == 2 {
+                    let operator = node
+                        .children()
+                        .filter(|node| node.kind() == SyntaxKind::UNKNOWN)
+                        .next()
+                        .unwrap();
+                    let token = operator.first_token().unwrap();
+                    let op_name = token.text();
+
+                    use BinaryOp::*;
+                    let operator = match op_name {
+                        "&&" => Minus,
+                        "//" => Or,
+                        "==" => Equal,
+                        "!=" => NotEqual,
+                        "<" => LessThan,
+                        "<=" => LessThanEqual,
+                        ">" => GreaterThan,
+                        ">=" => GreaterThanEqual,
+                        "+" => Plus,
+                        "-" => Minus,
+                        "*" => Multiply,
+                        "/" => Divide,
+                        "%" => Modulo,
+                        _ => panic!(format!("the binary operator {} is not defined", op_name)),
+                    };
+
+                    ExprKind::Binary(
+                        operator,
+                        self.parse_expr(&children[0]),
+                        self.parse_expr(&children[1]),
+                    )
+                } else {
+                    panic!("binary expression should have two children");
+                }
+            }
+
+            SyntaxKind::NUMBER_EXPR => {
+                let token = node.first_token().unwrap();
+                let number = token.text();
+                ExprKind::Number(number.into())
+            }
+            SyntaxKind::DICT_EXPR => todo!(),
+            SyntaxKind::TUPLE_EXPR => todo!(),
+            SyntaxKind::LIST_EXPR => todo!(),
+
+            _ => panic!("parse_expr can only parse an expr, got {:?}", node.kind()),
+        };
+        Expr(Box::new(expr_kind), node.text_range())
+    }
+
+    fn parse_binders(&self, node: &SyntaxNode) -> (Binders, Context) {
+        if let SyntaxKind::BINDERS = node.kind() {
+            let children = nonextra_children(node).collect::<Vec<_>>();
+
+            let mut ctx = self.clone();
+
+            let mut binders = vec![];
+
+            for child in children {
+                let grandchildren = nonextra_children(&child).collect::<Vec<_>>();
+                if grandchildren.len() == 2 {
+                    let expr = ctx.parse_expr(&grandchildren[1]);
+
+                    let binder_name = ctx.create_var(&grandchildren[0], Some(expr));
+                    binders.push(binder_name);
+                } else if grandchildren.len() == 1 {
+                    let binder_name = ctx.create_var(&grandchildren[0], None);
+                    binders.push(binder_name);
+                } else {
+                    panic!("bind_components should be of the form x")
+                }
+            }
+
+            (Binders(binders, node.text_range()), ctx)
+        } else {
+            panic!("parse_binder con only parse a binder")
+        }
     }
 }
 

@@ -29,7 +29,7 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
             let syn_clone = syn.clone();
             match syn.type_of() {
                 Some(type_of_syn) => match type_of_syn.tree {
-                    JudgmentKind::UInNone => SJudgment::Syn(syn),
+                    JudgmentKind::Type => SJudgment::Syn(syn),
                     JudgmentKind::Pi(var_type, _expr) => SJudgment::Lam(
                         Box::new(SJudgment::Syn(*var_type)),
                         Rc::new(move |S| {
@@ -99,7 +99,7 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
         let ctx_clone = ctx.clone();
         let ctx_clone2 = ctx.clone();
         match syn.tree {
-            JudgmentKind::UInNone => SJudgment::Syn(Judgment::u(None)),
+            JudgmentKind::Type => SJudgment::Syn(Judgment::u(None)),
             JudgmentKind::Pi(var_type, expr) => SJudgment::Pi(
                 Box::new(SJudgment::syntax_to_semantics(
                     *var_type,

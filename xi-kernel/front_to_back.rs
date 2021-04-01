@@ -6,7 +6,7 @@ use xi_core::judgment::Judgment;
 use xi_frontend::type_inference::{UiMetadata, UiPrim};
 use xi_uuid::VarUuid;
 
-pub fn front_to_back(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim, UiMetadata> {
+pub fn front_to_back(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim, JsMetadata> {
     fn make_ffi(
         name: &str,
         var_type: Judgment<JsPrim, UiMetadata>,
@@ -15,7 +15,7 @@ pub fn front_to_back(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim, Ui
         Judgment::free(
             VarUuid::new(),
             var_type,
-            Some(UiMetadata {
+            Some(JsMetadata {
                 ffi: Some((runtime, name.into())),
             }),
         )

@@ -101,22 +101,13 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
         match syn.tree {
             JudgmentKind::Type => SJudgment::Syn(Judgment::u(None)),
             JudgmentKind::Pi(var_type, expr) => SJudgment::Pi(
-                Box::new(SJudgment::syntax_to_semantics(
-                    *var_type,
-                    // HACK: variable indicies are off by one in both var_type and body.
-                    // So we add something to context that should never be read.
-                    add_to_ctx(ctx, &SJudgment::Syn(Judgment::u(None))),
-                )),
+                Box::new(SJudgment::syntax_to_semantics(*var_type, ctx)),
                 Rc::new(move |S| {
                     SJudgment::syntax_to_semantics(*expr.clone(), add_to_ctx(ctx_clone.clone(), &S))
                 }),
             ),
             JudgmentKind::Lam(var_type, expr) => SJudgment::Lam(
-                Box::new(SJudgment::syntax_to_semantics(
-                    *var_type,
-                    // HACK
-                    add_to_ctx(ctx, &SJudgment::Syn(Judgment::u(None))),
-                )),
+                Box::new(SJudgment::syntax_to_semantics(*var_type, ctx)),
                 Rc::new(move |S| {
                     SJudgment::syntax_to_semantics(
                         *expr.clone(),

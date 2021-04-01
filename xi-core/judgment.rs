@@ -60,7 +60,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                 expr.type_of().unwrap(),
                 None,
             )),
-            JudgmentKind::BoundVar(_, var_type) => Some((*var_type).clone()),
+            JudgmentKind::BoundVar(index, var_type) => Some((*var_type).shift(index + 1).clone()),
             JudgmentKind::Application(func, elem) => {
                 if let Some(Judgment {
                     tree: JudgmentKind::Pi(_func_arg_type, func_expr_type),
@@ -79,6 +79,26 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
         }
     }
 
+    pub fn shift(self, index: u32) -> Judgment<T, S> {
+        use JudgmentKind::*;
+        let judgment_kind = match self.tree.clone() {
+            BoundVar(int, var_type) => BoundVar(int + index, Box::new(var_type.shift(index))),
+            Type => Type,
+            Prim(prim) => Prim(prim),
+            FreeVar(int, var_type) => FreeVar(int, Box::new(var_type.shift(index))),
+            Pi(var_type, expr) => Pi(Box::new(var_type.shift(index)), Box::new(expr.shift(index))),
+            Lam(var_type, expr) => {
+                Lam(Box::new(var_type.shift(index)), Box::new(expr.shift(index)))
+            }
+            Application(func, arg) => {
+                Application(Box::new(func.shift(index)), Box::new(arg.shift(index)))
+            }
+        };
+        Judgment {
+            metadata: self.metadata,
+            tree: judgment_kind,
+        }
+    }
     pub fn normalize(self) -> Judgment<T, S> {
         self.nbe()
     }
@@ -174,11 +194,11 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             let result_tree = match expr.tree.clone() {
                 JudgmentKind::Type => JudgmentKind::Type,
                 JudgmentKind::Pi(var_type, expr) => JudgmentKind::Pi(
-                    Box::new(instantiate_rec(*var_type, elem, depth + 1)),
+                    Box::new(instantiate_rec(*var_type, elem, depth)),
                     Box::new(instantiate_rec(*expr, elem, depth + 1)),
                 ),
                 JudgmentKind::Lam(var_type, expr) => JudgmentKind::Lam(
-                    Box::new(instantiate_rec(*var_type, elem, depth + 1)),
+                    Box::new(instantiate_rec(*var_type, elem, depth)),
                     Box::new(instantiate_rec(*expr, elem, depth + 1)),
                 ),
 
@@ -224,11 +244,11 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             let result_tree = match s.tree {
                 JudgmentKind::Type => JudgmentKind::Type,
                 JudgmentKind::Pi(var_type, expr) => JudgmentKind::Pi(
-                    Box::new(rebind_rec(*var_type, free_var, depth + 1)),
+                    Box::new(rebind_rec(*var_type, free_var, depth)),
                     Box::new(rebind_rec(*expr, free_var, depth + 1)),
                 ),
                 JudgmentKind::Lam(var_type, expr) => JudgmentKind::Lam(
-                    Box::new(rebind_rec(*var_type, free_var, depth + 1)),
+                    Box::new(rebind_rec(*var_type, free_var, depth)),
                     Box::new(rebind_rec(*expr, free_var, depth + 1)),
                 ),
                 JudgmentKind::BoundVar(i, var_type) => {
@@ -308,10 +328,10 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                 JudgmentKind::Prim(_) => false,
                 JudgmentKind::FreeVar(_, expr) => is_bound_var_used(*expr, depth),
                 JudgmentKind::Pi(var_type, expr) => {
-                    is_bound_var_used(*var_type, depth + 1) || is_bound_var_used(*expr, depth + 1)
+                    is_bound_var_used(*var_type, depth) || is_bound_var_used(*expr, depth + 1)
                 }
                 JudgmentKind::Lam(var_type, expr) => {
-                    is_bound_var_used(*var_type, depth + 1) || is_bound_var_used(*expr, depth + 1)
+                    is_bound_var_used(*var_type, depth) || is_bound_var_used(*expr, depth + 1)
                 }
                 JudgmentKind::BoundVar(int, expr) => {
                     int == depth || is_bound_var_used(*expr, depth)

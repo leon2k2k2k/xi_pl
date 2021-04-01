@@ -58,10 +58,10 @@ impl <T, S>Judg_ment<T, S> {
                     FreeVar(index)
                 },
                 Pi(var_type, body) => {
-                    Pi(var_type.map(|var_type| rebind_rec(var_type, free_var, depth + 1)), rebind_rec(body, free_var, depth + 1))
+                    Pi(var_type.map(|var_type| rebind_rec(var_type, free_var, depth )), rebind_rec(body, free_var, depth + 1))
                 }
                 Lam(var_type, body) => {
-                    Lam(var_type.map(|var_type| rebind_rec(var_type, free_var, depth + 1)), rebind_rec(body, free_var, depth + 1))
+                    Lam(var_type.map(|var_type| rebind_rec(var_type, free_var, depth )), rebind_rec(body, free_var, depth + 1))
                 }
                 App(lhs, rhs) => {
                     App(rebind_rec(lhs, free_var, depth), rebind_rec(rhs, free_var, depth))
@@ -285,14 +285,21 @@ impl <T : std::fmt::Debug + Clone, S : std::fmt::Debug + Clone>std::fmt::Debug f
             Judg_mentKind::Pi(var_type, body) => {
                 f.write_str("Pi |")?;
                 // f.write_str()?;
-                f.write_str(&format!("{:?}", var_type))?;
+                let type_str = match var_type {
+                    Some(var_type) => format!("{:?}", var_type),
+                    None => "Unknown".into(),
+                };
+                f.write_str(&type_str)?;
                 f.write_str("| ")?;
                 f.write_str(&format!("{:?}", body))?;
             }
             Judg_mentKind::Lam(var_type, body) => {
                 f.write_str("Lam |")?;
-                // f.write_str( &var.name)?;
-                f.write_str(&format!("{:?}", var_type))?;
+                let type_str = match var_type {
+                    Some(var_type) => format!("{:?}", var_type),
+                    None => "Unknown".into(),
+                };
+                f.write_str(&type_str)?;
                 f.write_str("| ")?;
                 f.write_str(&format!("{:?}", body))?;
             }

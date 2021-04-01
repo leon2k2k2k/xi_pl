@@ -68,12 +68,12 @@ impl Context {
                     Box::new(replace_with_free_var_rec(*var_type, depth, ctx)),
                 ),
                 JudgmentKind::Pi(var_type, expr) => {
-                    let new_var_type = replace_with_free_var_rec(*var_type, depth + 1, ctx);
+                    let new_var_type = replace_with_free_var_rec(*var_type, depth, ctx);
                     let new_expr = replace_with_free_var_rec(*expr, depth + 1, ctx);
                     JudgmentKind::Pi(Box::new(new_var_type), Box::new(new_expr))
                 }
                 JudgmentKind::Lam(var_type, expr) => {
-                    let new_var_type = replace_with_free_var_rec(*var_type, depth + 1, ctx);
+                    let new_var_type = replace_with_free_var_rec(*var_type, depth, ctx);
                     let new_expr = replace_with_free_var_rec(*expr, depth + 1, ctx);
                     JudgmentKind::Lam(Box::new(new_var_type), Box::new(new_expr))
                 }
@@ -373,15 +373,16 @@ pub fn type_infer(
         Judg_mentKind::Pi(var_type, expr) => {
             let type_var = TypeVar::new();
             let mut resps = vec![type_var];
-            ctx.var_map.push(type_var);
-            let rebind_var = VarUuid::new();
-            ctx.rebind_map.push(rebind_var);
-            // is var_type is given, then we type infer it then add it into the contexts.
+
             if let Some(var_type) = var_type {
                 let (inferred_type, mut sub_resps) = type_infer(var_type, ctx)?;
                 resps.append(&mut sub_resps);
                 ctx.add_constraint(type_var, inferred_type)?;
             }
+
+            ctx.var_map.push(type_var);
+            let rebind_var = VarUuid::new();
+            ctx.rebind_map.push(rebind_var);
 
             let (expr, mut sub_resps) = type_infer(expr, ctx)?;
             resps.append(&mut sub_resps);
@@ -405,15 +406,16 @@ pub fn type_infer(
         Judg_mentKind::Lam(var_type, expr) => {
             let type_var = TypeVar::new();
             let mut resps = vec![type_var];
-            ctx.var_map.push(type_var);
-            let rebind_var = VarUuid::new();
-            ctx.rebind_map.push(rebind_var);
 
             if let Some(var_type) = var_type {
                 let (inferred_type, mut sub_resps) = type_infer(var_type, ctx)?;
                 resps.append(&mut sub_resps);
                 ctx.add_constraint(type_var, inferred_type)?;
             }
+
+            ctx.var_map.push(type_var);
+            let rebind_var = VarUuid::new();
+            ctx.rebind_map.push(rebind_var);
 
             let (expr, mut sub_resps) = type_infer(expr, ctx)?;
             resps.append(&mut sub_resps);
@@ -534,7 +536,7 @@ pub fn type_infer(
             panic!("we shouldn't see a FreeVar at this stage!")
         }
     };
-    dbg!(ctx_copy, judg_ment, &result);
+    // dbg!(ctx_copy, judg_ment, &result);
     Ok(result)
 }
 
@@ -618,8 +620,6 @@ pub fn to_judgment(
         panic!("we shouldn't have any type variables left");
     }
 
-    dbg!(ctx);
-    dbg!(judgment_with_type_var.clone());
     Ok(
         judgment_with_type_var.define_prim(Rc::new(|type_var_prim| match type_var_prim {
             TypeVarPrim::TypeVar(_) => unreachable!("resps should be empty"),
@@ -711,12 +711,17 @@ mod test {
         // dbg!(crate::frontend(text3));
 
         // This is also good!
-        let text4 = "fn f |x: Int| {val x}
-        val 4";
-        dbg!(crate::frontend(text4));
+        // let text4 = "fn f |x: Int| {val x}
+        // val 4";
+        // dbg!(crate::frontend(text4));
 
-        let text5 = "let id : (Pi |T : Type| T -> T) = lambda |T : Type, t : T| t
+        // This is also good!
+        // let text5 = "let id : Pi |T : Type| T -> T -> T = lambda |T : Type, t1 : T, t2 : T| t2
+        // val 4";
+        // dbg!(crate::frontend(text5));
+
+        let text6 = " fn test |T : Type, t : T| { let id = lambda |x| x val id t }
         val 4";
-        dbg!(crate::frontend(text5));
+        dbg!(crate::frontend(text6));
     }
 }

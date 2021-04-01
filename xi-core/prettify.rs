@@ -117,7 +117,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
             JudgmentTree::Fun(vec) => {
                 let mut str_vec: Vec<String> = vec[0..vec.len() - 1]
                     .iter()
-                    .zip(depth + 1..)
+                    .zip(depth..)
                     .map(|(s, new_depth)| tts_rec(&*s, free_vars, Precedence::App, new_depth))
                     .collect();
                 str_vec.push(tts_rec(
@@ -131,7 +131,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
             JudgmentTree::Pi(var_type_vec, expr) => {
                 let var_types = var_type_vec
                     .iter()
-                    .zip(depth + 1..)
+                    .zip(depth..)
                     .map(|(s, new_depth)| tts_rec(&*s, free_vars, Precedence::Top, new_depth));
                 let binding_str = var_types
                     .zip(depth..)
@@ -150,7 +150,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
             JudgmentTree::Lam(var_type_vec, expr) => {
                 let var_types = var_type_vec
                     .iter()
-                    .zip(depth + 1..)
+                    .zip(depth..)
                     .map(|(s, new_depth)| tts_rec(&*s, free_vars, Precedence::Top, new_depth));
                 let binding_str = var_types
                     .zip(depth..)
@@ -246,7 +246,7 @@ mod test {
         let test3: Judgment<(), ()> = term!(Pi |T : U, P : U -> U| (Pi |S : U| S) -> P T -> P T);
         assert_eq!(
             tree_to_string(&judgment_to_tree(test3)),
-            "Pi |v0 : U, v1 : U -> U| (Pi |v3 : U| v3) -> v1 v0 -> v1 v0"
+            "Pi |v0 : U, v1 : U -> U| (Pi |v2 : U| v2) -> v1 v0 -> v1 v0"
         );
 
         let test4: Judgment<(), ()> = term!(Lam | T: U, t: T | t);

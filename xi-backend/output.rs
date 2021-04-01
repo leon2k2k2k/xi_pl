@@ -7,7 +7,6 @@ use swc_ecma_ast::{
 };
 use swc_ecma_codegen::{text_writer::JsWriter, Config, Emitter};
 use xi_core::judgment::{Judgment, JudgmentKind, Primitive};
-use xi_frontend::type_inference::UiMetadata;
 use xi_uuid::VarUuid;
 
 pub fn to_js_program<T: JsOutput + Primitive>(judgment: Judgment<T, UiMetadata>) -> String {

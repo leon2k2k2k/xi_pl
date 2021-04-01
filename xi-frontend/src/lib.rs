@@ -27,41 +27,40 @@ pub fn frontend(text: &str) -> Result<Judgment<UiPrim, UiMetadata>, TypeError> {
 mod test {
     use crate::frontend;
 
-    #[test]
-    fn test_ffi() {
-        use super::frontend;
-        // let ffi_text = "ffi \"some_file.js\"{
-        //     Int : Type,
-        //     five : Int,
-        //     six : Int,
-        //     add : Int -> Int -> Int,
-        //     int_to_string : Int -> String
-        // }
+    // #[test]
+    // fn test_ffi() {
+    //     use super::frontend;
+    //     // let ffi_text = "ffi \"some_file.js\"{
+    //     //     Int : Type,
+    //     //     five : Int,
+    //     //     six : Int,
+    //     //     add : Int -> Int -> Int,
+    //     //     int_to_string : Int -> String
+    //     // }
 
-        // let ans = add five six
-        // let better_ans = add ans six
-        // let even_better_ans = int_to_string(better_ans)
+    //     // let ans = add five six
+    //     // let better_ans = add ans six
+    //     // let even_better_ans = int_to_string(better_ans)
 
-        // do console_output(even_better_ans)!
-        // val unit!";
-        let ffi_text = "ffi \"some_file.js\" {
-            concat_hello: String -> String   
-           }
-           
-           let ans = concat_hello (\"world\")
-           do console_output(ans)!
-           val unit!";
-        let judgment = frontend(ffi_text);
-        dbg!(judgment).unwrap();
-    }
+    //     // do console_output(even_better_ans)!
+    //     // val unit!";
+    //     let ffi_text = "ffi \"some_file.js\" {
+    //         concat_hello: String -> String
+    //        }
 
-    #[test]
-    fn test_add() {
-        let text = "
+    //        let ans = concat_hello (\"world\")
+    //        do console_output(ans)!
+    //        val unit!";
+    //     let judgment = frontend(ffi_text);
+    //     dbg!(judgment).unwrap();
+    // }
 
-        
-        val 3 + 5";
+    // #[test]
+    // fn test_add() {
+    //     let text = "
 
-        frontend(text);
-    }
+    //     val 3 + 5";
+
+    //     frontend(text);
+    // }
 }

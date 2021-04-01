@@ -75,7 +75,7 @@ impl ToTokens for TermBuilderFree {
                 TermBuilder::App(fun, arg) => {
                     let func_tokens = to_tokens_rec(free_vars, fun);
                     let arg_tokens = to_tokens_rec(free_vars, arg);
-                    quote! { Judgment::app_unchecked(#func_tokens, #arg_tokens, None)}
+                    quote! { Judgment::app(#func_tokens, #arg_tokens, None)}
                 }
             }
         }

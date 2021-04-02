@@ -1,0 +1,12 @@
+ffi "./some_file.js"{
+    UnitType : Type,
+    unit : UnitType,
+    int_to_string : Int -> String,
+    console_output: String -> IO UnitType,
+    console_input: IO String,
+}
+
+let x = 3 + 5 % 4 * 8
+let str = int_to_string(x)
+let ok = console_output(str)!
+val 5!

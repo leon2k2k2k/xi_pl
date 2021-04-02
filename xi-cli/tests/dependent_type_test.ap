@@ -1,0 +1,33 @@
+// this works
+// val lambda |T: Type, succ: T -> T| succ 
+
+// this works
+// lambda |T : Type, zero: T, succ: T -> T| succ zero 
+
+
+// this also works.
+// let zero1 : Pi |T : Type|  T -> (T -> T) -> T  = lambda | T : Type, zero : T, succ: T -> T| zero
+
+// this works.
+// val Pi| T : Type| T -> (T -> T) -> T 
+
+
+// this does work
+// let zero = lambda | T : Type, zero : T, succ: T -> T| zero
+
+
+// this DOESN'T work!!!!!!!!!!!!!!!!!!!!!!!! 
+// let one : Pi|T : Type| T -> (T -> T) -> T = lambda | T : Type, zero : T, succ: T -> T| (succ zero)
+
+
+
+// This also DOESN'T work!!!!!!!!!!!!!!!!!!!!!
+// val lambda |T : Type, f : Type -> T| f T
+
+// There is something wrong with app and variable binding.
+
+
+
+
+
+val 5

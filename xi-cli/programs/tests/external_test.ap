@@ -1,8 +1,0 @@
-
-ffi "some_file.js" {
-    add1: Int -> Int,
-    add2: Int -> Int,
-}
-
-val add2 add1 1
-

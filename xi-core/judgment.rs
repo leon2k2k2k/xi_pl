@@ -68,7 +68,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                 }) = func.type_of()
                 {
                     let new_result_type = Judgment::instantiate(*func_expr_type, &*elem.clone());
-                    Some(new_result_type)
+                    Some(new_result_type.lower_outside_bv_index(0))
                 // Some(new_result_type.normalize())
                 } else {
                     panic!(
@@ -82,11 +82,47 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             JudgmentKind::Prim(t, prim_type) => Some(*prim_type),
         }
     }
-
+    // this lowers the "bv" index which are scoped outside of the current judgment.
+    pub fn lower_outside_bv_index(self, depth: u32) -> Judgment<T, S> {
+        use JudgmentKind::*;
+        let judgment_kind = match self.tree.clone() {
+            Type => Type,
+            Prim(prim, prim_type) => {
+                JudgmentKind::Prim(prim, Box::new(prim_type.lower_outside_bv_index(depth)))
+            }
+            FreeVar(index, var_type) => {
+                FreeVar(index, Box::new(var_type.lower_outside_bv_index(depth)))
+            }
+            Pi(var_type, expr) => Pi(
+                Box::new(var_type.lower_outside_bv_index(depth)),
+                Box::new(expr.lower_outside_bv_index(depth + 1)),
+            ),
+            Lam(var_type, expr) => Lam(
+                Box::new(var_type.lower_outside_bv_index(depth)),
+                Box::new(expr.lower_outside_bv_index(depth + 1)),
+            ),
+            BoundVar(index, var_type) => {
+                if index < depth {
+                    BoundVar(index, Box::new(var_type.lower_outside_bv_index(depth)))
+                } else {
+                    BoundVar(index - 1, Box::new(var_type.lower_outside_bv_index(depth)))
+                }
+            }
+            Application(func, arg) => Application(
+                Box::new(func.lower_outside_bv_index(depth)),
+                Box::new(arg.lower_outside_bv_index(depth)),
+            ),
+        };
+        Judgment {
+            metadata: self.metadata,
+            tree: judgment_kind,
+        }
+    }
+    // note it shft bv(i) to bv(i-index)
     pub fn shift(self, index: u32) -> Judgment<T, S> {
         use JudgmentKind::*;
         let judgment_kind = match self.tree.clone() {
-            BoundVar(int, var_type) => BoundVar(int + index, Box::new(var_type.shift(index))),
+            BoundVar(int, var_type) => BoundVar(int - index, Box::new(var_type.shift(index))),
             Type => Type,
 
             FreeVar(int, var_type) => FreeVar(int, Box::new(var_type.shift(index))),
@@ -489,15 +525,27 @@ mod test {
 
     #[test]
     fn variable_binding_test() {
-        let id: Judgment<(), ()> = term!(Lam | T: U, t: T | t);
-        dbg!(id.type_of());
+        // let id: Judgment<(), ()> = term!(Lam | T: U, t: T | t);
+        // dbg!(id.type_of());
 
-        let pr1: Judgment<(), ()> = term!(Lam | T: U, t1: T, t2: T | t1);
-        dbg!(&pr1);
-        dbg!(&pr1.type_of());
+        // let pr1: Judgment<(), ()> = term!(Lam | T: U, t1: T, t2: T | t1);
+        // dbg!(&pr1);
+        // dbg!(&pr1.type_of());
 
-        let pr2: Judgment<(), ()> = term!(Lam | T: U, t1: T, t2: T | t2);
-        dbg!(&pr2);
-        dbg!(&pr2.type_of());
+        // let pr2: Judgment<(), ()> = term!(Lam | T: U, t1: T, t2: T | t2);
+        // dbg!(&pr2);
+        // dbg!(&pr2.type_of());
+
+        // let zero: Judgment<(), ()> = term!(Lam |T : U, zero : T, succ: T -> T| zero);
+        // dbg!(&zero);
+        // dbg!(&zero.type_of());
+
+        // let func: Judgment<(), ()> = term!(Lam | T: U, succ: T -> T| succ );
+        // dbg!(&func);
+        // dbg!(&func.type_of());
+
+        let test: Judgment<(), ()> = term!(Lam |T : U, f : U -> T| f T);
+        dbg!(&test);
+        dbg!(&test.type_of());
     }
 }

@@ -116,17 +116,17 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
             }
             // we put VarUuid in the beginning.
             JudgmentTree::BoundVar(index, var_type) => match depth.checked_sub(1 + index) {
-                _ => format!("(v{} : {})", index, tts_rec(&*var_type, free_vars, Precedence::Top, depth))
-                // Some(value) => format!(
-                //     "(v{} : {})",
-                //     value,
-                //     tts_rec(&*var_type, free_vars, Precedence::Top, depth)
-                // ),
-                // None => format!(
-                //     "(bv{}: {})",
-                //     1 + index - depth,
-                //     tts_rec(&*var_type, free_vars, Precedence::Top, depth)
-                // ),
+                // _ => format!("(v{} : {})", index, tts_rec(&*var_type, free_vars, Precedence::Top, depth))
+                Some(value) => format!(
+                    "(bv{} : {})",
+                    value,
+                    tts_rec(&*var_type, free_vars, Precedence::Top, depth)
+                ),
+                None => format!(
+                    "(v_not_bound{}: {})",
+                    1 + index - depth,
+                    tts_rec(&*var_type, free_vars, Precedence::Top, depth)
+                ),
             },
             JudgmentTree::Fun(vec) => {
                 let mut str_vec: Vec<String> = vec[0..vec.len() - 1]
@@ -149,7 +149,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
                     .map(|(s, new_depth)| tts_rec(&*s, free_vars, Precedence::Top, new_depth));
                 let binding_str = var_types
                     .zip(depth..)
-                    .map(|(binding, new_depth)| format!("{}", /*  new_depth, */ binding))
+                    .map(|(binding, new_depth)| format!("bv{}: {}", new_depth, binding))
                     .collect::<Vec<String>>()
                     .join(", ");
 
@@ -168,7 +168,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
                     .map(|(s, new_depth)| tts_rec(&*s, free_vars, Precedence::Top, new_depth));
                 let binding_str = var_types
                     .zip(depth..)
-                    .map(|(binding, new_depth)| format!("{}", /*  new_depth, */ binding))
+                    .map(|(binding, new_depth)| format!("bv{}: {}", new_depth, binding))
                     .collect::<Vec<String>>()
                     .join(", ");
 

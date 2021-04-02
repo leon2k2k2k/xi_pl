@@ -72,6 +72,8 @@ impl Context {
                 ),
                 JudgmentKind::Pi(var_type, expr) => {
                     let new_var_type = replace_with_free_var_rec(*var_type, depth, ctx);
+                    dbg!(&ctx);
+                    dbg!(&expr);
                     let new_expr = replace_with_free_var_rec(*expr, depth + 1, ctx);
                     JudgmentKind::Pi(Box::new(new_var_type), Box::new(new_expr))
                 }
@@ -394,7 +396,8 @@ pub fn type_infer(
             dbg!(&index);
             dbg!(&ctx);
             dbg!(&var_type);
-            (Judgment::bound_var(*index, var_type, None), vec![])
+            let free_var_index = ctx.rebind_map[ctx.rebind_map.len() - 1 - *index as usize];
+            (Judgment::free(free_var_index, var_type, None), vec![])
         }
         Judg_mentKind::Pi(var_type, expr) => {
             let type_var = TypeVar::new();
@@ -409,6 +412,7 @@ pub fn type_infer(
             ctx.var_map.push(type_var);
             let rebind_var = VarUuid::new();
             ctx.rebind_map.push(rebind_var);
+            dbg!(&ctx);
 
             let (expr, mut sub_resps) = type_infer(expr, ctx)?;
             resps.append(&mut sub_resps);
@@ -419,8 +423,10 @@ pub fn type_infer(
                 Judgment::u(None),
                 None,
             ))?;
-            let new_expr = ctx.substitute(&expr)?;
 
+            dbg!(&new_var_type);
+            let new_expr = ctx.substitute(&expr)?;
+            dbg!(&new_expr);
             ctx.var_map.pop();
             ctx.rebind_map.pop();
 
@@ -445,7 +451,7 @@ pub fn type_infer(
             ctx.var_map.push(type_var);
             let rebind_var = VarUuid::new();
             ctx.rebind_map.push(rebind_var);
-
+            dbg!(&ctx);
             let (expr, mut sub_resps) = type_infer(expr, ctx)?;
             resps.append(&mut sub_resps);
 
@@ -797,7 +803,7 @@ mod test {
         ";
         dbg!(crate::frontend(text5));
 
-        //This is not good!
+        // //This is not good!
         let text6 = " fn test |T : Type, t : T| { let id = lambda |x| x val id t }
         val 4";
         dbg!(crate::frontend(text6));
@@ -810,15 +816,16 @@ mod test {
 
     #[test]
     fn program2_test() {
-        let text = "
-        ffi \"./some_file.js\"{
-            UnitType : Type,
-            unit : UnitType,
-            console_output: String -> IO UnitType,
-        }
-        let me = console_output(\"hello\")!
-        val unit!
-        ";
+        // let text = "
+        // ffi \"./some_file.js\"{
+        //     UnitType : Type,
+        //     unit : UnitType,
+        //     console_output: String -> IO UnitType,
+        // }
+        // let me = console_output(\"hello\")!
+        // val unit!
+        // ";
+
         // let text = "
 
         // ffi \"./some_file.js\"{
@@ -829,6 +836,7 @@ mod test {
         // let me = console_output(\"hello\")!
         // val five!
         // ";
+
         // let text = "
 
         // ffi \"./some_file.js\"{
@@ -837,6 +845,17 @@ mod test {
         // }
         // val unit
         // ";
+        // dbg!(crate::frontend(text));
+    }
+
+    #[test]
+    fn dependent_type_test() {
+        let text = " val lambda |T: Type, succ: T -> T| succ ";
         dbg!(crate::frontend(text));
+        // it should be Lam |bv0: U, bv1: (bv0 : U) -> (bv0 : U)| (bv1 : (bv0 : U) -> (bv0 : U))" in prettify (aka changed bv numbering).
+        // in Judgment, it is "Lam |U, bv1: Pi(bv0 : U, bv1 : U) | (bv0 : Pi(bv1 : U, bv2 : U))".
+
+        // right now it is parses through and get "Lam |bv0: U, bv1: (bv0 : U) -> (bv0 : U)| (bv1 : (bv0 : U) -> (bv0 : U))".
+        // in judg_ment, it is "lam |U| Lam |(Pi |bv0| bv1)| bv0", which is correct!
     }
 }

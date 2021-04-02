@@ -137,6 +137,7 @@ impl Context {
                     Judg_ment::bind(bind_arg, rest_kind)
                 } else {
                     let arg = self.desugar_expr(expr);
+                    dbg!(&arg);
                     let rest = Judg_ment::rebind(self.desugar_stmt_vec(stmt_rest), var.index);
                     let rest_kind = Judg_ment::lam(var.var_type.clone().map(|var_type| self.desugar_expr(&var_type)), rest);
 

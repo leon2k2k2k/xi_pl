@@ -72,8 +72,8 @@ impl Context {
                 ),
                 JudgmentKind::Pi(var_type, expr) => {
                     let new_var_type = replace_with_free_var_rec(*var_type, depth, ctx);
-                    dbg!(&ctx);
-                    dbg!(&expr);
+                    // dbg!(&ctx);
+                    // dbg!(&expr);
                     let new_expr = replace_with_free_var_rec(*expr, depth + 1, ctx);
                     JudgmentKind::Pi(Box::new(new_var_type), Box::new(new_expr))
                 }
@@ -392,10 +392,10 @@ pub fn type_infer(
             // get the typevar corresponding to the Boundvar, then also look that up in the
             let var_type =
                 ctx.lookup_type_var(&ctx.var_map[ctx.var_map.len() - 1 - *index as usize]);
-            dbg!("========================");
-            dbg!(&index);
-            dbg!(&ctx);
-            dbg!(&var_type);
+            // dbg!("========================");
+            // dbg!(&index);
+            // dbg!(&ctx);
+            // dbg!(&var_type);
             let free_var_index = ctx.rebind_map[ctx.rebind_map.len() - 1 - *index as usize];
             (Judgment::free(free_var_index, var_type, None), vec![])
         }
@@ -412,7 +412,7 @@ pub fn type_infer(
             ctx.var_map.push(type_var);
             let rebind_var = VarUuid::new();
             ctx.rebind_map.push(rebind_var);
-            dbg!(&ctx);
+            // dbg!(&ctx);
 
             let (expr, mut sub_resps) = type_infer(expr, ctx)?;
             resps.append(&mut sub_resps);
@@ -424,9 +424,9 @@ pub fn type_infer(
                 None,
             ))?;
 
-            dbg!(&new_var_type);
+            // dbg!(&new_var_type);
             let new_expr = ctx.substitute(&expr)?;
-            dbg!(&new_expr);
+            // dbg!(&new_expr);
             ctx.var_map.pop();
             ctx.rebind_map.pop();
 
@@ -451,7 +451,7 @@ pub fn type_infer(
             ctx.var_map.push(type_var);
             let rebind_var = VarUuid::new();
             ctx.rebind_map.push(rebind_var);
-            dbg!(&ctx);
+            // dbg!(&ctx);
             let (expr, mut sub_resps) = type_infer(expr, ctx)?;
             resps.append(&mut sub_resps);
 
@@ -482,9 +482,9 @@ pub fn type_infer(
             let (arg, mut arg_resps) = type_infer(old_arg, ctx)?;
             resps.append(&mut arg_resps);
 
-            dbg!(&func.type_of());
-            dbg!(&arg);
-            dbg!(&arg.type_of());
+            // dbg!(&func.type_of());
+            // dbg!(&arg);
+            // dbg!(&arg.type_of());
 
             match func.type_of().expect("please not none").tree {
                 JudgmentKind::Pi(arg_type, expr) => {
@@ -815,7 +815,7 @@ mod test {
     }
 
     #[test]
-    fn program2_test() {
+    fn ffi_test() {
         // let text = "
         // ffi \"./some_file.js\"{
         //     UnitType : Type,
@@ -857,5 +857,19 @@ mod test {
 
         // right now it is parses through and get "Lam |bv0: U, bv1: (bv0 : U) -> (bv0 : U)| (bv1 : (bv0 : U) -> (bv0 : U))".
         // in judg_ment, it is "lam |U| Lam |(Pi |bv0| bv1)| bv0", which is correct!
+    }
+
+    #[test]
+    fn actual_type_inference_test() {
+        let text = "let id : Pi | T : Type, t : T| T = lambda |T, t| t
+        val 5
+        ";
+        // App (Lam |Unknown| NumberElem("5")) (Lam |Type| Lam |bv0| bv0)
+
+        dbg!(crate::frontend(text));
+
+        // let text2 = "let id = lambda |T : Type , t : T| t
+        // val 5";
+        // dbg!(crate::frontend(text2));
     }
 }

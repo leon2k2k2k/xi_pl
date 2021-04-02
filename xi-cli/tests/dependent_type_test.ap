@@ -16,15 +16,16 @@
 // let zero = lambda | T : Type, zero : T, succ: T -> T| zero
 
 
-// this DOESN'T work!!!!!!!!!!!!!!!!!!!!!!!! 
-// let one : Pi|T : Type| T -> (T -> T) -> T = lambda | T : Type, zero : T, succ: T -> T| (succ zero)
+// this DOESN'T work!!!!!!!!!!!!!!!!!!!!!!!! Probably a type inference issue
+// let one : Pi| T: Type | T -> (T -> T) -> T = lambda | T, zero, succ| (succ zero)
 
 
 
 // This also DOESN'T work!!!!!!!!!!!!!!!!!!!!!
 // val lambda |T : Type, f : Type -> T| f T
+// There is something wrong with app and variable binding. Maybe we have fixed it.
 
-// There is something wrong with app and variable binding.
+let id : Pi | T : Type, t : T| T = lambda |T, t| t
 
 
 

@@ -6,7 +6,7 @@ use xi_uuid::VarUuid;
 
 pub enum JudgmentTree<T> {
     Type,
-    Prim(T),
+    Prim(T, Box<JudgmentTree<T>>),
     FreeVar(VarUuid, Box<JudgmentTree<T>>),
     BoundVar(u32, Box<JudgmentTree<T>>),
     /// I should add metadata here.
@@ -21,7 +21,9 @@ pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> 
     use JudgmentTree::*;
     let judgment_tree = match judgment.tree {
         JudgmentKind::Type => JudgmentTree::Type,
-        JudgmentKind::Prim(prim) => JudgmentTree::Prim(prim),
+        JudgmentKind::Prim(prim, prim_type) => {
+            JudgmentTree::Prim(prim, Box::new(judgment_to_tree(*prim_type)))
+        }
         JudgmentKind::FreeVar(free_var, expr) => {
             JudgmentTree::FreeVar(free_var, Box::new(judgment_to_tree(*expr)))
         }
@@ -92,7 +94,14 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
     ) -> String {
         let body_str = match judg_tree {
             JudgmentTree::Type => "U".into(),
-            JudgmentTree::Prim(prim) => format!("{:?}", prim),
+            JudgmentTree::Prim(prim, prim_type) => match prim.maybe_prim_type::<()>() {
+                None => format!(
+                    "({:?} : {})",
+                    prim,
+                    tts_rec(prim_type, free_vars, Precedence::Top, depth),
+                ),
+                Some(_) => format!("{:?}", prim),
+            },
             JudgmentTree::FreeVar(var_index, var_type) => {
                 format!(
                     "(fv{} : {})",
@@ -107,12 +116,17 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
             }
             // we put VarUuid in the beginning.
             JudgmentTree::BoundVar(index, var_type) => match depth.checked_sub(1 + index) {
-                Some(value) => format!("v{}", value),
-                None => format!(
-                    "(bv{}: {})",
-                    1 + index - depth,
-                    tts_rec(&*var_type, free_vars, Precedence::Top, depth)
-                ),
+                _ => format!("(v{} : {})", index, tts_rec(&*var_type, free_vars, Precedence::Top, depth))
+                // Some(value) => format!(
+                //     "(v{} : {})",
+                //     value,
+                //     tts_rec(&*var_type, free_vars, Precedence::Top, depth)
+                // ),
+                // None => format!(
+                //     "(bv{}: {})",
+                //     1 + index - depth,
+                //     tts_rec(&*var_type, free_vars, Precedence::Top, depth)
+                // ),
             },
             JudgmentTree::Fun(vec) => {
                 let mut str_vec: Vec<String> = vec[0..vec.len() - 1]
@@ -135,7 +149,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
                     .map(|(s, new_depth)| tts_rec(&*s, free_vars, Precedence::Top, new_depth));
                 let binding_str = var_types
                     .zip(depth..)
-                    .map(|(binding, new_depth)| format!("v{} : {}", new_depth, binding))
+                    .map(|(binding, new_depth)| format!("{}", /*  new_depth, */ binding))
                     .collect::<Vec<String>>()
                     .join(", ");
 
@@ -154,7 +168,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
                     .map(|(s, new_depth)| tts_rec(&*s, free_vars, Precedence::Top, new_depth));
                 let binding_str = var_types
                     .zip(depth..)
-                    .map(|(binding, new_depth)| format!("v{} : {}", new_depth, binding))
+                    .map(|(binding, new_depth)| format!("{}", /*  new_depth, */ binding))
                     .collect::<Vec<String>>()
                     .join(", ");
 
@@ -184,7 +198,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
 
         let my_precedence = match judg_tree {
             JudgmentTree::Type => Precedence::Var,
-            JudgmentTree::Prim(_) => Precedence::Var,
+            JudgmentTree::Prim(_, _) => Precedence::Var,
             JudgmentTree::FreeVar(_, _) => Precedence::Var,
             JudgmentTree::BoundVar(_, _) => Precedence::Var,
             JudgmentTree::Fun(_) => Precedence::Fun,

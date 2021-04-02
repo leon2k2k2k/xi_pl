@@ -20,7 +20,7 @@ enum TermBuilder {
     Type,
     Var(Ident),
     RustExpr(Expr),
-    Prim(Expr),
+    Prim(Expr, Option<Box<TermBuilder>>),
     Lam(Ident, Box<TermBuilder>, Box<TermBuilder>),
     Pi(Ident, Box<TermBuilder>, Box<TermBuilder>),
     Fun(Box<TermBuilder>, Box<TermBuilder>),
@@ -46,7 +46,15 @@ impl ToTokens for TermBuilderFree {
                     }
                 }
                 TermBuilder::RustExpr(expr) => quote! { #expr.clone() },
-                TermBuilder::Prim(prim) => quote! { Judgment::prim(#prim, None) },
+                TermBuilder::Prim(prim, prim_type) => {
+                    let prim_type_tokens = match prim_type {
+                        None => {
+                            quote! { #prim.maybe_prim_type().expect("Couldn't get primitive type") }
+                        }
+                        Some(prim_type) => to_tokens_rec(free_vars, prim_type),
+                    };
+                    quote! { Judgment::prim(#prim, #prim_type_tokens, None) }
+                }
                 TermBuilder::Lam(ident, type_, body) => {
                     let type_tokens = to_tokens_rec(free_vars, type_);
                     let mut new_vars = free_vars.clone();
@@ -75,7 +83,7 @@ impl ToTokens for TermBuilderFree {
                 TermBuilder::App(fun, arg) => {
                     let func_tokens = to_tokens_rec(free_vars, fun);
                     let arg_tokens = to_tokens_rec(free_vars, arg);
-                    quote! { Judgment::app(#func_tokens, #arg_tokens, None)}
+                    quote! { Judgment::app_unchecked(#func_tokens, #arg_tokens, None)}
                 }
             }
         }
@@ -255,7 +263,18 @@ fn parse_parens(tokens: ParseStream) -> Result<TermBuilder> {
 fn parse_bracket(tokens: ParseStream) -> Result<TermBuilder> {
     let content;
     bracketed!(content in tokens);
-    Ok(TermBuilder::Prim(content.parse::<Expr>()?))
+    let prim_value = content.parse::<Expr>()?;
+    match content.parse::<Token![:]>() {
+        Ok(_) => {
+            let prim_type = expr_bp(&content, 0)?;
+            assert!(content.is_empty());
+            Ok(TermBuilder::Prim(prim_value, Some(Box::new(prim_type))))
+        }
+        Err(_) => {
+            assert!(content.is_empty());
+            Ok(TermBuilder::Prim(prim_value, None))
+        }
+    }
 }
 
 fn parse_rust_expr(tokens: ParseStream) -> Result<TermBuilder> {
@@ -510,5 +529,15 @@ mod test {
                 ((T, S), Judgment::pi(Judgment::Free(T, Judgment::u()), Judgment::u()))
             }},
         );
+    }
+    // test if the square brackets aka primitives works
+    #[test]
+    fn prim_test() {
+        use super::*;
+        // test_expand(
+        //     "[NumberType] -> [NumberType] -> [NumberType]",
+        //     quote! {{hello}},
+        // );
+        test_expand("[NumberElem : [NumberType]]", quote! {{hello}});
     }
 }

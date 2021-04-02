@@ -43,6 +43,7 @@ pub enum Judg_mentKind<T, S> {
     App(Judg_ment<T, S>, Judg_ment<T, S>),
     Bind(Judg_ment<T, S>, Judg_ment<T, S>),
     Pure(Judg_ment<T, S>),
+    Ffi(String, String),
 }
 
 impl <T, S>Judg_ment<T, S> {
@@ -73,6 +74,7 @@ impl <T, S>Judg_ment<T, S> {
                     Pure(rebind_rec(arg, free_var, depth))
                 }
                 Prim(prim) => {Prim(prim)}
+                Ffi(lib, func_name) => {Ffi(lib, func_name)}
             };
         Judg_ment(Box::new(result_tree), expr.1)
         }
@@ -96,6 +98,10 @@ impl Judg_ment<UiPrim, UiMetadata> {
 
     fn bind(lhs : Judg_ment<UiPrim, UiMetadata>, rhs : Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
         Judg_ment(Box::new(Judg_mentKind::Bind(lhs, rhs)), UiMetadata{})
+    }
+
+    fn pure(lhs : Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
+        Judg_ment(Box::new(Judg_mentKind::Pure(lhs)), UiMetadata{})
     }
 
     fn lam(lhs : Option<Judg_ment<UiPrim, UiMetadata>>, rhs : Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
@@ -206,8 +212,8 @@ impl Context {
                 None => self.desugar_var(var),
             },
             ExprKind::Type => Judg_ment::u(),
-            ExprKind::Bang(expr) => { 
-                Judg_ment::app(Judg_ment::prim(UiPrim::IOPure) ,self.desugar_expr(expr)) // val x! => iopure(x)
+            ExprKind::Bang(expr) => {
+                Judg_ment::pure(self.desugar_expr(expr))
             }
             ExprKind::App(func, elem) => {
                 Judg_ment::app(self.desugar_expr(&func), self.desugar_expr(&elem))
@@ -311,6 +317,9 @@ impl <T : std::fmt::Debug + Clone, S : std::fmt::Debug + Clone>std::fmt::Debug f
                 f.write_str(&format!("(Bind {:?} {:?})", arg, func))?}
             Judg_mentKind::Pure(arg) => {
                 f.write_str(&format!("(Pure {:?})", arg))?;
+            }
+            Judg_mentKind::Ffi(file_name, func_name) => {
+                f.write_str(&format!("(ffi {:?}, {:?})", file_name, func_name ))?;
             }
         }
         Ok(())

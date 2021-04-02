@@ -7,9 +7,12 @@ use swc_ecma_ast::{
 };
 use swc_ecma_codegen::{text_writer::JsWriter, Config, Emitter};
 use xi_core::judgment::{Judgment, JudgmentKind, Primitive};
+use xi_frontend::type_inference::UiMetadata;
 use xi_uuid::VarUuid;
 
-pub fn to_js_program<T: JsOutput + Primitive>(judgment: Judgment<T, UiMetadata>) -> String {
+use crate::js_prim::JsPrim;
+
+pub fn to_js_program(judgment: Judgment<JsPrim, UiMetadata>) -> String {
     let mut ffi_functions = vec![];
     let stmt = Stmt::Expr(ExprStmt {
         span: DUMMY_SP,
@@ -18,17 +21,17 @@ pub fn to_js_program<T: JsOutput + Primitive>(judgment: Judgment<T, UiMetadata>)
 
     // dbg!(&stmt);
     let mut ffi_imports = vec![];
-    for (var_index, (file_name, function_name)) in ffi_functions {
+    for (index, (file_name, function_name)) in ffi_functions.iter().enumerate() {
         let module_import = ModuleDecl::Import(ImportDecl {
             span: DUMMY_SP,
             specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                 span: DUMMY_SP,
-                local: to_js_ident2(format!("ffi{}", var_index.index())),
-                imported: Some(to_js_ident2(function_name)),
+                local: to_js_ident2(format!("ffi{}", index)),
+                imported: Some(to_js_ident2(function_name.clone())),
             })],
             src: Str {
                 span: DUMMY_SP,
-                value: file_name.into(),
+                value: (**file_name).into(),
                 has_escape: false,
                 kind: swc_ecma_ast::StrKind::Synthesized,
             },
@@ -86,16 +89,16 @@ fn make_var_name(ctx: &Vec<Ident>) -> Ident {
     to_js_ident2(format!("var_{}", ctx.len()))
 }
 
-fn to_js<T: Primitive + JsOutput>(
-    judgment: &Judgment<T, UiMetadata>,
+fn to_js(
+    judgment: &Judgment<JsPrim, UiMetadata>,
     ctx: Vec<Ident>,
-    ffi: &mut Vec<(VarUuid, (String, String))>,
+    ffi: &mut Vec<(String, String)>,
 ) -> Expr {
     match &judgment.tree {
         JudgmentKind::Type => to_js_str_u(),
-        JudgmentKind::Prim(t) => T::to_js_prim(&t),
+        JudgmentKind::Prim(t, _prim_type) => JsPrim::to_js_prim(&t, ffi),
         JudgmentKind::FreeVar(var_index, _var_type) => {
-            panic!();
+            panic!("we shouldn't have freevars!!");
             // let metadata = judgment.metadata.ffi.clone().unwrap();
             // ffi.push((*var_index, metadata));
             // to_js_ident(format!("ffi{}", var_index.index()))
@@ -237,9 +240,9 @@ fn to_js_str_pi() -> Expr {
     to_js_str("Pi".into())
 }
 
-pub trait JsOutput: Clone {
-    fn to_js_prim(&self) -> Expr;
-}
+// pub trait JsOutput: Clone {
+//     fn to_js_prim(&self) -> Expr;
+// }
 
 mod test {
 

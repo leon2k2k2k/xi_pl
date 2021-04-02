@@ -20,8 +20,8 @@ impl TypeVar {
 }
 
 impl Primitive for TypeVar {
-    fn type_of<S: Metadata>(&self) -> Judgment<Self, S> {
-        Judgment::u(None)
+    fn maybe_prim_type<S: Metadata>(&self) -> Option<Judgment<Self, S>> {
+        Some(Judgment::u(None))
     }
 }
 
@@ -62,7 +62,10 @@ impl Context {
         ) -> Judgment<TypeVarPrim, UiMetadata> {
             let result_tree = match expr.tree {
                 JudgmentKind::Type => JudgmentKind::Type,
-                JudgmentKind::Prim(prim) => JudgmentKind::Prim(prim),
+                JudgmentKind::Prim(prim, prim_type) => JudgmentKind::Prim(
+                    prim,
+                    Box::new(replace_with_free_var_rec(*prim_type, depth, ctx)),
+                ),
                 JudgmentKind::FreeVar(var, var_type) => JudgmentKind::FreeVar(
                     var,
                     Box::new(replace_with_free_var_rec(*var_type, depth, ctx)),
@@ -78,7 +81,9 @@ impl Context {
                     JudgmentKind::Lam(Box::new(new_var_type), Box::new(new_expr))
                 }
                 JudgmentKind::BoundVar(index, var_type) => {
-                    if index > depth {
+                    if index >= depth {
+                        dbg!(&ctx);
+                        dbg!(&index);
                         JudgmentKind::FreeVar(
                             ctx.rebind_map[ctx.rebind_map.len() - 1 - depth as usize],
                             Box::new(replace_with_free_var_rec(*var_type, depth, ctx)),
@@ -113,16 +118,17 @@ impl Context {
         replacement: Judgment<TypeVarPrim, UiMetadata>,
     ) -> Result<(), TypeError> {
         let replacement = self.replace_with_free_var(replacement);
-        match self.constraints.get(&type_var) {
+        let result = match self.constraints.get(&type_var) {
             Some(result) => {
                 let result = result.clone();
-                let new_type = self.unify(&result, &replacement)?;
-                self.constraints.insert(type_var, new_type);
+                self.unify(&result, &replacement)?
             }
-            None => {
-                self.constraints.insert(type_var, replacement);
-            }
-        }
+            None => replacement,
+        };
+
+        // dbg!(&type_var, &result);
+
+        self.constraints.insert(type_var, result);
         Ok(())
     }
 
@@ -139,7 +145,7 @@ impl Context {
     fn lookup_type_var(&self, type_var: &TypeVar) -> Judgment<TypeVarPrim, UiMetadata> {
         match self.constraints.get(type_var) {
             Some(inferred_type) => inferred_type.clone(),
-            None => Judgment::prim(TypeVarPrim::TypeVar(*type_var), None),
+            None => Judgment::prim(TypeVarPrim::TypeVar(*type_var), Judgment::u(None), None),
         }
     }
 
@@ -189,18 +195,18 @@ impl Context {
         lhs: &Judgment<TypeVarPrim, UiMetadata>,
         rhs: &Judgment<TypeVarPrim, UiMetadata>,
     ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
-        dbg!(&lhs);
-        dbg!(&rhs);
-        // dbg!(&self);
-        dbg!("");
+        // dbg!(&lhs);
+        // dbg!(&rhs);
+        // // dbg!(&self);
+        // dbg!("");
         let lhs = lhs.clone();
         let rhs = rhs.clone();
 
-        if let JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var)) = &lhs.tree {
+        if let JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), prim_type) = &lhs.tree {
             self.add_constraint(*type_var, rhs.clone())?;
             return Ok(rhs);
         }
-        if let JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var)) = &rhs.tree {
+        if let JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), prim_type) = &rhs.tree {
             self.add_constraint(*type_var, lhs.clone())?;
             return Ok(lhs);
         }
@@ -214,9 +220,11 @@ impl Context {
             }
 
             (
-                JudgmentKind::Prim(TypeVarPrim::Prim(prim1)),
-                JudgmentKind::Prim(TypeVarPrim::Prim(prim2)),
-            ) if prim1 == prim2 => Judgment::prim(TypeVarPrim::Prim(prim1.clone()), None),
+                JudgmentKind::Prim(TypeVarPrim::Prim(prim1), prim_type1),
+                JudgmentKind::Prim(TypeVarPrim::Prim(prim2), prim_type2),
+            ) if prim1 == prim2 => {
+                Judgment::prim(TypeVarPrim::Prim(prim1.clone()), *prim_type1.clone(), None)
+            }
 
             (JudgmentKind::Pi(var_type1, expr1), JudgmentKind::Pi(var_type2, expr2)) => {
                 Judgment::pi(
@@ -264,20 +272,29 @@ impl Context {
                 break;
             }
 
-            let resolved_type =
-                self.substitute(&Judgment::prim(TypeVarPrim::TypeVar(resp), None))?;
+            let resolved_type = self.substitute(&Judgment::prim(
+                TypeVarPrim::TypeVar(resp),
+                Judgment::u(None),
+                None,
+            ))?;
 
-            let sub_fn = Rc::new(move |prim| {
-                if let TypeVarPrim::TypeVar(type_var) = prim {
-                    if type_var == resp {
-                        resolved_type.clone()
+            let sub_fn = Rc::new(
+                move |prim,
+                      prim_type,
+                      define_prim: Rc<
+                    dyn Fn(Judgment<TypeVarPrim, UiMetadata>) -> Judgment<TypeVarPrim, UiMetadata>,
+                >| {
+                    if let TypeVarPrim::TypeVar(type_var) = prim {
+                        if type_var == resp {
+                            resolved_type.clone()
+                        } else {
+                            Judgment::prim(prim, define_prim(prim_type), None)
+                        }
                     } else {
-                        Judgment::prim(prim, None)
+                        Judgment::prim(prim, define_prim(prim_type), None)
                     }
-                } else {
-                    Judgment::prim(prim, None)
-                }
-            });
+                },
+            );
 
             self.constraints.remove(&resp);
 
@@ -301,7 +318,7 @@ impl Context {
             let metadata = judgment.metadata.clone();
             let result = match &judgment.tree {
                 JudgmentKind::Type => Judgment::u(Some(metadata)),
-                JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var)) => {
+                JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), prim_type) => {
                     if seen.contains(&type_var) {
                         panic!("there is an infinite loop in the type variables")
                     }
@@ -312,12 +329,18 @@ impl Context {
                             let constraint_clone = constraint.clone();
                             substitute_rec(ctx, &constraint_clone, &seen2)?
                         }
-                        None => Judgment::prim(TypeVarPrim::TypeVar(*type_var), Some(metadata)),
+                        None => Judgment::prim(
+                            TypeVarPrim::TypeVar(*type_var),
+                            *prim_type.clone(),
+                            Some(metadata),
+                        ),
                     }
                 }
-                JudgmentKind::Prim(TypeVarPrim::Prim(prim)) => {
-                    Judgment::prim(TypeVarPrim::Prim(prim.clone()), Some(metadata))
-                }
+                JudgmentKind::Prim(TypeVarPrim::Prim(prim), prim_type) => Judgment::prim(
+                    TypeVarPrim::Prim(prim.clone()),
+                    substitute_rec(ctx, &prim_type, seen)?,
+                    Some(metadata),
+                ),
                 JudgmentKind::FreeVar(int, var_type) => {
                     Judgment::free(*int, substitute_rec(ctx, &var_type, seen)?, Some(metadata))
                 }
@@ -350,7 +373,7 @@ impl Context {
 pub struct TypeError {
     string: String,
 }
-/// Take a Judg_ment and the local context and try to deduce the type of the judg_ment as best as we can.
+// Take a Judg_ment and the local context and try to deduce the type of the judg_ment as best as we can.
 pub fn type_infer(
     judg_ment: &Judg_ment<UiPrim, UiMetadata>,
     ctx: &mut Context,
@@ -367,7 +390,10 @@ pub fn type_infer(
             // get the typevar corresponding to the Boundvar, then also look that up in the
             let var_type =
                 ctx.lookup_type_var(&ctx.var_map[ctx.var_map.len() - 1 - *index as usize]);
-
+            dbg!("========================");
+            dbg!(&index);
+            dbg!(&ctx);
+            dbg!(&var_type);
             (Judgment::bound_var(*index, var_type, None), vec![])
         }
         Judg_mentKind::Pi(var_type, expr) => {
@@ -388,8 +414,11 @@ pub fn type_infer(
             resps.append(&mut sub_resps);
 
             // We substitute eagerly
-            let new_var_type =
-                ctx.substitute(&Judgment::prim(TypeVarPrim::TypeVar(type_var), None))?;
+            let new_var_type = ctx.substitute(&Judgment::prim(
+                TypeVarPrim::TypeVar(type_var),
+                Judgment::u(None),
+                None,
+            ))?;
             let new_expr = ctx.substitute(&expr)?;
 
             ctx.var_map.pop();
@@ -421,8 +450,11 @@ pub fn type_infer(
             resps.append(&mut sub_resps);
 
             // We substitute eagerly
-            let new_var_type =
-                ctx.substitute(&Judgment::prim(TypeVarPrim::TypeVar(type_var), None))?;
+            let new_var_type = ctx.substitute(&Judgment::prim(
+                TypeVarPrim::TypeVar(type_var),
+                Judgment::u(None),
+                None,
+            ))?;
             let new_expr = ctx.substitute(&expr)?;
 
             ctx.var_map.pop();
@@ -444,6 +476,10 @@ pub fn type_infer(
             let (arg, mut arg_resps) = type_infer(old_arg, ctx)?;
             resps.append(&mut arg_resps);
 
+            dbg!(&func.type_of());
+            dbg!(&arg);
+            dbg!(&arg.type_of());
+
             match func.type_of().expect("please not none").tree {
                 JudgmentKind::Pi(arg_type, expr) => {
                     let func_type = TypeVar::new();
@@ -452,7 +488,7 @@ pub fn type_infer(
                     ctx.add_constraint(func_type, *arg_type)?;
                     ctx.add_constraint(func_type, arg.type_of().unwrap())?;
                 }
-                JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var)) => {
+                JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), prim_type) => {
                     let epsilon = TypeVar::new();
                     let delta = TypeVar::new();
                     resps.push(epsilon);
@@ -461,8 +497,8 @@ pub fn type_infer(
                     ctx.add_constraint(
                         type_var,
                         Judgment::pi(
-                            Judgment::prim(TypeVarPrim::TypeVar(epsilon), None),
-                            Judgment::prim(TypeVarPrim::TypeVar(delta), None),
+                            Judgment::prim_wo_prim_type(TypeVarPrim::TypeVar(epsilon), None),
+                            Judgment::prim_wo_prim_type(TypeVarPrim::TypeVar(delta), None),
                             None,
                         ),
                     )?;
@@ -489,8 +525,10 @@ pub fn type_infer(
 
             let alpha = self::TypeVar::new();
             let beta = self::TypeVar::new();
+            let io_alpha = self::TypeVar::new();
+            let alpha_to_io_beta = self::TypeVar::new();
 
-            let mut resps = vec![alpha, beta];
+            let mut resps = vec![alpha, beta, io_alpha, alpha_to_io_beta];
 
             let (func, mut func_resps) = type_infer(old_func, ctx)?;
             resps.append(&mut func_resps);
@@ -498,18 +536,21 @@ pub fn type_infer(
             let (arg, mut arg_resps) = type_infer(old_arg, ctx)?;
             resps.append(&mut arg_resps);
 
-            let io_alpha = term!([Prim(IOMonad)][TypeVar(alpha)]);
-            ctx.unify(&io_alpha, &arg.type_of().unwrap())?;
+            ctx.add_constraint(io_alpha, term!([Prim(IOMonad)][TypeVar(alpha)]))?;
+            ctx.add_constraint(io_alpha, arg.type_of().unwrap())?;
 
-            let alpha_to_io_beta =
-                term!([TypeVar(alpha)] -> [Prim(UiPrim::IOMonad)] [TypeVar(beta)]);
-
-            ctx.unify(&alpha_to_io_beta, &func.type_of().unwrap())?;
+            ctx.add_constraint(
+                alpha_to_io_beta,
+                term!([TypeVar(alpha)] -> [Prim(UiPrim::IOMonad)] [TypeVar(beta)]),
+            )?;
+            ctx.add_constraint(alpha_to_io_beta, func.type_of().unwrap())?;
 
             let tmp_term = term!([Prim(IOBind)] [TypeVar(alpha)] [TypeVar(beta)] {arg} {func});
+
             let result_term = ctx.substitute(&tmp_term)?;
 
             let new_resps = ctx.elim_resps(resps)?;
+            // dbg!(&ctx);
             (result_term, new_resps)
         }
 
@@ -525,18 +566,49 @@ pub fn type_infer(
             let expr_type = expr.type_of().unwrap();
 
             let new_resps = ctx.elim_resps(resps)?;
+
+            // let bu: Judgment<UiPrim, UiMetadata> = Judgment::prim_wo_prim_type(IOPure, None);
+            // dbg!(bu.type_of());
+
+            // dbg!(Judgment::app(
+            //     bu,
+            //     Judgment::prim_wo_prim_type(UiPrim::StringType, None),
+            //     None
+            // ));
+
             (term!([Prim(IOPure)] {expr_type} {expr}), new_resps)
         }
-        Judg_mentKind::Prim(prim) => (
-            Judgment::prim(TypeVarPrim::Prim(prim.clone()), None),
-            vec![],
-        ),
+        Judg_mentKind::Prim(prim) => match prim.maybe_prim_type::<UiMetadata>() {
+            Some(_prim_type) => (
+                Judgment::prim_wo_prim_type(TypeVarPrim::Prim(prim.clone()), None),
+                vec![],
+            ),
+            None => {
+                let alpha = TypeVar::new();
+                (
+                    Judgment::prim(
+                        TypeVarPrim::Prim(prim.clone()),
+                        Judgment::prim_wo_prim_type(TypeVarPrim::TypeVar(alpha), None),
+                        None,
+                    ),
+                    vec![alpha],
+                )
+            }
+        },
 
         Judg_mentKind::FreeVar(_) => {
             panic!("we shouldn't see a FreeVar at this stage!")
         }
+        Judg_mentKind::Ffi(_, _) => {
+            panic!("we don't support this right now, Frank will do it!")
+        }
     };
     // dbg!(ctx_copy, judg_ment, &result);
+    unsafe {
+        if Judgment::contains_free_var(&result.0, std::mem::transmute::<u32, VarUuid>(15)) {
+            // dbg!(&result.0);
+        }
+    }
     Ok(result)
 }
 
@@ -572,40 +644,39 @@ pub enum UiBinaryOp {
 }
 
 impl Primitive for UiPrim {
-    fn type_of<S: Metadata>(&self) -> Judgment<Self, S> {
+    fn maybe_prim_type<S: Metadata>(&self) -> Option<Judgment<Self, S>> {
         use xi_proc_macro::term;
         use UiPrim::*;
         match self {
-            StringType => Judgment::u(None),
-            StringElem(_) => Judgment::prim(UiPrim::StringType, None),
-            NumberType => Judgment::u(None),
-            NumberElem(_) => Judgment::prim(UiPrim::NumberType, None),
-            IOMonad => term!(U -> U),
+            StringType => Some(Judgment::u(None)),
+            StringElem(_) => Some(Judgment::prim_wo_prim_type(UiPrim::StringType, None)),
+            NumberType => Some(Judgment::u(None)),
+            NumberElem(_) => Some(Judgment::prim_wo_prim_type(UiPrim::NumberType, None)),
+            IOMonad => Some(term!(U -> U)),
             IOBind => {
-                term!(Pi |A : U, B : U| [IOMonad] A -> (A -> [IOMonad] B) -> [IOMonad] B)
+                Some(term!(Pi |A : U, B : U| [IOMonad] A -> (A -> [IOMonad] B) -> [IOMonad] B))
             }
-            IOPure => {
-                term!(Pi |T : U| T -> [IOMonad] T)
+            IOPure => Some(term!(Pi |T : U| T -> [IOMonad] T)),
+            NumberType => Some(term!(U)),
+            Binary(operator) => {
+                let result = match operator {
+                    UiBinaryOp::And => todo!(),
+                    UiBinaryOp::Or => todo!(),
+                    UiBinaryOp::Equal => todo!(),
+                    UiBinaryOp::NotEqual => todo!(),
+                    UiBinaryOp::LessThan => todo!(),
+                    UiBinaryOp::LessThanEqual => todo!(),
+                    UiBinaryOp::GreaterThan => todo!(),
+                    UiBinaryOp::GreaterThanEqual => todo!(),
+                    UiBinaryOp::Plus => term!([NumberType] -> [NumberType] -> [NumberType]),
+                    UiBinaryOp::Minus => term!([NumberType] -> [NumberType] -> [NumberType]),
+                    UiBinaryOp::Multiply => term!([NumberType] -> [NumberType] -> [NumberType]),
+                    UiBinaryOp::Divide => term!([NumberType] -> [NumberType] -> [NumberType]),
+                    UiBinaryOp::Modulo => term!([NumberType] -> [NumberType] -> [NumberType]),
+                };
+                Some(result)
             }
-            NumberType => {
-                term!(U)
-            }
-            Binary(operator) => match operator {
-                UiBinaryOp::And => todo!(),
-                UiBinaryOp::Or => todo!(),
-                UiBinaryOp::Equal => todo!(),
-                UiBinaryOp::NotEqual => todo!(),
-                UiBinaryOp::LessThan => todo!(),
-                UiBinaryOp::LessThanEqual => todo!(),
-                UiBinaryOp::GreaterThan => todo!(),
-                UiBinaryOp::GreaterThanEqual => todo!(),
-                UiBinaryOp::Plus => term!([NumberType] -> [NumberType] -> [NumberType]),
-                UiBinaryOp::Minus => term!([NumberType] -> [NumberType] -> [NumberType]),
-                UiBinaryOp::Multiply => term!([NumberType] -> [NumberType] -> [NumberType]),
-                UiBinaryOp::Divide => term!([NumberType] -> [NumberType] -> [NumberType]),
-                UiBinaryOp::Modulo => term!([NumberType] -> [NumberType] -> [NumberType]),
-            },
-            Ffi(_, _) => panic!("ffi is not supported lol"),
+            Ffi(_, _) => None,
         }
     }
 }
@@ -619,11 +690,13 @@ pub fn to_judgment(
     if !resps.is_empty() {
         panic!("we shouldn't have any type variables left");
     }
-
+    // dbg!(&judgment_with_type_var);
     Ok(
-        judgment_with_type_var.define_prim(Rc::new(|type_var_prim| match type_var_prim {
-            TypeVarPrim::TypeVar(_) => unreachable!("resps should be empty"),
-            TypeVarPrim::Prim(prim) => Judgment::prim(prim, None),
+        judgment_with_type_var.define_prim(Rc::new(|type_var_prim, prim_type, define_prim| {
+            match type_var_prim {
+                TypeVarPrim::TypeVar(_) => unreachable!("resps should be empty"),
+                TypeVarPrim::Prim(prim) => Judgment::prim(prim, define_prim(prim_type), None),
+            }
         })),
     )
 }
@@ -635,15 +708,19 @@ pub enum TypeVarPrim {
 }
 
 impl Primitive for TypeVarPrim {
-    fn type_of<S: Metadata>(&self) -> Judgment<Self, S> {
-        match self {
-            TypeVarPrim::TypeVar(type_var) => type_var
-                .type_of()
-                .define_prim(Rc::new(|s| Judgment::prim(TypeVarPrim::TypeVar(s), None))),
-            TypeVarPrim::Prim(type_var) => type_var
-                .type_of()
-                .define_prim(Rc::new(|s| Judgment::prim(TypeVarPrim::Prim(s), None))),
-        }
+    fn maybe_prim_type<S: Metadata>(&self) -> Option<Judgment<Self, S>> {
+        let ans = match self {
+            TypeVarPrim::TypeVar(type_var) => Judgment::u(None),
+            TypeVarPrim::Prim(type_var) => match type_var.maybe_prim_type() {
+                None => {
+                    return None;
+                }
+                Some(prim_type) => prim_type.define_prim(Rc::new(|t, prim_type, define_prim| {
+                    Judgment::prim(TypeVarPrim::Prim(t), define_prim(prim_type), None)
+                })),
+            },
+        };
+        Some(ans)
     }
 }
 
@@ -695,33 +772,71 @@ mod test {
         //     // this lands in Judgment<UiPrim, Metadata>
         // }
 
-        // // This is good!
-        // let text1 = "fn f |x| {val x}  val f 5";
-        // dbg!(crate::frontend(text1));
+        // This is good! For > and >=
+        let text1 = "fn f |x| {val x}  val f 5";
+        dbg!(crate::frontend(text1));
 
-        // // This is good!
-        // let text2 = "fn f |x : Int| -> Int {val x}
-        // fn g |x| {val f x}
-        // val g 5";
-        // dbg!(crate::frontend(text2));
+        // This is good! For > and > =
+        let text2 = "fn f |x : Int| -> Int {val x}
+        fn g |x| {val f x}
+        val g 5";
+        dbg!(crate::frontend(text2));
 
-        // // This is also good!
-        // let text3 = "fn f |x| -> Int {val x}
-        // val 4";
-        // dbg!(crate::frontend(text3));
+        // This is also good! for both
+        let text3 = "fn f |x| -> Int {val x}
+        val 4";
+        dbg!(crate::frontend(text3));
 
-        // This is also good!
-        // let text4 = "fn f |x: Int| {val x}
-        // val 4";
-        // dbg!(crate::frontend(text4));
+        //This is also good! FOr > and >=
+        let text4 = "fn f |x: Int| {val x}
+        val 4";
+        dbg!(crate::frontend(text4));
 
-        // This is also good!
-        // let text5 = "let id : Pi |T : Type| T -> T -> T = lambda |T : Type, t1 : T, t2 : T| t2
-        // val 4";
-        // dbg!(crate::frontend(text5));
+        //This works now. for >= line 84
+        let text5 = "val lambda |T : Type, t : T| t
+        ";
+        dbg!(crate::frontend(text5));
 
+        //This is not good!
         let text6 = " fn test |T : Type, t : T| { let id = lambda |x| x val id t }
         val 4";
         dbg!(crate::frontend(text6));
+
+        let text7 = "let id = lambda |T : Type, t : T| t
+
+        val 5";
+        dbg!(crate::frontend(text7));
+    }
+
+    #[test]
+    fn program2_test() {
+        let text = "
+        ffi \"./some_file.js\"{
+            UnitType : Type,
+            unit : UnitType,
+            console_output: String -> IO UnitType,
+        }
+        let me = console_output(\"hello\")!
+        val unit!
+        ";
+        // let text = "
+
+        // ffi \"./some_file.js\"{
+        //     five : String,
+        //     console_output: String -> IO String,
+        // }
+
+        // let me = console_output(\"hello\")!
+        // val five!
+        // ";
+        // let text = "
+
+        // ffi \"./some_file.js\"{
+        //     UnitType : Type,
+        //     unit : UnitType,
+        // }
+        // val unit
+        // ";
+        dbg!(crate::frontend(text));
     }
 }

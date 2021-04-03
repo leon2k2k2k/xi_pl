@@ -28,7 +28,7 @@ pub use crate::resolve::Span;
 //     pub span : Span,
 // }
 
-
+///////// Note that no freevars are getting binded in desugar.
 #[derive(Clone)]
 pub struct Judg_ment<T, S>(pub Box<Judg_mentKind<T, S>>, pub S);
 
@@ -36,52 +36,14 @@ pub struct Judg_ment<T, S>(pub Box<Judg_mentKind<T, S>>, pub S);
 pub enum Judg_mentKind<T, S> {
     Type,
     Prim(T),
-    BoundVar(u32),
     FreeVar(VarUuid),
-    Pi(Option<Judg_ment<T, S>>, Judg_ment<T, S>),
-    Lam(Option<Judg_ment<T, S>>, Judg_ment<T, S>),
+    Pi(VarUuid, Option<Judg_ment<T, S>>, Judg_ment<T, S>),
+    Lam(VarUuid, Option<Judg_ment<T, S>>, Judg_ment<T, S>),
     App(Judg_ment<T, S>, Judg_ment<T, S>),
     Bind(Judg_ment<T, S>, Judg_ment<T, S>),
     Pure(Judg_ment<T, S>),
-    Ffi(String, String),
 }
 
-impl <T, S>Judg_ment<T, S> {
-    fn rebind(expr: Judg_ment<T, S>, free_var : VarUuid) -> Judg_ment<T, S> {
-        fn rebind_rec<T, S>(expr : Judg_ment<T, S>,  free_var: VarUuid, depth : u32) -> Judg_ment<T, S>{
-            use Judg_mentKind::*;
-            let result_tree = match *expr.0 {
-                Type => Type,
-                BoundVar(var) => BoundVar(var),
-                FreeVar(index) => if index == free_var {
-                    BoundVar(depth)
-                } else {
-                    FreeVar(index)
-                },
-                Pi(var_type, body) => {
-                    Pi(var_type.map(|var_type| rebind_rec(var_type, free_var, depth )), rebind_rec(body, free_var, depth + 1))
-                }
-                Lam(var_type, body) => {
-                    Lam(var_type.map(|var_type| rebind_rec(var_type, free_var, depth )), rebind_rec(body, free_var, depth + 1))
-                }
-                App(lhs, rhs) => {
-                    App(rebind_rec(lhs, free_var, depth), rebind_rec(rhs, free_var, depth))
-                }
-                Bind(lhs, rhs) => {
-                    Bind(rebind_rec(lhs, free_var, depth), rebind_rec(rhs, free_var, depth))
-                }
-                Pure(arg) => {
-                    Pure(rebind_rec(arg, free_var, depth))
-                }
-                Prim(prim) => {Prim(prim)}
-                Ffi(lib, func_name) => {Ffi(lib, func_name)}
-            };
-        Judg_ment(Box::new(result_tree), expr.1)
-        }
-        rebind_rec(expr, free_var, 0)
-    }
-    
-}
 
 impl Judg_ment<UiPrim, UiMetadata> {
     fn u() -> Judg_ment<UiPrim, UiMetadata> {
@@ -92,24 +54,24 @@ impl Judg_ment<UiPrim, UiMetadata> {
         Judg_ment(Box::new(Judg_mentKind::Prim(prim)), UiMetadata{})
     }
     
-    fn app(lhs : Judg_ment<UiPrim, UiMetadata>, rhs : Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::App(lhs, rhs)), UiMetadata{})
+    fn app(func: Judg_ment<UiPrim, UiMetadata>, arg: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
+        Judg_ment(Box::new(Judg_mentKind::App(func, arg)), UiMetadata{})
     }
 
-    fn bind(lhs : Judg_ment<UiPrim, UiMetadata>, rhs : Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Bind(lhs, rhs)), UiMetadata{})
+    fn bind(ma : Judg_ment<UiPrim, UiMetadata>, a_to_mb : Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
+        Judg_ment(Box::new(Judg_mentKind::Bind(ma, a_to_mb)), UiMetadata{})
     }
 
-    fn pure(lhs : Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Pure(lhs)), UiMetadata{})
+    fn pure(a : Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
+        Judg_ment(Box::new(Judg_mentKind::Pure(a)), UiMetadata{})
     }
 
-    fn lam(lhs : Option<Judg_ment<UiPrim, UiMetadata>>, rhs : Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Lam(lhs, rhs)), UiMetadata{})
+    fn lam(var : VarUuid, var_type: Option<Judg_ment<UiPrim, UiMetadata>>, expr: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
+        Judg_ment(Box::new(Judg_mentKind::Lam(var, var_type, expr)), UiMetadata{})
     }
 
-    fn pi(lhs : Option<Judg_ment<UiPrim, UiMetadata>>, rhs : Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Pi(lhs, rhs)), UiMetadata{})
+    fn pi(var : VarUuid, var_type: Option<Judg_ment<UiPrim, UiMetadata>>, expr: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
+        Judg_ment(Box::new(Judg_mentKind::Pi(var, var_type, expr)), UiMetadata{})
     }
 }
 
@@ -130,16 +92,15 @@ impl Context {
             StmtKind::Let(var, expr) => {
                 if let ExprKind::Bang(expr1) = &*expr.0 {
                     let bind_arg = self.desugar_expr(&expr1);
-                    let rest = Judg_ment::rebind(self.desugar_stmt_vec(stmt_rest), var.index);
+                    let rest = self.desugar_stmt_vec(stmt_rest);
 
 
-                    let rest_kind = Judg_ment::lam(var.var_type.clone().map(|var_type| self.desugar_expr(&var_type)), rest);
+                    let rest_kind = Judg_ment::lam(var.index, var.var_type.clone().map(|var_type| self.desugar_expr(&var_type)), rest);
                     Judg_ment::bind(bind_arg, rest_kind)
                 } else {
                     let arg = self.desugar_expr(expr);
-                    dbg!(&arg);
-                    let rest = Judg_ment::rebind(self.desugar_stmt_vec(stmt_rest), var.index);
-                    let rest_kind = Judg_ment::lam(var.var_type.clone().map(|var_type| self.desugar_expr(&var_type)), rest);
+                    let rest = self.desugar_stmt_vec(stmt_rest);
+                    let rest_kind = Judg_ment::lam(var.index, var.var_type.clone().map(|var_type| self.desugar_expr(&var_type)), rest);
 
                     Judg_ment::app(
                         rest_kind, arg
@@ -158,7 +119,7 @@ impl Context {
 
                 for var in vars {
                     // let result_span = result.1;
-                    let func = Judg_ment::lam(Some(self.desugar_expr(&var.var_type.unwrap())), Judg_ment::rebind(result, var.index));
+                    let func = Judg_ment::lam(var.index, Some(self.desugar_expr(&var.var_type.unwrap())), result);
                     // let func = Judg_ment(Box::new(func_kind), UiMetadata{});
                     // let ffi_kind = Judg_mentKind::Ffi(file_name.clone(), var.name.clone());
                     // let ffi = Judg_ment(Box::new(ffi_kind), UiMetadata{});
@@ -220,7 +181,8 @@ impl Context {
                 Judg_ment::app(self.desugar_expr(&func), self.desugar_expr(&elem))
             }
             ExprKind::Fun(source, target) => {
-                Judg_ment::pi(Some(self.desugar_expr(&source)), self.desugar_expr(&target))
+                let var = VarUuid::new();
+                Judg_ment::pi(var, Some(self.desugar_expr(&source)), self.desugar_expr(&target))
             }
             ExprKind::Lam(binders, lam_expr) => {
                 let var_list = &binders.0;
@@ -230,7 +192,7 @@ impl Context {
 
                 for var in var_list.iter().rev() {
                     let var_type = var.var_type.clone().map(|var_type| self.desugar_expr(&var_type));
-                    result = Judg_ment::lam(var_type, Judg_ment::rebind(result, var.index));
+                    result = Judg_ment::lam(var.index, var_type, result);
                 }
                 result
 
@@ -243,7 +205,7 @@ impl Context {
 
                 for var in var_list.iter().rev() {
                     let var_type = var.var_type.clone().map(|var_type| self.desugar_expr(&var_type));
-                    result = Judg_ment::pi(var_type, Judg_ment::rebind(result, var.index));
+                    result = Judg_ment::pi(var.index, var_type, result);
                 }
                 result
             }
@@ -287,11 +249,10 @@ impl <T : std::fmt::Debug + Clone, S : std::fmt::Debug + Clone>std::fmt::Debug f
         match &*self.0 {
             Judg_mentKind::Type => f.write_str("Type")?,
             Judg_mentKind::Prim(prim) => f.write_str(&format!("{:?}", prim))?,
-            Judg_mentKind::BoundVar(var) => f.write_str(&format!("bv{:?}", var))?,
-            Judg_mentKind::FreeVar(var) => f.write_str(&format!("fv{:?}", var))?,
-            Judg_mentKind::Pi(var_type, body) => {
+            Judg_mentKind::FreeVar(index) => f.write_str(&format!("v{:?}", index.index()))?,
+            Judg_mentKind::Pi(index, var_type, body) => {
                 f.write_str("Pi |")?;
-                // f.write_str()?;
+                f.write_str(&format!("v{:?} : ", index.index()))?;
                 let type_str = match var_type {
                     Some(var_type) => format!("{:?}", var_type),
                     None => "Unknown".into(),
@@ -300,8 +261,9 @@ impl <T : std::fmt::Debug + Clone, S : std::fmt::Debug + Clone>std::fmt::Debug f
                 f.write_str("| ")?;
                 f.write_str(&format!("{:?}", body))?;
             }
-            Judg_mentKind::Lam(var_type, body) => {
+            Judg_mentKind::Lam(index, var_type, body) => {
                 f.write_str("Lam |")?;
+                f.write_str(&format!("v{} : ", index.index()))?;
                 let type_str = match var_type {
                     Some(var_type) => format!("{:?}", var_type),
                     None => "Unknown".into(),
@@ -319,9 +281,6 @@ impl <T : std::fmt::Debug + Clone, S : std::fmt::Debug + Clone>std::fmt::Debug f
             Judg_mentKind::Pure(arg) => {
                 f.write_str(&format!("(Pure {:?})", arg))?;
             }
-            Judg_mentKind::Ffi(file_name, func_name) => {
-                f.write_str(&format!("(ffi {:?}, {:?})", file_name, func_name ))?;
-            }
         }
         Ok(())
     }
@@ -331,16 +290,31 @@ mod test {
     #[test]
     fn test_de_sugar() {
         use super::*;
+        use crate::desugar::source_file_to_judg_ment;
+        use resolve::parse_source_file;
+        use crate::rowan_ast::{string_to_syntax};
+        use crate::type_inference::{ UiMetadata, UiPrim};
+        fn text_to_judg_ment(text : &str) -> Judg_ment<UiPrim, UiMetadata>{
+            let syntax_node = string_to_syntax(text);
+            // dbg!(&syntax_node);
+            // syntax_node is the rowan tree level
+            let source_file = parse_source_file(&syntax_node);
+            // dbg!(&source_file);
+            // source_file is at the name resolution level
+            let judg_ment = source_file_to_judg_ment(source_file);
+            // judg_ment is at the desugar level.
+            judg_ment
+        }
         // let text = "fn foo |x : Type| -> Type { val x}
         // val foo
         // ";
         // let judg_ment = text_to_judg_ment(text);
         // dbg!(judg_ment);
 
-        // let text2 = "fn foo |x| {val x}
-        // val foo (Pi |y: Type| y)";
-        // let judg_ment2 = text_to_judg_ment(text2);
-        // dbg!(judg_ment2);
+        let text2 = "fn foo |x| {val x}
+        val foo (Pi |y: Type| y)";
+        let judg_ment2 = text_to_judg_ment(text2);
+        dbg!(judg_ment2);
 
         // let text3 = "let in = console_input!
         // let y = console_output(in)!
@@ -348,20 +322,20 @@ mod test {
         // let judg_ment3 = text_to_judg_ment(text3);
         // dbg!(judg_ment3);
 
-        let ffi_text = "ffi \"some_file.js\"{
-            Int : Type,
-            five : Int,
-            six : Int,
-            add : Int -> Int -> Int,
-            int_to_string : Int -> String 
-        }
+        // let ffi_text = "ffi \"some_file.js\"{
+        //     Int : Type,
+        //     five : Int,
+        //     six : Int,
+        //     add : Int -> Int -> Int,
+        //     int_to_string : Int -> String 
+        // }
         
-        let ans = add five six
-        let better_ans = add ans six
-        let even_better_ans = int_to_string(better_ans)
+        // let ans = add five six
+        // let better_ans = add ans six
+        // let even_better_ans = int_to_string(better_ans)
         
-        do console_output(even_better_ans)!
-        val unit!";
+        // do console_output(even_better_ans)!
+        // val unit!";
 
         // let judg_ment = frontend(ffi_text);
         // dbg!(judg_ment);

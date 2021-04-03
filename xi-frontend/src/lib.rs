@@ -1,6 +1,6 @@
 use desugar::source_file_to_judg_ment;
 use resolve::parse_source_file;
-use rowan_ast::{string_to_syntax, to_tree};
+use rowan_ast::string_to_syntax;
 use type_inference::{to_judgment, TypeError, UiMetadata, UiPrim};
 use xi_core::judgment::Judgment;
 
@@ -25,7 +25,7 @@ pub fn frontend(text: &str) -> Result<Judgment<UiPrim, UiMetadata>, TypeError> {
 }
 
 mod test {
-    use crate::frontend;
+    // use crate::frontend;
 
     // #[test]
     // fn test_ffi() {

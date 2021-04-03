@@ -1,17 +1,17 @@
 use std::rc::Rc;
 
-use xi_backend::js_prim::JsPrim;
 use xi_backend::runtime::RUNTIME_FILE;
+use xi_backend::{js_prim::JsPrim, output::JsMetadata};
 use xi_core::judgment::{Judgment, Primitive};
 use xi_frontend::type_inference::{UiMetadata, UiPrim};
 use xi_uuid::VarUuid;
 
-pub fn front_to_back(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim, UiMetadata> {
+pub fn front_to_back(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim, JsMetadata> {
     // In the backend, make some primitive function to FFIs.
     fn make_ffi(
         name: &str,
-        var_type: Judgment<JsPrim, UiMetadata>,
-    ) -> Judgment<JsPrim, UiMetadata> {
+        var_type: Judgment<JsPrim, JsMetadata>,
+    ) -> Judgment<JsPrim, JsMetadata> {
         let runtime = RUNTIME_FILE.into();
         let ffi = JsPrim::Ffi(runtime, name.into());
 
@@ -31,8 +31,10 @@ pub fn front_to_back(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim, Ui
 
     let io_monad = make_ffi("IO", term!(U -> U));
 
-    front.define_prim(Rc::new(
-        move |s, prim_type, define_prim| -> Judgment<JsPrim, UiMetadata> {
+    let changed_metadata = front.cast_metadata(Rc::new(|_: UiMetadata| JsMetadata()));
+
+    changed_metadata.define_prim(Rc::new(
+        move |s, prim_type, define_prim| -> Judgment<JsPrim, JsMetadata> {
             match s {
                 UiPrim::IOMonad => io_monad.clone(),
                 UiPrim::IOBind => make_ffi(

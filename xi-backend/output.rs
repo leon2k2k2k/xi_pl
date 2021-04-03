@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{collections::BTreeMap, rc::Rc};
 use swc_common::{FilePathMapping, SourceMap, DUMMY_SP};
 use swc_ecma_ast::{
     ArrowExpr, BigInt, BindingIdent, BlockStmtOrExpr, CallExpr, Expr, ExprOrSpread, ExprOrSuper,
@@ -6,17 +6,20 @@ use swc_ecma_ast::{
     ModuleDecl, ModuleItem, ParenExpr, Pat, Stmt, Str,
 };
 use swc_ecma_codegen::{text_writer::JsWriter, Config, Emitter};
-use xi_core::judgment::{Judgment, JudgmentKind, Primitive};
-use xi_frontend::type_inference::UiMetadata;
+use xi_core::judgment::{Judgment, JudgmentKind, Metadata};
 use xi_uuid::VarUuid;
 
 use crate::js_prim::JsPrim;
 
-pub fn to_js_program(judgment: Judgment<JsPrim, UiMetadata>) -> String {
+#[derive(Clone, PartialEq, Eq, Default, Debug)]
+pub struct JsMetadata();
+
+impl Metadata for JsMetadata {}
+pub fn to_js_program(judgment: Judgment<JsPrim, JsMetadata>) -> String {
     let mut ffi_functions = vec![];
     let stmt = Stmt::Expr(ExprStmt {
         span: DUMMY_SP,
-        expr: Box::new(to_js(&judgment, vec![], &mut ffi_functions)),
+        expr: Box::new(to_js(&judgment, BTreeMap::new(), &mut ffi_functions)),
     });
 
     // dbg!(&stmt);
@@ -85,50 +88,58 @@ pub fn to_js_program(judgment: Judgment<JsPrim, UiMetadata>) -> String {
     std::str::from_utf8(output_buf.as_slice()).unwrap().into()
 }
 
-fn make_var_name(ctx: &Vec<Ident>) -> Ident {
-    to_js_ident2(format!("var_{}", ctx.len()))
+fn make_var_name(index: VarUuid) -> Ident {
+    to_js_ident2(format!("var_{}", index.index()))
 }
 
 fn to_js(
-    judgment: &Judgment<JsPrim, UiMetadata>,
-    ctx: Vec<Ident>,
+    judgment: &Judgment<JsPrim, JsMetadata>,
+    ctx: BTreeMap<VarUuid, Ident>,
     ffi: &mut Vec<(String, String)>,
 ) -> Expr {
-    match &judgment.tree {
+    match &*judgment.tree {
         JudgmentKind::Type => to_js_str_u(),
         JudgmentKind::Prim(t, _prim_type) => JsPrim::to_js_prim(&t, ffi),
         JudgmentKind::FreeVar(var_index, _var_type) => {
-            panic!("we shouldn't have freevars!!");
+            match ctx.get(var_index) {
+                Some(ident) => to_js_ident1(ident.clone()),
+                None => {
+                    unreachable!("this means that we have a loose free variable")
+                }
+            }
             // let metadata = judgment.metadata.ffi.clone().unwrap();
             // ffi.push((*var_index, metadata));
             // to_js_ident(format!("ffi{}", var_index.index()))
         }
         JudgmentKind::Pi(_, _) => to_js_str_pi(),
-        JudgmentKind::Lam(_var_type, body) => {
-            let var_name = make_var_name(&ctx);
+        JudgmentKind::Lam(_var_type, sexpr) => {
+            let (index, expr) = sexpr.clone().unbind();
+            let var_name = make_var_name(index);
+
             to_js_lam(
                 swc_ecma_ast::BlockStmtOrExpr::Expr(Box::new(to_js(
-                    &*body,
-                    add_to_ctx(ctx, var_name.clone()),
+                    &expr,
+                    add_to_ctx(ctx, index, &var_name.clone()),
                     ffi,
                 ))),
                 vec![var_name],
             )
         }
-        JudgmentKind::BoundVar(index, _var_type) => {
-            to_js_ident1(ctx[ctx.len() - 1 - *index as usize].clone())
+        JudgmentKind::BoundVar(_, _var_type) => {
+            // to_js_ident1(ctx[ctx.len() - 1 - *index as usize].clone())
+            unreachable!("we use unbind so should never see a BoundVar")
         }
-        JudgmentKind::Application(func, arg) => to_js_app(
+        JudgmentKind::App(func, arg) => to_js_app(
             to_js(&*func, ctx.clone(), ffi),
             vec![to_js(&*arg, ctx, ffi)],
         ),
     }
 }
 
-fn add_to_ctx<T: Clone>(v: Vec<T>, t: T) -> Vec<T> {
-    let mut v2 = v.clone();
-    v2.push(t);
-    v2
+fn add_to_ctx<T: Ord, U: Clone>(v: BTreeMap<T, U>, index: T, x: &U) -> BTreeMap<T, U> {
+    let mut v = v;
+    v.insert(index, x.clone());
+    v
 }
 
 fn to_js_lam(body: BlockStmtOrExpr, var_names: Vec<Ident>) -> Expr {

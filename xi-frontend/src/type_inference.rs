@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::desugar::{Judg_ment, Judg_mentKind};
-use crate::resolve::ResolvePrim;
-use rowan::TextRange;
+// use crate::resolve::ResolvePrim;
+// use rowan::TextRange;
 use xi_core::judgment::{Judgment, JudgmentKind, Metadata, Primitive};
 use xi_uuid::VarUuid;
 
@@ -27,91 +27,89 @@ impl Primitive for TypeVar {
 
 #[derive(Clone, Debug)]
 pub struct Context {
-    var_map: Vec<TypeVar>,
-    rebind_map: Vec<VarUuid>,
+    var_map: BTreeMap<VarUuid, TypeVar>,
     constraints: BTreeMap<TypeVar, Judgment<TypeVarPrim, UiMetadata>>,
 }
 
 impl Context {
     fn new() -> Context {
         Context {
-            var_map: vec![],
-            rebind_map: vec![],
+            var_map: BTreeMap::new(),
             constraints: BTreeMap::new(),
         }
     }
 
-    fn contains_free_var(&self, var: VarUuid) -> bool {
-        for (type_var, constraint) in &self.constraints {
-            if Judgment::contains_free_var(&*constraint, var) {
-                return true;
-            }
-        }
+    // fn contains_free_var(&self, var: VarUuid) -> bool {
+    //     for (type_var, constraint) in &self.constraints {
+    //         if Judgment::contains_free_var(&*constraint, var) {
+    //             return true;
+    //         }
+    //     }
 
-        return false;
-    }
+    //     return false;
+    // }
 
-    fn replace_with_free_var(
-        &self,
-        expr: Judgment<TypeVarPrim, UiMetadata>,
-    ) -> Judgment<TypeVarPrim, UiMetadata> {
-        fn replace_with_free_var_rec(
-            expr: Judgment<TypeVarPrim, UiMetadata>,
-            depth: u32,
-            ctx: &Context,
-        ) -> Judgment<TypeVarPrim, UiMetadata> {
-            let result_tree = match expr.tree {
-                JudgmentKind::Type => JudgmentKind::Type,
-                JudgmentKind::Prim(prim, prim_type) => JudgmentKind::Prim(
-                    prim,
-                    Box::new(replace_with_free_var_rec(*prim_type, depth, ctx)),
-                ),
-                JudgmentKind::FreeVar(var, var_type) => JudgmentKind::FreeVar(
-                    var,
-                    Box::new(replace_with_free_var_rec(*var_type, depth, ctx)),
-                ),
-                JudgmentKind::Pi(var_type, expr) => {
-                    let new_var_type = replace_with_free_var_rec(*var_type, depth, ctx);
-                    // dbg!(&ctx);
-                    // dbg!(&expr);
-                    let new_expr = replace_with_free_var_rec(*expr, depth + 1, ctx);
-                    JudgmentKind::Pi(Box::new(new_var_type), Box::new(new_expr))
-                }
-                JudgmentKind::Lam(var_type, expr) => {
-                    let new_var_type = replace_with_free_var_rec(*var_type, depth, ctx);
-                    let new_expr = replace_with_free_var_rec(*expr, depth + 1, ctx);
-                    JudgmentKind::Lam(Box::new(new_var_type), Box::new(new_expr))
-                }
-                JudgmentKind::BoundVar(index, var_type) => {
-                    if index >= depth {
-                        dbg!(&ctx);
-                        dbg!(&index);
-                        JudgmentKind::FreeVar(
-                            ctx.rebind_map[ctx.rebind_map.len() - 1 - depth as usize],
-                            Box::new(replace_with_free_var_rec(*var_type, depth, ctx)),
-                        )
-                    } else {
-                        JudgmentKind::BoundVar(
-                            index,
-                            Box::new(replace_with_free_var_rec(*var_type, depth, ctx)),
-                        )
-                    }
-                }
-                JudgmentKind::Application(func, arg) => {
-                    let new_func = replace_with_free_var_rec(*func, depth, ctx);
-                    let new_arg = replace_with_free_var_rec(*arg, depth, ctx);
-                    JudgmentKind::Application(Box::new(new_func), Box::new(new_arg))
-                }
-            };
+    // fn replace_with_free_var(
+    //     &self,
+    //     expr: Judgment<TypeVarPrim, UiMetadata>,
+    // ) -> Judgment<TypeVarPrim, UiMetadata> {
+    //     fn replace_with_free_var_rec(
+    //         expr: Judgment<TypeVarPrim, UiMetadata>,
+    //         depth: u32,
+    //         ctx: &Context,
+    //     ) -> Judgment<TypeVarPrim, UiMetadata> {
+    //         let result_tree = match expr.tree {
+    //             JudgmentKind::Type => JudgmentKind::Type,
+    //             JudgmentKind::Prim(prim, prim_type) => JudgmentKind::Prim(
+    //                 prim,
+    //                 Box::new(replace_with_free_var_rec(*prim_type, depth, ctx)),
+    //             ),
+    //             JudgmentKind::FreeVar(var, var_type) => JudgmentKind::FreeVar(
+    //                 var,
+    //                 Box::new(replace_with_free_var_rec(*var_type, depth, ctx)),
+    //             ),
+    //             JudgmentKind::Pi(var_type, expr) => {
+    //                 let new_var_type = replace_with_free_var_rec(*var_type, depth, ctx);
+    //                 // dbg!(&ctx);
+    //                 // dbg!(&expr);
+    //                 let new_expr = replace_with_free_var_rec(*expr, depth + 1, ctx);
+    //                 JudgmentKind::Pi(Box::new(new_var_type), Box::new(new_expr))
+    //             }
+    //             JudgmentKind::Lam(var_type, expr) => {
+    //                 let new_var_type = replace_with_free_var_rec(*var_type, depth, ctx);
+    //                 let new_expr = replace_with_free_var_rec(*expr, depth + 1, ctx);
+    //                 JudgmentKind::Lam(Box::new(new_var_type), Box::new(new_expr))
+    //             }
+    //             JudgmentKind::BoundVar(index, var_type) => {
+    //                 if index >= depth {
+    //                     dbg!(&ctx);
+    //                     dbg!(&index);
+    //                     JudgmentKind::FreeVar(
+    //                         ctx.rebind_map[ctx.rebind_map.len() - 1 - depth as usize],
+    //                         Box::new(replace_with_free_var_rec(*var_type, depth, ctx)),
+    //                     )
+    //                 } else {
+    //                     JudgmentKind::BoundVar(
+    //                         index,
+    //                         Box::new(replace_with_free_var_rec(*var_type, depth, ctx)),
+    //                     )
+    //                 }
+    //             }
+    //             JudgmentKind::App(func, arg) => {
+    //                 let new_func = replace_with_free_var_rec(*func, depth, ctx);
+    //                 let new_arg = replace_with_free_var_rec(*arg, depth, ctx);
+    //                 JudgmentKind::App(Box::new(new_func), Box::new(new_arg))
+    //             }
+    //         };
 
-            Judgment {
-                tree: result_tree,
-                metadata: expr.metadata,
-            }
-        }
+    //         Judgment {
+    //             tree: result_tree,
+    //             metadata: expr.metadata,
+    //         }
+    //     }
 
-        replace_with_free_var_rec(expr, 0, self)
-    }
+    //     replace_with_free_var_rec(expr, 0, self)
+    // }
 
     // some way of replacing greek letters with things
     fn add_constraint(
@@ -119,10 +117,11 @@ impl Context {
         type_var: TypeVar,
         replacement: Judgment<TypeVarPrim, UiMetadata>,
     ) -> Result<(), TypeError> {
-        let replacement = self.replace_with_free_var(replacement);
         let result = match self.constraints.get(&type_var) {
             Some(result) => {
                 let result = result.clone();
+                dbg!(&result);
+                dbg!(&replacement);
                 self.unify(&result, &replacement)?
             }
             None => replacement,
@@ -197,41 +196,44 @@ impl Context {
         lhs: &Judgment<TypeVarPrim, UiMetadata>,
         rhs: &Judgment<TypeVarPrim, UiMetadata>,
     ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
-        // dbg!(&lhs);
-        // dbg!(&rhs);
-        // // dbg!(&self);
+        dbg!(&lhs);
+        dbg!(&rhs);
+        dbg!(&self);
         // dbg!("");
         let lhs = lhs.clone();
         let rhs = rhs.clone();
 
-        if let JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), prim_type) = &lhs.tree {
+        if let JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), prim_type) = &*lhs.tree {
             self.add_constraint(*type_var, rhs.clone())?;
             return Ok(rhs);
         }
-        if let JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), prim_type) = &rhs.tree {
+        if let JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), prim_type) = &*rhs.tree {
             self.add_constraint(*type_var, lhs.clone())?;
             return Ok(lhs);
         }
 
-        let result = match (&lhs.tree, &rhs.tree) {
+        let result = match (&*lhs.tree, &*rhs.tree) {
             (JudgmentKind::Type, JudgmentKind::Type) => Judgment::u(None),
             (JudgmentKind::FreeVar(index1, var_type), JudgmentKind::FreeVar(index2, _))
                 if index1 == index2 =>
             {
-                Judgment::free(*index1, *var_type.clone(), None)
+                Judgment::free(*index1, var_type.clone(), None)
             }
 
             (
                 JudgmentKind::Prim(TypeVarPrim::Prim(prim1), prim_type1),
                 JudgmentKind::Prim(TypeVarPrim::Prim(prim2), prim_type2),
             ) if prim1 == prim2 => {
-                Judgment::prim(TypeVarPrim::Prim(prim1.clone()), *prim_type1.clone(), None)
+                Judgment::prim(TypeVarPrim::Prim(prim1.clone()), prim_type1.clone(), None)
             }
 
-            (JudgmentKind::Pi(var_type1, expr1), JudgmentKind::Pi(var_type2, expr2)) => {
+            (JudgmentKind::Pi(var_type1, sexpr1), JudgmentKind::Pi(var_type2, sexpr2)) => {
+                let (index1, expr1) = sexpr1.clone().unbind();
+                let expr2 = sexpr2.clone().replace_free_var(index1);
+
                 Judgment::pi(
                     self.unify(&*var_type1, &*var_type2)?,
-                    self.unify(&*expr1, &*expr2)?,
+                    self.unify(&expr1, &expr2)?.bind(index1),
                     None,
                 )
             }
@@ -239,13 +241,11 @@ impl Context {
             (JudgmentKind::Lam(_, _), _) => {
                 panic!("our nbe lord has failed us, this is all over... here goes dongi")
             }
-            (JudgmentKind::BoundVar(index1, var_type), JudgmentKind::BoundVar(index2, _))
-                if index1 == index2 =>
-            {
-                Judgment::bound_var(*index1, *var_type.clone(), None)
+            (JudgmentKind::BoundVar(index1, var_type), _) => {
+                unreachable!();
             }
 
-            (JudgmentKind::Application(func1, elem1), JudgmentKind::Application(func2, elem2)) => {
+            (JudgmentKind::App(func1, elem1), JudgmentKind::App(func2, elem2)) => {
                 Judgment::app_unchecked(
                     self.unify(&*func1, &*func2)?,
                     self.unify(&*elem1, &*elem2)?,
@@ -318,7 +318,7 @@ impl Context {
             seen: &BTreeSet<TypeVar>,
         ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
             let metadata = judgment.metadata.clone();
-            let result = match &judgment.tree {
+            let result = match &*judgment.tree {
                 JudgmentKind::Type => Judgment::u(Some(metadata)),
                 JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), prim_type) => {
                     if seen.contains(&type_var) {
@@ -333,7 +333,7 @@ impl Context {
                         }
                         None => Judgment::prim(
                             TypeVarPrim::TypeVar(*type_var),
-                            *prim_type.clone(),
+                            prim_type.clone(),
                             Some(metadata),
                         ),
                     }
@@ -346,20 +346,26 @@ impl Context {
                 JudgmentKind::FreeVar(int, var_type) => {
                     Judgment::free(*int, substitute_rec(ctx, &var_type, seen)?, Some(metadata))
                 }
-                JudgmentKind::Pi(var_type, expr) => Judgment::pi(
-                    substitute_rec(ctx, &var_type, seen)?,
-                    substitute_rec(ctx, &expr, seen)?,
-                    Some(metadata),
-                ),
-                JudgmentKind::Lam(var_type, expr) => Judgment::lam(
-                    substitute_rec(ctx, &var_type, seen)?,
-                    substitute_rec(ctx, &expr, seen)?,
-                    Some(metadata),
-                ),
-                JudgmentKind::BoundVar(int, var_type) => {
-                    Judgment::bound_var(*int, substitute_rec(ctx, &var_type, seen)?, Some(metadata))
+                JudgmentKind::Pi(var_type, sexpr) => {
+                    let (index, expr) = sexpr.clone().unbind();
+                    Judgment::pi(
+                        substitute_rec(ctx, &var_type, seen)?,
+                        substitute_rec(ctx, &expr, seen)?.bind(index),
+                        Some(metadata),
+                    )
                 }
-                JudgmentKind::Application(func, arg) => Judgment::app_unchecked(
+                JudgmentKind::Lam(var_type, sexpr) => {
+                    let (index, expr) = sexpr.clone().unbind();
+                    Judgment::lam(
+                        substitute_rec(ctx, &var_type, seen)?,
+                        substitute_rec(ctx, &expr, seen)?.bind(index),
+                        Some(metadata),
+                    )
+                }
+                JudgmentKind::BoundVar(int, var_type) => {
+                    unreachable!();
+                }
+                JudgmentKind::App(func, arg) => Judgment::app_unchecked(
                     substitute_rec(ctx, &func, seen)?,
                     substitute_rec(ctx, &arg, seen)?,
                     Some(metadata),
@@ -385,21 +391,9 @@ pub fn type_infer(
 
     let ctx_copy = (*ctx).clone();
 
-    // dbg!(judg_ment.clone());
     let result: (Judgment<TypeVarPrim, UiMetadata>, Vec<TypeVar>) = match &*judg_ment.0 {
         Judg_mentKind::Type => (Judgment::u(None), vec![]),
-        Judg_mentKind::BoundVar(index) => {
-            // get the typevar corresponding to the Boundvar, then also look that up in the
-            let var_type =
-                ctx.lookup_type_var(&ctx.var_map[ctx.var_map.len() - 1 - *index as usize]);
-            // dbg!("========================");
-            // dbg!(&index);
-            // dbg!(&ctx);
-            // dbg!(&var_type);
-            let free_var_index = ctx.rebind_map[ctx.rebind_map.len() - 1 - *index as usize];
-            (Judgment::free(free_var_index, var_type, None), vec![])
-        }
-        Judg_mentKind::Pi(var_type, expr) => {
+        Judg_mentKind::Pi(index, var_type, expr) => {
             let type_var = TypeVar::new();
             let mut resps = vec![type_var];
 
@@ -409,10 +403,7 @@ pub fn type_infer(
                 ctx.add_constraint(type_var, inferred_type)?;
             }
 
-            ctx.var_map.push(type_var);
-            let rebind_var = VarUuid::new();
-            ctx.rebind_map.push(rebind_var);
-            // dbg!(&ctx);
+            ctx.var_map.insert(*index, type_var);
 
             let (expr, mut sub_resps) = type_infer(expr, ctx)?;
             resps.append(&mut sub_resps);
@@ -423,22 +414,19 @@ pub fn type_infer(
                 Judgment::u(None),
                 None,
             ))?;
-
-            // dbg!(&new_var_type);
             let new_expr = ctx.substitute(&expr)?;
-            // dbg!(&new_expr);
-            ctx.var_map.pop();
-            ctx.rebind_map.pop();
 
             // we check if a variable can be eliminated from the responsibility or not,
             // if it is, then we remove all occurences of it in the context and removes it.
             let new_resps = ctx.elim_resps(resps)?;
 
+            ctx.var_map.remove(index);
+
             // We rebind any occurence of our free variable
-            let newer_expr = Judgment::rebind(new_expr, rebind_var);
+            let newer_expr = new_expr.bind(*index);
             (Judgment::pi(new_var_type, newer_expr, None), new_resps)
         }
-        Judg_mentKind::Lam(var_type, expr) => {
+        Judg_mentKind::Lam(index, var_type, expr) => {
             let type_var = TypeVar::new();
             let mut resps = vec![type_var];
 
@@ -448,10 +436,8 @@ pub fn type_infer(
                 ctx.add_constraint(type_var, inferred_type)?;
             }
 
-            ctx.var_map.push(type_var);
-            let rebind_var = VarUuid::new();
-            ctx.rebind_map.push(rebind_var);
-            // dbg!(&ctx);
+            ctx.var_map.insert(*index, type_var);
+
             let (expr, mut sub_resps) = type_infer(expr, ctx)?;
             resps.append(&mut sub_resps);
 
@@ -463,15 +449,14 @@ pub fn type_infer(
             ))?;
             let new_expr = ctx.substitute(&expr)?;
 
-            ctx.var_map.pop();
-            ctx.rebind_map.pop();
-
             // we check if a variable can be eliminated from the responsibility or not,
             // if it is, then we remove all occurences of it in the context and removes it.
             let new_resps = ctx.elim_resps(resps)?;
 
+            ctx.var_map.remove(index);
+
             // We rebind any occurence of our free variable
-            let newer_expr = Judgment::rebind(new_expr, rebind_var);
+            let newer_expr = new_expr.bind(*index);
             (Judgment::lam(new_var_type, newer_expr, None), new_resps)
         }
         Judg_mentKind::App(old_func, old_arg) => {
@@ -486,12 +471,12 @@ pub fn type_infer(
             // dbg!(&arg);
             // dbg!(&arg.type_of());
 
-            match func.type_of().expect("please not none").tree {
-                JudgmentKind::Pi(arg_type, expr) => {
+            match *func.type_of().expect("please not none").tree {
+                JudgmentKind::Pi(arg_type, sexpr) => {
                     let func_type = TypeVar::new();
                     resps.push(func_type);
 
-                    ctx.add_constraint(func_type, *arg_type)?;
+                    ctx.add_constraint(func_type, arg_type)?;
                     ctx.add_constraint(func_type, arg.type_of().unwrap())?;
                 }
                 JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), prim_type) => {
@@ -504,7 +489,8 @@ pub fn type_infer(
                         type_var,
                         Judgment::pi(
                             Judgment::prim_wo_prim_type(TypeVarPrim::TypeVar(epsilon), None),
-                            Judgment::prim_wo_prim_type(TypeVarPrim::TypeVar(delta), None),
+                            Judgment::prim_wo_prim_type(TypeVarPrim::TypeVar(delta), None)
+                                .to_scoped(),
                             None,
                         ),
                     )?;
@@ -602,19 +588,20 @@ pub fn type_infer(
             }
         },
 
-        Judg_mentKind::FreeVar(_) => {
-            panic!("we shouldn't see a FreeVar at this stage!")
-        }
-        Judg_mentKind::Ffi(_, _) => {
-            panic!("we don't support this right now, Frank will do it!")
+        Judg_mentKind::FreeVar(index) => {
+            let type_var = match ctx.var_map.get(index) {
+                Some(type_var) => type_var,
+                None => panic!("FreeVar index should be available in the context"),
+            };
+
+            (
+                Judgment::free(*index, ctx.lookup_type_var(type_var), None),
+                vec![],
+            )
         }
     };
-    // dbg!(ctx_copy, judg_ment, &result);
-    unsafe {
-        if Judgment::contains_free_var(&result.0, std::mem::transmute::<u32, VarUuid>(15)) {
-            // dbg!(&result.0);
-        }
-    }
+    dbg!(judg_ment.clone());
+    dbg!(&result);
     Ok(result)
 }
 
@@ -756,31 +743,22 @@ mod test {
     use crate::desugar::source_file_to_judg_ment;
 
     #[test]
+    fn sanity_test() {
+        use crate::frontend;
+        use xi_core::judgment::Judgment;
+        use xi_proc_macro::term;
+        use xi_uuid::VarUuid;
+        let text0 = "val lambda |T : Type| T";
+        assert_eq!(frontend(text0).unwrap(), term!(Lam | T: U | T));
+
+        let text1 = "val lambda |T : Type, t : T| t";
+        assert_eq!(frontend(text1).unwrap(), term!(Lam | T: U, t: T | t))
+    }
+    #[test]
     fn type_infer_test() {
-        // use crate::desugar::source_file_to_judg_ment;
-        // use crate::resolve::parse_source_file;
-        // use crate::rowan_ast::{string_to_syntax, to_tree};
-        // use crate::type_inference::{to_judgment, TypeError, UiMetadata, UiPrim};
-        // use xi_core::judgment::Judgment;
-
-        // pub fn frontend(text: &str) -> Result<Judgment<UiPrim, UiMetadata>, TypeError> {
-        //     let syntax_node = string_to_syntax(text);
-        //     dbg!(&syntax_node);
-        //     // syntax_node is the rowan tree level
-        //     let source_file = parse_source_file(&syntax_node);
-        //     dbg!(&source_file);
-        //     // source_file is at the name resolution level
-        //     let judg_ment = source_file_to_judg_ment(source_file);
-        //     // judg_ment is at the desugar level.
-        //     dbg!(&judg_ment);
-        //     let judgment = to_judgment(judg_ment);
-        //     dbg!(judgment.unwrap())
-        //     // this lands in Judgment<UiPrim, Metadata>
-        // }
-
         // This is good! For > and >=
-        let text1 = "fn f |x| {val x}  val f 5";
-        dbg!(crate::frontend(text1));
+        // let text1 = "fn f |x| {val x}  val f 5";
+        // assert_eq!(term!( (Lam |bv0: NumberType -> NumberType| (bv0 : NumberType -> NumberType) NumberElem("5")) (Lam |bv0: NumberType| (bv0 : NumberType))))
 
         // This is good! For > and > =
         let text2 = "fn f |x : Int| -> Int {val x}
@@ -808,10 +786,8 @@ mod test {
         val 4";
         dbg!(crate::frontend(text6));
 
-        let text7 = "let id = lambda |T : Type, t : T| t
-
-        val 5";
-        dbg!(crate::frontend(text7));
+        // val 5";
+        // dbg!(crate::frontend(text7));
     }
 
     #[test]
@@ -865,7 +841,8 @@ mod test {
         val 5
         ";
         // App (Lam |Unknown| NumberElem("5")) (Lam |Type| Lam |bv0| bv0)
-
+        // *****************************************************
+        // THIS DOESN'T WORK!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         dbg!(crate::frontend(text));
 
         // let text2 = "let id = lambda |T : Type , t : T| t

@@ -1,4 +1,4 @@
-/// Define a map from Judgment<T,S> to term macros so we can read better.
+// Define a map from Judgment<T,S> to term macros so we can read better.
 use crate::judgment::*;
 use xi_uuid::VarUuid;
 
@@ -9,7 +9,7 @@ pub enum JudgmentTree<T> {
     Prim(T, Box<JudgmentTree<T>>),
     FreeVar(VarUuid, Box<JudgmentTree<T>>),
     BoundVar(u32, Box<JudgmentTree<T>>),
-    /// I should add metadata here.
+    // I should add metadata here.
     Fun(Vec<JudgmentTree<T>>),
     Pi(Vec<JudgmentTree<T>>, Box<JudgmentTree<T>>),
     Lam(Vec<JudgmentTree<T>>, Box<JudgmentTree<T>>),
@@ -17,20 +17,42 @@ pub enum JudgmentTree<T> {
     Metadata(Box<JudgmentTree<T>>, String),
 }
 
+fn is_outermost_bound_var_used<T, S>(expr: Judgment<T, S>) -> bool {
+    fn is_bound_var_used<T, S>(expr: Judgment<T, S>, depth: u32) -> bool {
+        match *expr.tree {
+            JudgmentKind::Type => false,
+            JudgmentKind::Prim(_, _) => false,
+            JudgmentKind::FreeVar(_, expr) => is_bound_var_used(expr, depth),
+            JudgmentKind::Pi(var_type, expr) => {
+                is_bound_var_used(var_type, depth) || is_bound_var_used(expr.0, depth + 1)
+            }
+            JudgmentKind::Lam(var_type, expr) => {
+                is_bound_var_used(var_type, depth) || is_bound_var_used(expr.0, depth + 1)
+            }
+            JudgmentKind::BoundVar(int, expr) => int == depth || is_bound_var_used(expr, depth),
+            JudgmentKind::App(func, elem) => {
+                is_bound_var_used(func, depth) || is_bound_var_used(elem, depth)
+            }
+        }
+    }
+    is_bound_var_used(expr, 0)
+}
+
 pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> JudgmentTree<T> {
     use JudgmentTree::*;
-    let judgment_tree = match judgment.tree {
+    let judgment_tree = match *judgment.tree.clone() {
         JudgmentKind::Type => JudgmentTree::Type,
         JudgmentKind::Prim(prim, prim_type) => {
-            JudgmentTree::Prim(prim, Box::new(judgment_to_tree(*prim_type)))
+            JudgmentTree::Prim(prim, Box::new(judgment_to_tree(prim_type)))
         }
-        JudgmentKind::FreeVar(free_var, expr) => {
-            JudgmentTree::FreeVar(free_var, Box::new(judgment_to_tree(*expr)))
+        JudgmentKind::FreeVar(index, var_type) => {
+            JudgmentTree::FreeVar(index, Box::new(judgment_to_tree(var_type)))
         }
-        JudgmentKind::Pi(var_type, expr) => {
-            let expr_tree = judgment_to_tree(*expr.clone());
-            let var_type_tree = judgment_to_tree(*var_type);
-            if expr.is_outermost_bound_var_used() {
+        JudgmentKind::Pi(var_type, sexpr) => {
+            let expr_tree = judgment_to_tree(sexpr.0.clone());
+            let var_type_tree = judgment_to_tree(var_type);
+
+            if is_outermost_bound_var_used(sexpr.0) {
                 if let Pi(mut vec, expr) = expr_tree {
                     vec.insert(0, var_type_tree);
                     Pi(vec, expr)
@@ -47,8 +69,8 @@ pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> 
             }
         }
         JudgmentKind::Lam(var_type, expr) => {
-            let expr_tree = judgment_to_tree(*expr);
-            let var_type_tree = judgment_to_tree(*var_type);
+            let expr_tree = judgment_to_tree(expr.0);
+            let var_type_tree = judgment_to_tree(var_type);
             if let Lam(mut vec, expr) = expr_tree {
                 vec.insert(0, var_type_tree);
                 Lam(vec, expr)
@@ -56,12 +78,12 @@ pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> 
                 Lam(vec![var_type_tree], Box::new(expr_tree.clone()))
             }
         }
-        JudgmentKind::BoundVar(u32, expr) => {
-            JudgmentTree::BoundVar(u32, Box::new(judgment_to_tree(*expr)))
+        JudgmentKind::BoundVar(index, expr) => {
+            JudgmentTree::BoundVar(index, Box::new(judgment_to_tree(expr)))
         }
-        JudgmentKind::Application(func, elem) => {
-            let func_tree = judgment_to_tree(*func);
-            let elem_tree = judgment_to_tree(*elem);
+        JudgmentKind::App(func, elem) => {
+            let func_tree = judgment_to_tree(func);
+            let elem_tree = judgment_to_tree(elem);
             if let App(mut vec) = func_tree {
                 vec.push(elem_tree);
                 App(vec)

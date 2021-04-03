@@ -62,7 +62,7 @@ impl ToTokens for TermBuilderFree {
                     let body_tokens = to_tokens_rec(&new_vars, body);
                     quote! {{
                         let #ident = VarUuid::new();
-                        Judgment::lam(#type_tokens, Judgment::rebind(#body_tokens, #ident), None)
+                        Judgment::lam(#type_tokens, #body_tokens.bind(#ident), None)
                     }}
                 }
                 TermBuilder::Pi(ident, type_, body) => {
@@ -72,13 +72,13 @@ impl ToTokens for TermBuilderFree {
                     let body_tokens = to_tokens_rec(&new_vars, body);
                     quote! {{
                         let #ident = VarUuid::new();
-                        Judgment::pi(#type_tokens, Judgment::rebind(#body_tokens, #ident), None)
+                        Judgment::pi(#type_tokens, #body_tokens.bind(#ident), None)
                     }}
                 }
                 TermBuilder::Fun(domain, codomain) => {
                     let domain_tokens = to_tokens_rec(free_vars, domain);
                     let codomain_tokens = to_tokens_rec(free_vars, codomain);
-                    quote! {Judgment::pi(#domain_tokens, #codomain_tokens, None)}
+                    quote! {Judgment::pi(#domain_tokens, #codomain_tokens.to_scoped(), None)}
                 }
                 TermBuilder::App(fun, arg) => {
                     let func_tokens = to_tokens_rec(free_vars, fun);
@@ -303,7 +303,7 @@ mod test {
         test_expand(
             "U",
             quote! {
-                Judgment::u()
+                Judgment::u(None)
             },
         );
         test_expand(
@@ -311,18 +311,20 @@ mod test {
             quote! {{
                 let T = VarUuid::new();
                 Judgment::lam(
-                    Judgment::u(),
-                    Judgment::rebind(Judgment::free(T, Judgment::u()), T)
+                    Judgment::u(None),
+                    Judgment::free(T, Judgment::u(None), None).bind(T),
+                    None
                 )
             }},
         );
         test_expand(
-            "Pi |T : U| T",
+            "Pi |T : U| T -> T",
             quote! {{
                 let T = VarUuid::new();
                 Judgment::pi(
-                    Judgment::u(),
-                    Judgment::rebind(Judgment::free(T, Judgment::u()), T)
+                    Judgment::u(None),
+                    Judgment::free(T, Judgment::u(None), None).bind(T),
+                    None
                 )
             }},
         );

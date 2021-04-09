@@ -163,7 +163,7 @@ impl<T: Primitive, S: Metadata> ScopedJudgment<T, S> {
                         replace_free_var_rec(expr, old_index, new_index).bind(index),
                     )
                 }
-                JudgmentKind::BoundVar(index, var_type) => {
+                JudgmentKind::BoundVar(_index, _var_type) => {
                     unreachable!()
                 }
                 JudgmentKind::App(func, arg) => JudgmentKind::App(
@@ -381,9 +381,10 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
 
     pub fn app_unchecked_vec(
         func: Judgment<T, S>,
-        args: &mut Vec<Judgment<T, S>>,
+        args: Vec<Judgment<T, S>>,
         metadata: Option<S>,
     ) -> Judgment<T, S> {
+        let mut args = args;
         if args.len() == 0 {
             panic!("empty arg")
         } else if args.len() == 1 {
@@ -439,7 +440,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             }
             JudgmentKind::Pi(var_type, sexpr) => {
                 let (index, expr) = sexpr.unbind();
-                Judgment::pi(
+                Judgment::pi_unchecked(
                     var_type.define_prim(prim_meaning.clone()),
                     expr.define_prim(prim_meaning).bind(index),
                     metadata,
@@ -456,7 +457,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             JudgmentKind::BoundVar(_index, _var_type) => {
                 unreachable!()
             }
-            JudgmentKind::App(lhs, rhs) => Judgment::app_unchecked(
+            JudgmentKind::App(lhs, rhs) => Judgment::app(
                 lhs.define_prim(prim_meaning.clone()),
                 rhs.define_prim(prim_meaning),
                 metadata,

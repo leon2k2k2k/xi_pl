@@ -1,0 +1,26 @@
+////////////////////////////UI////////////////////////
+
+
+const UnitType = Pi |T : Type| T -> T
+
+fn unit() -> UnitType {
+    UnitTypeCons( lam |T : type, t : T| t)
+}
+
+// this shoudld work right now
+let unit = UnitType(lam |T : Type, t : T| t)
+
+// this doesn't work.
+let unit  = UnitType(lam |T, t| t)
+
+////////////////////////desugars to////////////////
+1. what does const goes to?
+
+it gives a type UnitType : U, it gives a constructor UnitTypeCons : (Pi |T : Type| T -> T) -> UnitType,
+and eliminator UnitTypeElim: UnitType -> (Pi |T : Type| T -> T).
+
+//b UnitType([expr]) -> UnitTypeCons([expr])
+
+let foo = lambda |T : U, t : T| t
+
+let bar = foo (Pi |T : U| T -> T) (lambda |T : U, t : T| t)

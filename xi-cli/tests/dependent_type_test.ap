@@ -1,33 +1,36 @@
 // this works
-// val lambda |T: Type, succ: T -> T| succ 
+let asldfj  = lambda |T: Type, succ: T -> T| succ 
 
 // this works
-// lambda |T : Type, zero: T, succ: T -> T| succ zero 
+let oasdlfj = lambda |T : Type, zero: T, succ: T -> T| succ zero 
 
 
 // this also works.
-// let zero1 : Pi |T : Type|  T -> (T -> T) -> T  = lambda | T : Type, zero : T, succ: T -> T| zero
+let zero1 : Pi |T : Type|  T -> (T -> T) -> T  = lambda | T : Type, zero : T, succ: T -> T| zero
 
 // this works.
-// val Pi| T : Type| T -> (T -> T) -> T 
+let hello =  Pi| T : Type| T -> (T -> T) -> T 
 
 
 // this does work
-// let zero = lambda | T : Type, zero : T, succ: T -> T| zero
+let zero = lambda | T : Type, zero : T, succ: T -> T| zero
 
 
 // this DOESN'T work!!!!!!!!!!!!!!!!!!!!!!!! Probably a type inference issue
-// let one : Pi| T: Type | T -> (T -> T) -> T = lambda | T, zero, succ| (succ zero)
+let one : Pi| T: Type | T -> (T -> T) -> T = lambda | T, zero, succ| (succ zero)
 
 
 
 // This also DOESN'T work!!!!!!!!!!!!!!!!!!!!!
-// val lambda |T : Type, f : Type -> T| f T
+let ok =  lambda |T : Type, f : Type -> T| f T
 // There is something wrong with app and variable binding. Maybe we have fixed it.
 
-let id : Pi | T : Type, t : T| T = lambda |T, t| t
 
+// problem with app, and variables out of scope.
 
+let id = lambda |T : Type, t : T| t
+
+let id : Pi |T: Type | T -> T = lambda |T : Type, t : T| t
 
 
 

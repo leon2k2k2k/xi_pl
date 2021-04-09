@@ -139,11 +139,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
             // we put VarUuid in the beginning.
             JudgmentTree::BoundVar(index, var_type) => match depth.checked_sub(1 + index) {
                 // _ => format!("(v{} : {})", index, tts_rec(&*var_type, free_vars, Precedence::Top, depth))
-                Some(value) => format!(
-                    "(bv{} : {})",
-                    value,
-                    tts_rec(&*var_type, free_vars, Precedence::Top, depth)
-                ),
+                Some(value) => format!("bv{}", value),
                 None => format!(
                     "(v_not_bound{}: {})",
                     1 + index - depth,

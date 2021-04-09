@@ -4,20 +4,22 @@
 
 // a square is a church encoded enum of three things
 
-// let square = Pi |T : Type| T -> T -> T -> T
+let square = Pi |T : Type| T -> T -> T -> T
 
 
 
-// let x = lambda |T : Type, x : T, o : T, empty : T| x
+let x = lambda |T : Type, x : T, o : T, empty : T| x
 
-// let o = lambda |T : Type, x : T, o : T, empty : T| o
+let o = lambda |T : Type, x : T, o : T, empty : T| o
 
-// let empty = lambda |T : Type, x : T, o : T, empty : T| empty
+let empty = lambda |T : Type, x : T, o : T, empty : T| empty
 
 // this is a triple of squares
 
 
-
+fn x() -> Square {
+    Square(lambda|T : Type,x : T,o : T,empty : T| x)
+}
 
 
 

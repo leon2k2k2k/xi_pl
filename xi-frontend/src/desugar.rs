@@ -40,6 +40,7 @@ pub enum Judg_mentKind<T, S> {
     Pi(VarUuid, Option<Judg_ment<T, S>>, Judg_ment<T, S>),
     Lam(VarUuid, Option<Judg_ment<T, S>>, Judg_ment<T, S>),
     App(Judg_ment<T, S>, Judg_ment<T, S>),
+    Let(Judg_ment<T, S>, VarUuid, Option<Judg_ment<T, S>>, Judg_ment<T, S>),
     Bind(Judg_ment<T, S>, Judg_ment<T, S>),
     Pure(Judg_ment<T, S>),
 }
@@ -66,12 +67,16 @@ impl Judg_ment<UiPrim, UiMetadata> {
         Judg_ment(Box::new(Judg_mentKind::Pure(a)), UiMetadata{})
     }
 
-    fn lam(var : VarUuid, var_type: Option<Judg_ment<UiPrim, UiMetadata>>, expr: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
+    pub fn lam(var : VarUuid, var_type: Option<Judg_ment<UiPrim, UiMetadata>>, expr: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
         Judg_ment(Box::new(Judg_mentKind::Lam(var, var_type, expr)), UiMetadata{})
     }
 
     fn pi(var : VarUuid, var_type: Option<Judg_ment<UiPrim, UiMetadata>>, expr: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
         Judg_ment(Box::new(Judg_mentKind::Pi(var, var_type, expr)), UiMetadata{})
+    }
+
+    fn let_(arg: Judg_ment<UiPrim, UiMetadata>, var : VarUuid, var_type: Option<Judg_ment<UiPrim, UiMetadata>>, rest: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
+        Judg_ment(Box::new(Judg_mentKind::Let(arg, var, var_type, rest)), UiMetadata{})
     }
 }
 
@@ -100,11 +105,15 @@ impl Context {
                 } else {
                     let arg = self.desugar_expr(expr);
                     let rest = self.desugar_stmt_vec(stmt_rest);
-                    let rest_kind = Judg_ment::lam(var.index, var.var_type.clone().map(|var_type| self.desugar_expr(&var_type)), rest);
+                    let index = var.index;
+                    let var_type =  var.var_type.clone().map(|var_type| self.desugar_expr(&var_type));
+                    Judg_ment::let_(arg, index, var_type, rest)
+                    // let rest_kind = Judg_ment::lam(var.index, var.var_type.clone().map(|var_type| self.desugar_expr(&var_type)), rest);
 
-                    Judg_ment::app(
-                        rest_kind, arg
-                    )
+                    // Judg_ment::app(
+                    //     rest_kind, arg
+                    // )
+
                 }
             }
             StmtKind::Val(expr) => self.desugar_expr(&expr),
@@ -275,6 +284,10 @@ impl <T : std::fmt::Debug + Clone, S : std::fmt::Debug + Clone>std::fmt::Debug f
             Judg_mentKind::App(func, arg) => {
                 f.write_str(&format!("App ({:?}) ", func))?;
                 f.write_str(&format!("({:?})", arg))?;
+            }
+            Judg_mentKind::Let(arg, index, var_type, rest) => {
+                f.write_str(&format!("Let {} : {:?} = {:?};", index.index(), var_type, arg))?;
+                f.write_str(&format!("{:?}", rest))?;
             }
             Judg_mentKind::Bind(arg, func) => {
                 f.write_str(&format!("(Bind {:?} {:?})", arg, func))?}

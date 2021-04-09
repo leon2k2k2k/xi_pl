@@ -1,0 +1,6 @@
+
+let foo = lambda |T : Type, t : T| t
+
+let bar = foo (Pi |T : Type| T -> T) (lambda |T : Type, t : T| t)
+
+val 5

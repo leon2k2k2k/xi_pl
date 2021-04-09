@@ -1,3 +1,0 @@
-let id : (Pi |T : Type, t : T|  T) = lambda |T : Type, t : T| t
-
-val 5

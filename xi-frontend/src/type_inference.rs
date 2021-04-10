@@ -276,6 +276,7 @@ impl<'a> Context<'a> {
                 let type_var = ctx.new_type_var();
 
                 let inferred_expr = ctx.type_infer(expr.clone())?;
+
                 ctx.add_constraint(type_var, inferred_expr.type_of().unwrap())?;
                 ctx.add_constraint(type_var, expected.clone())?;
                 Ok(inferred_expr)

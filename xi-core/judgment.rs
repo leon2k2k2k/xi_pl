@@ -269,7 +269,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                     .type_of()
                     .expect("Expected type of function to be a Pi");
                 if let JudgmentKind::Pi(_var_type, sexpr) = *func_type.tree {
-                    let result_type = sexpr.instantiate(&elem);
+                    let result_type = sexpr.instantiate(&elem).nbe();
                     Some(result_type)
                 } else {
                     panic!("Expected type of a function to be a Pi")
@@ -373,6 +373,9 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
         arg: Judgment<T, S>,
         metadata: Option<S>,
     ) -> Judgment<T, S> {
+        if let JudgmentKind::Pi(_, _) = *func.tree {
+            panic!();
+        }
         Judgment {
             tree: Box::new(JudgmentKind::App(func, arg)),
             metadata: metadata.unwrap_or_default(),
@@ -592,5 +595,14 @@ mod test {
         // let test: Judgment<(), ()> = term!(Lam |T : U, f : U -> T| f T);
         // dbg!(&test);
         // dbg!(&test.type_of());
+    }
+
+    #[test]
+    fn tedst() {
+        use super::*;
+        use xi_proc_macro::term;
+        use xi_uuid::VarUuid;
+        let ((a, b), t): (_, Judgment<(), ()>) = term!(|fv9 : U, fv12 : Pi |bv0: U -> U| bv0 fv9 -> bv0 (Pi |bv2: U| bv2 -> bv2)| fv12 (Lam |bv0: U| bv0 -> fv9) (Lam |bv0 : fv9| bv0));
+        dbg!(t.type_of());
     }
 }

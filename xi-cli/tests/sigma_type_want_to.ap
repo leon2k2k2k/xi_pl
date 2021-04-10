@@ -1,0 +1,14 @@
+Type UnitType = Pi |T : Type| T -> T 
+
+let unit = UnitType(lambda |T, t| t)
+
+
+
+
+
+
+//// In the future ////
+
+enum UnitType = {
+    unit,
+}

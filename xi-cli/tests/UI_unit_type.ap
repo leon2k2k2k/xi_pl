@@ -1,0 +1,34 @@
+ffi "./some_file.js"{
+    UnitType : Type,
+    unit : UnitType,
+    int_to_string : Int -> String,
+    console_output: String -> IO UnitType,
+    console_input: IO String,
+}
+
+// let id_type = lambda |t| t
+
+//let f = (lambda | UnitType : Type, UnitTypeCons: (Pi |T : Type| T -> T) -> UnitType, UnitTypeElim : UnitType -> (Pi |T : Type| T -> T)| 
+//{
+ //   let unit = UnitTypeCons(lambda |T, t| t)
+//    val unit
+//}
+
+ let f2 = (lambda | UnitType : Type, UnitTypeEq: Pi |F : Type -> Type| F UnitType -> F (Pi |T : Type| T -> T)| 
+ {
+ 
+     let UnitTypeCons: (Pi |T : Type| T -> T) -> UnitType = UnitTypeEq (lambda |S| S -> UnitType) (lambda |t| t)
+     let UnitTypeElim: UnitType -> (Pi |T : Type| T -> T) = UnitTypeEq (lambda |S| S)
+     let unit = UnitTypeCons(lambda |T, t| t)
+     let maybe_unit = UnitTypeElim(unit)
+     do console_output (maybe_unit String "Hello_world")!
+     val unit!
+ }) (Pi |T : Type| T -> T) (lambda |F, ft| ft)
+
+// let eq = lambda |A : Type, B : Type| (
+//    lambda |EqAB : Type, 
+//) (Pi |T : Type -> Type| T A -> T B ) 
+
+// refl : Eq T T' = Pi |F : Type -> Type| F T -> F T' = lambda |F, ft| ft
+
+val 5

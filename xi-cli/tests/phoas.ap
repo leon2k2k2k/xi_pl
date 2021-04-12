@@ -1,0 +1,24 @@
+// http://adam.chlipala.net/cpdt/html/Hoas.html
+let id = lambda |t| t
+let ten = (lambda |type : Type, typeCons : (Pi |T : Type| T -> (T -> T -> T) -> T) -> type,  typeElim : type -> (Pi |T : Type| T -> (T -> T -> T) -> T)| {
+
+let Nat = typeCons(lambda |T, nat, arrow| nat)
+let Arrow = lambda |lhs, rhs| typeCons(lambda |T, nat, arrow| arrow lhs rhs)
+
+let id2 = lambda |t| t
+let nine = (lambda |exp : type -> Type, expCons : (Pi |typ : type, T : type -> Type| T -> (T -> T -> T) -> T) -> type,  typeElim : type -> (Pi |T : Type| T -> (T -> T -> T) -> T)| {
+
+
+val 9
+}) () id2 id2
+
+val 10
+}) (Pi |T : Type| T -> (T -> T -> T) -> T) id id
+
+val 5
+
+
+
+lambda |typ : type| Pi |exp : type -> Type|
+   (Int -> exp Nat) ->
+   exp typ

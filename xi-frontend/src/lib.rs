@@ -11,14 +11,14 @@ pub mod type_inference;
 
 pub fn frontend(text: &str) -> Result<Judgment<UiPrim, UiMetadata>, TypeError> {
     let syntax_node = string_to_syntax(text);
-    dbg!(&syntax_node);
+    // dbg!(&syntax_node);
     // syntax_node is the rowan tree level
     let source_file = parse_source_file(&syntax_node);
-    dbg!(&source_file);
+    // dbg!(&source_file);
     // source_file is at the name resolution level
     let judg_ment = source_file_to_judg_ment(source_file);
     // judg_ment is at the desugar level.
-    dbg!(&judg_ment);
+    // dbg!(&judg_ment);
     let judgment = to_judgment(judg_ment);
     dbg!(judgment)
     // this lands in Judgment<UiPrim, Metadata>

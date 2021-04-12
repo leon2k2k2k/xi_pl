@@ -1,0 +1,81 @@
+    do (lambda |UnitType: Type, UnitType_eq : Eq_type UnitType ( Pi |T : Type| T -> T) | {
+        let UnitType_cons : ( Pi |T : Type| T -> T) -> UnitType = coe1 UnitType ( Pi |T : Type| T -> T) UnitType_eq
+        let UnitType_elims : UnitType -> ( Pi |T : Type| T -> T) = coe2 UnitType ( Pi |T : Type| T -> T) UnitType_eq
+
+    let unit = UnitType_cons (lambda |T, t| t)
+    val unit
+    }) ( Pi |T : Type| T -> T) (refl ( Pi |T : Type| T -> T)) 
+
+
+////////////////////
+
+fn f | x : Int | -> Int {val x + 1}
+
+let g = f 
+
+fn main() {
+    val g 5
+}
+
+//////////////////
+After the front end, we have a vec of three judgments, 
+
+f -> lambda x : Int. x + 1 
+g -> lambda f : Int -> Int. f
+main -> lambda g : Int -> Int, () : UnitType: g 5
+
+Then the module loader takes them and returns 
+
+let f_ = f (really lambda x : Int. x + 1)
+let g_ = g (really lambda x : Int. x  + 1) f_
+let main_ = main g
+val main_ ()
+..............
+
+Another example:
+
+Type UnitType = Pi | T : Type | T -> T
+
+let unit = UnitTypeCons( lambda |T, t| t)
+
+fn main() {
+    val unit 
+}
+
+////////
+After the frontend, we once again have three judgments:
+
+let #unit be a shorthand for Pi |T : U| T -> T
+
+UnitType -> lambda |R, rest : Pi |UnitType : Type, UnitTypeCons : (#unit -> UnitType)| rest #unit id
+
+unit -> lambda |UnitType : Type, UnitTypeCons: #unit -> UnitType| UnitTypeCons(lambda |T , t| t)
+
+main -> lambda |unit| unit
+
+//////////////////////
+
+Now the module loader:
+
+let UnitType_ = lambda |R, rest : Pi |UnitType : Type, UnitTypeCons : (#unit -> UnitType)| rest #unit id
+
+UnitType_ (lambda <R>, lambda |UnitType, UnitTypeCons| {
+    let unit_ = (lambda |UnitType : Type, UnitTypeCons: #unit -> UnitType| UnitTypeCons(lambda |T , t| t)) 
+
+})
+
+
+
+//////////////
+not unlike monadic inference:
+
+let in = console_input!
+let out = console_output(in)!
+val 5
+
+let in_ = console_input
+in_ (lambda <R>, lambda |in|
+    let out_ = (lambda |in| console_output(in)) (in)
+
+    val 5
+)

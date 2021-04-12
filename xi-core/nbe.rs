@@ -125,23 +125,32 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
                 unreachable!()
             }
             JudgmentKind::App(func, elem) => {
-                match SJudgment::syntax_to_semantics(func, ctx.clone()) {
-                    SJudgment::Syn(a) => {
-                        panic!("syntax_to_semantics(func) should match to Lam {:?}", a)
-                    }
+                match SJudgment::syntax_to_semantics(func.clone(), ctx.clone()) {
                     SJudgment::Lam(_, sfunc) => sfunc(SJudgment::syntax_to_semantics(elem, ctx)),
-                    SJudgment::Pi(_, _) => panic!("syntax_to_semantics(func) should match to Lam"),
-                    SJudgment::FreeVar(_, _) => {
-                        panic!("syntax_to_semantics(func) should match to Lam")
+                    _ => {
+                        panic!(
+                            "syntax_to_semantics(func) should match to Lam, but func is {:?}",
+                            func
+                        );
                     }
                 }
             }
             JudgmentKind::Prim(prim, prim_type) => U::meaning(prim, prim_type),
             JudgmentKind::FreeVar(index, var_type) => match ctx.get(&index) {
                 Some(svar_type) => svar_type.clone(),
-                None => SJudgment::FreeVar(
-                    index,
-                    Box::new(SJudgment::syntax_to_semantics(var_type, ctx)),
+                None => eta_expand(
+                    Judgment::free(
+                        index,
+                        SJudgment::semantics_to_syntax(SJudgment::syntax_to_semantics(
+                            var_type,
+                            ctx.clone(),
+                        )),
+                        None,
+                    ),
+                    Context {
+                        btreemap: ctx,
+                        vec: vec![],
+                    },
                 ),
             },
         }
@@ -180,79 +189,57 @@ impl<T: Primitive, S: Metadata> Context<T, S> {
     }
 }
 
+fn eta_expand<T: Primitive, S: Metadata>(
+    expr: Judgment<T, S>,
+    ctx: Context<T, S>,
+) -> SJudgment<T, S> {
+    fn eta_expand_rec<T: Primitive, S: Metadata>(
+        expr: Judgment<T, S>,
+        effective_type: Judgment<T, S>,
+        ctx: Context<T, S>,
+    ) -> SJudgment<T, S> {
+        let ctx_clone = ctx.clone();
+        match *effective_type.tree {
+            JudgmentKind::Pi(var_type, sexpr) => {
+                let (index, new_type) = sexpr.unbind();
+                SJudgment::Lam(
+                    Box::new(SJudgment::syntax_to_semantics(var_type, ctx.btreemap)),
+                    Rc::new(move |s| {
+                        eta_expand_rec(
+                            expr.clone(),
+                            new_type.clone(),
+                            Context::<T, S>::add_to_ctx(ctx_clone.clone(), index, &s),
+                        )
+                    }),
+                )
+            }
+            _ => SJudgment::Syn(appn(expr, ctx)),
+        }
+    }
+
+    fn appn<T: Primitive, S: Metadata>(expr: Judgment<T, S>, ctx: Context<T, S>) -> Judgment<T, S> {
+        let mut ctx = ctx;
+        if ctx.vec.len() == 0 {
+            expr
+        } else {
+            let index = ctx.vec.pop().unwrap();
+            let var = SJudgment::semantics_to_syntax(ctx.btreemap.get(&index).unwrap().clone());
+
+            Judgment::app_unchecked(appn(expr, ctx), var, None)
+        }
+    }
+    eta_expand_rec(expr.clone(), expr.type_of().unwrap(), ctx)
+}
+
 impl<T: Primitive> Semantics<T> for T {
     fn meaning<S: Metadata>(prim: T, prim_type: Judgment<T, S>) -> SJudgment<Self, S> {
-        // fn add_to_ctx<T: Ord, U: Clone>(v: Context, index: T, x: &U) -> Context<T, U> {
-        //     let mut v = v;
-        //     v.insert(index, x.clone());
-        //     v
-        // }
-
-        // fn add_to_ctx<U: Clone>(v: Vec<U>, x: &U) -> Vec<U> {
-        //     let mut v = v;
-        //     v.push(x.clone());
-        //     v
-        // }
-        fn meaning_rec<T: Primitive, S: Metadata>(
-            prim: T,
-            prim_type: Judgment<T, S>,
-            effective_type: Judgment<T, S>,
-            ctx: Context<T, S>,
-        ) -> SJudgment<T, S> {
-            let ctx_clone = ctx.clone();
-            match *effective_type.tree {
-                JudgmentKind::Pi(var_type, sexpr) => {
-                    let (index, expr) = sexpr.unbind();
-                    SJudgment::Lam(
-                        Box::new(SJudgment::syntax_to_semantics(var_type, ctx.btreemap)),
-                        Rc::new(move |s| {
-                            meaning_rec(
-                                prim.clone(),
-                                prim_type.clone(),
-                                expr.clone(),
-                                Context::<T, S>::add_to_ctx(ctx_clone.clone(), index, &s),
-                            )
-                        }),
-                    )
-                }
-                _ => SJudgment::Syn(appn(prim, prim_type, ctx)),
-            }
-        }
-
-        fn appn<T: Primitive, S: Metadata>(
-            prim: T,
-            prim_type: Judgment<T, S>,
-            ctx: Context<T, S>,
-        ) -> Judgment<T, S> {
-            let mut ctx = ctx;
-            if ctx.vec.len() == 0 {
-                Judgment::prim(prim, prim_type, None)
-            } else {
-                // TODO: simplify?
-                let index = ctx.vec.pop().unwrap();
-
-                let var = SJudgment::semantics_to_syntax(ctx.btreemap.get(&index).unwrap().clone());
-                if ctx.vec.len() == 0 {
-                    Judgment::app_unchecked(
-                        Judgment::prim(prim.clone(), prim_type.clone(), None),
-                        var,
-                        None,
-                    )
-                } else {
-                    Judgment::app_unchecked(appn(prim.clone(), prim_type, ctx), var, None)
-                }
-            }
-        }
-        meaning_rec(
-            prim.clone(),
-            prim_type.clone(),
-            prim_type,
+        eta_expand(
+            Judgment::prim(prim, prim_type, None),
             Context::<T, S>::new(),
         )
     }
 }
 
-#[rustfmt::skip::macros(term)]
 #[allow(non_snake_case)]
 mod test {
 
@@ -263,10 +250,10 @@ mod test {
         use xi_proc_macro::term;
         use NatPrim::{Add, NatType};
 
-        let id: Judgment<NatPrim, ()> = term!(Lam |T : U| T);
+        let id: Judgment<NatPrim, ()> = term!(Lam | T: U | T);
         assert_eq!(id.clone().nbe(), id);
 
-        let id_on_term: Judgment<NatPrim, ()> = term!(Lam |T : U, t : T| t);
+        let id_on_term: Judgment<NatPrim, ()> = term!(Lam | T: U, t: T | t);
         assert_eq!(id_on_term.clone().nbe(), id_on_term);
 
         let unit: Judgment<NatPrim, ()> = term!(Pi |T : U| T -> T);
@@ -285,7 +272,7 @@ mod test {
         use xi_proc_macro::term;
         use NatPrim::{Add, Nat};
 
-        let add3: Judgment<NatPrim, ()> = term!([Add] [Nat(3)]);
+        let add3: Judgment<NatPrim, ()> = term!([Add][Nat(3)]);
 
         let err = std::panic::catch_unwind(|| term!({add3} U));
         assert!(err.is_err());

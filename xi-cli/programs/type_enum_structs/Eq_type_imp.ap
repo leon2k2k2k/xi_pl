@@ -1,0 +1,28 @@
+ let comp : Pi |A : Type, B : Type, C : Type| (A -> B) -> (B -> C) -> (A -> C) = lambda |A, B, C, f, g, a| g (f a)
+
+do (lambda |Eq_type : Type -> Type -> Type, eq_type_eq: (Pi | A : Type, B : Type, G : Type -> Type| 
+(G (Eq_type A B) -> G (Pi | F : Type -> Type| F A -> F B)))|
+{
+    let eq_type_cons: Pi |A : Type, B : Type| ((Pi | F : Type -> Type| F A -> F B) -> Eq_type A B) =  lambda |A, B| (eq_type_eq A B  (lambda |S| S -> (Eq_type A B)) (lambda |t| t))
+    let eq_type_elim: Pi | A : Type, B : Type| Eq_type A B -> (Pi | F : Type -> Type| F A -> F B) = lambda |A, B| eq_type_eq A B (lambda |S| S)
+    
+    let coe1_helper : Pi | A : Type, B : Type| (Pi | F : Type -> Type| F A -> F B) -> (B -> A) = lambda |A, B, eq_literal| eq_literal (lambda |S| S -> A) (lambda |t| t)
+    let coe1: Pi | A : Type, B : Type| Eq_type A B -> (B -> A) = lambda |A, B| comp (Eq_type A B) ((Pi | F : Type -> Type| F A -> F B))  (B -> A) (eq_type_elim A B) (coe1_helper A B)
+
+    let coe2_helper : Pi | A : Type, B : Type| (Pi | F : Type -> Type| F A -> F B) -> (A -> B) = lambda |A, B, eq_literal| eq_literal (lambda |S| S)
+    let coe2 : Pi | A : Type, B : Type| Eq_type A B -> (A -> B) = lambda |A, B| comp (Eq_type A B) ((Pi | F : Type -> Type| F A -> F B))  (A -> B) (eq_type_elim A B) (coe2_helper A B)
+    
+    let refl : Pi |T : Type| Eq_type T T = lambda |T| eq_type_cons T T (lambda|F, fa| fa)
+
+    do (lambda |UnitType: Type, UnitType_eq : Eq_type UnitType ( Pi |T : Type| T -> T) | {
+        let UnitType_cons : ( Pi |T : Type| T -> T) -> UnitType = coe1 UnitType ( Pi |T : Type| T -> T) UnitType_eq
+        let UnitType_elims : UnitType -> ( Pi |T : Type| T -> T) = coe2 UnitType ( Pi |T : Type| T -> T) UnitType_eq
+
+    let unit = UnitType_cons (lambda |T, t| t)
+    val unit
+    }) ( Pi |T : Type| T -> T) (refl ( Pi |T : Type| T -> T)) 
+
+val 5
+}) (lambda|A, B| (Pi | F : Type -> Type| F A -> F B)) (lambda|A, B, F, fa| fa)
+
+val 5

@@ -1,10 +1,48 @@
-Type UnitType = Pi |T : Type| T -> T 
+Type A = B
 
-let unit = UnitType(lambda |T, t| t)
+let unit = UnitTypeCons(lambda |T, t| t)
+
+// this should desugars to//
+lambda UnitType, UnitTypeEq, and UnitTypeCons, UnitTypeElim can be defined from 
+UnitTypeEq. 
+
+In the future, we can also introduce other functions (implementations).
+For now UnitTypeCons and UnitTypeElim should work.
+
+Let's also try to introduce Eq_type.
+
+Eq_type A B = Pi |F : Type -> Type| F A -> F B.
+
+Eq_type = lambda|A : Type, B : Type| Pi |F : Type -> Type| F A -> F B
+
+
+////////////////////////////////////////////////////////////
+
+let comp : Pi |A : Type, B : Type, C : Type| (A -> B) -> (B -> C) -> (A -> C) = lambda |A, B, C, f, g, a| g (f a)
+
+do (lambda |Eq_type : Type -> Type -> Type, Eq_type_eq: Pi | A : Type, B : Type, G : Type -> Type| 
+(G (Eq_type A B) -> G (Pi | F : Type -> Type| F A -> F B))
+{
+    let eq_type_cons: Pi |A : Type, B : Type| (Pi | F : Type -> Type| F A -> F B) -> Eq_type A B =  lambda |A, B| UnitTypeEq A B  (lambda |S| S -> B) (lambda |t| t)
+    let eq_type_elim: Pi | A : Type, B : Type| Eq_type A B -> (Pi | F : Type -> Type| F A -> F B) = lambda |A, B| UnitTypeEq A B (lambda |S| S)
+    let coe1_helper : Pi | A : Type, B : Type| (Pi | F : Type -> Type| F A -> F B) -> (B -> A) = lambda |A, B, eq_literal| eq_literal (lambda |S| S -> B) (lambda |t| t)
+    let coe1: Pi | A : Type, B : Type| Eq_type A B -> (B -> A) = lambda |A, B| comp (Eq_type A B) ((Pi | F : Type -> Type| F A -> F B))  (B -> A) (eq_type_elim A B) (coe1_helper A B)
+    let coe2_helper : Pi | A : Type, B : Type| (Pi | F : Type -> Type| F A -> F B) -> (A -> B)) = lambda |A, B, eq_literal| eq_literal (lambda |S| S)
+    let coe2 : Pi | A : Type, B : Type| Eq_type A B -> (A -> B) = lambda |A, B| comp (Eq_type A B) ((Pi | F : Type -> Type| F A -> F B))  (A -> B) (eq_type_elim A B) (coe2_helper A B)
+    let refl : Pi |T : Type| Eq T T = lambda |T| eq_type_cons T T (lambda|F, fa| fa)
+
+do (lambda |A: Type, AEq : Eq_type A B {
+    let ACons : B -> A = coe1 A B AEq,
+    let AElims : A -> B = coe2 A B AEq,
 
 
 
+}) (B) (refl B)
 
+
+}) (lambda|A, B| (Pi | F : Type -> Type| F A -> F B)) (lambda|A, B, F, fa| fa)
+
+we need: refl B : Eq_type B B, coe1 : Eq_type A B -> (B -> A), coe2 : Eq_type A B -> (A -> B)
 
 
 //// In the future ////

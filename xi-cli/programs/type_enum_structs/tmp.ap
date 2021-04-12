@@ -1,0 +1,4 @@
+    let coe1_helper : Pi | A : Type, B : Type| (Pi | F : Type -> Type| F A -> F B) -> (B -> A) = lambda |A, B, eq_literal| eq_literal (lambda |S| S -> A) (lambda |t| t)
+
+
+val 5

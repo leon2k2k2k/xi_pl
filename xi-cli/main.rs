@@ -5,9 +5,9 @@ fn ui_to_js(text: &str) -> String {
     use xi_frontend::frontend;
     use xi_kernel::front_to_back::front_to_back;
     let frontend_judgment = frontend(text).expect("error lol");
-    dbg!(&frontend_judgment);
+    // dbg!(&frontend_judgment);
     let backend_judgment = front_to_back(frontend_judgment);
-    dbg!(&backend_judgment);
+    // dbg!(&backend_judgment);
     to_js_program(backend_judgment)
 }
 

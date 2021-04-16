@@ -1,0 +1,31 @@
+
+A module it a table (BTreeMap) of ModuleItems:
+BTreeMap<String, VarUuid>
+BTreeMap<VarUuid, ModuleItems>.  
+
+ModuleItem = (VarUuid, String, Judgment<Ui...>, ui_type).
+
+
+// takes a Aplite text string and returns a module.
+frontend: &str -> Module.
+
+To do this, it parses through each stmt at a time, together with the help of the import context, which keeps track of all the available imports. 
+
+
+Given a stmt, we apply parse_module_stmt and get potentially a module_stmt. 
+A module_stmt remebers the name, the impl in terms as a stmt, as well as its dependencies. 
+Each one becomes a freevar that we need to bind later. 
+
+module_stmt = String x Stmt x Vec[VarUuid].
+
+So we need to keep track of the VarUuid, together with the import. ofc import and other statements doesn't 
+get anything.
+
+parse_module_stmt: Import x SyntaxNode -> Option<module_stmt>.
+
+We take that module_stmt, and then in desugar we desugar we add in a bunch of lams for each dependecies. So we need the import there,
+because we also needs to give the type of each 
+
+desguar_module_stmt: module_stmt -> mod_ule_item.
+
+type_inference: mod_ule_item -> module_item

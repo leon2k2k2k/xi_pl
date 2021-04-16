@@ -80,6 +80,9 @@ pub fn front_to_back(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim, Js
                     define_prim(prim_type),
                     None,
                 ),
+                UiPrim::Global(index) => {
+                    panic!("global variable not expected")
+                }
             }
         },
     ))

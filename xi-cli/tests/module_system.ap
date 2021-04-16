@@ -59,8 +59,11 @@ Now the module loader:
 
 let UnitType_ = lambda |R, rest : Pi |UnitType : Type, UnitTypeCons : (#unit -> UnitType)| rest #unit id
 
+let unit_ = ???? UnitType_
+
+
 UnitType_ (lambda <R>, lambda |UnitType, UnitTypeCons| {
-    let unit_ = (lambda |UnitType : Type, UnitTypeCons: #unit -> UnitType| UnitTypeCons(lambda |T , t| t)) 
+    let unit_ = (lambda |UnitType : Type, UnitTypeCons: #unit -> UnitType| UnitTypeCons(lambda |T , t| t))  
 
 })
 

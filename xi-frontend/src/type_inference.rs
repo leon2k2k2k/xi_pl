@@ -3,7 +3,10 @@ use std::{
     rc::Rc,
 };
 
-use crate::desugar::{Judg_ment, Judg_mentKind};
+use crate::{
+    desugar::{Judg_ment, Judg_mentKind, Mod_uleItem},
+    DefineItem, Module, ModuleItem,
+};
 // use crate::resolve::ResolvePrim;
 // use rowan::TextRange;
 use xi_core::judgment::{Judgment, JudgmentKind, Metadata, Primitive};
@@ -26,13 +29,14 @@ impl Primitive for TypeVar {
 }
 
 #[derive(Debug)]
-pub struct Context<'a> {
+pub struct Context<'a, 'b> {
     var_map: BTreeMap<VarUuid, TypeVar>,
     resps: Vec<TypeVar>,
     constraints: &'a mut BTreeMap<TypeVar, Judgment<TypeVarPrim, UiMetadata>>,
+    module: &'b Module,
 }
 
-impl<'a> Context<'a> {
+impl<'a, 'b> Context<'a, 'b> {
     fn subcontext(
         &mut self,
         func: impl FnOnce(&mut Context) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError>,
@@ -41,6 +45,7 @@ impl<'a> Context<'a> {
             var_map: self.var_map.clone(),
             resps: vec![],
             constraints: self.constraints,
+            module: self.module,
         };
 
         let result = func(&mut subcontext)?;
@@ -79,12 +84,30 @@ impl<'a> Context<'a> {
                         Judgment::prim_wo_prim_type(TypeVarPrim::Prim(prim.clone()), None)
                     }
                     None => {
-                        let alpha = ctx.new_type_var();
-                        Judgment::prim(
-                            TypeVarPrim::Prim(prim.clone()),
-                            Judgment::prim_wo_prim_type(TypeVarPrim::TypeVar(alpha), None),
-                            None,
-                        )
+                        if let UiPrim::Global(index) = prim {
+                            let module_item = ctx.module.module_items.get(&index).unwrap();
+                            if let ModuleItem::Define(define_item) = &*module_item {
+                                let type_ = &define_item.type_;
+                                let type_var_type =
+                                    type_.define_prim(Rc::new(|t, prim_type, define_prim| {
+                                        Judgment::prim(
+                                            TypeVarPrim::Prim(t),
+                                            define_prim(prim_type),
+                                            None,
+                                        )
+                                    }));
+                                Judgment::prim(TypeVarPrim::Prim(prim.clone()), type_var_type, None)
+                            } else {
+                                panic!("expected variable to be a global")
+                            }
+                        } else {
+                            let alpha = ctx.new_type_var();
+                            Judgment::prim(
+                                TypeVarPrim::Prim(prim.clone()),
+                                Judgment::prim_wo_prim_type(TypeVarPrim::TypeVar(alpha), None),
+                                None,
+                            )
+                        }
                     }
                 })
             }),
@@ -238,6 +261,11 @@ impl<'a> Context<'a> {
                     None,
                 ))
             }),
+            Judg_mentKind::Original(judgment) => Ok(judgment.define_prim(Rc::new(
+                |ui_prim, prim_type, define_prim| {
+                    Judgment::prim(TypeVarPrim::Prim(ui_prim), define_prim(prim_type), None)
+                },
+            ))),
         }
     }
 
@@ -508,6 +536,7 @@ pub enum UiPrim {
     NumberElem(String),
     Binary(UiBinaryOp),
     Ffi(String, String),
+    Global(VarUuid),
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -561,34 +590,35 @@ impl Primitive for UiPrim {
                 Some(result)
             }
             Ffi(_, _) => None,
+            Global(index) => None,
         }
     }
 }
 
-pub fn to_judgment(
-    judg_ment: Judg_ment<UiPrim, UiMetadata>,
-) -> Result<Judgment<UiPrim, UiMetadata>, TypeError> {
-    let mut ctx = Context {
-        var_map: BTreeMap::new(),
-        resps: vec![],
-        constraints: &mut BTreeMap::new(),
-    };
+// pub fn to_judgment(
+//     judg_ment: Judg_ment<UiPrim, UiMetadata>,
+// ) -> Result<Judgment<UiPrim, UiMetadata>, TypeError> {
+//     let mut ctx = Context {
+//         var_map: BTreeMap::new(),
+//         resps: vec![],
+//         constraints: &mut BTreeMap::new(),
+//     };
 
-    let judgment_with_type_var = ctx.type_infer(judg_ment)?;
+//     let judgment_with_type_var = ctx.type_infer(judg_ment)?;
 
-    if !ctx.resps.is_empty() {
-        panic!("we shouldn't have any type variables left");
-    }
+//     if !ctx.resps.is_empty() {
+//         panic!("we shouldn't have any type variables left");
+//     }
 
-    Ok(
-        judgment_with_type_var.define_prim(Rc::new(|type_var_prim, prim_type, define_prim| {
-            match type_var_prim {
-                TypeVarPrim::TypeVar(_) => unreachable!("resps should be empty"),
-                TypeVarPrim::Prim(prim) => Judgment::prim(prim, define_prim(prim_type), None),
-            }
-        })),
-    )
-}
+//     Ok(
+//         judgment_with_type_var.define_prim(Rc::new(|type_var_prim, prim_type, define_prim| {
+//             match type_var_prim {
+//                 TypeVarPrim::TypeVar(_) => unreachable!("resps should be empty"),
+//                 TypeVarPrim::Prim(prim) => Judgment::prim(prim, define_prim(prim_type), None),
+//             }
+//         })),
+//     )
+// }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TypeVarPrim {
@@ -621,6 +651,37 @@ pub struct UiMetadata {
 // var_name: Option<String>,
 }
 
+pub fn type_infer_mod_ule_item(module: &Module, mod_ule_item: Mod_uleItem) -> ModuleItem {
+    let mut ctx = Context {
+        var_map: BTreeMap::new(),
+        resps: vec![],
+        constraints: &mut BTreeMap::new(),
+        module: module,
+    };
+    let type_var_judgment = match mod_ule_item.expected_type {
+        Some(expected_type) => {
+            let expected_type = ctx.type_infer(expected_type).unwrap();
+            ctx.type_check(mod_ule_item.impl_, expected_type).unwrap()
+        }
+        None => ctx.type_infer(mod_ule_item.impl_).unwrap(),
+    };
+
+    let judgment: Judgment<UiPrim, UiMetadata> =
+        type_var_judgment.define_prim(Rc::new(|type_var_prim, prim_type, define_prim| {
+            match type_var_prim {
+                TypeVarPrim::TypeVar(_) => unreachable!("resps should be empty"),
+                TypeVarPrim::Prim(prim) => Judgment::prim(prim, define_prim(prim_type), None),
+            }
+        }));
+
+    let define_item = DefineItem {
+        type_: judgment.type_of().unwrap(),
+        impl_: judgment,
+        type_dependencies: vec![],
+    };
+    ModuleItem::Define(define_item)
+}
+
 impl Metadata for UiMetadata {}
 
 // #[derive(Clone, Default, PartialEq, Eq, Debug)]
@@ -633,100 +694,100 @@ impl Metadata for UiMetadata {}
 
 // Tests to see that Type inference works!
 // Do not erase!!!!!!!
-#[cfg(test)]
-mod test {
-    use super::UiPrim::*;
-    use crate::frontend;
-    use xi_core::judgment::Judgment;
-    use xi_core::judgment::Primitive;
-    use xi_proc_macro::term;
-    use xi_uuid::VarUuid;
+// #[cfg(test)]
+// mod test {
+//     use super::UiPrim::*;
+//     use crate::frontend;
+//     use xi_core::judgment::Judgment;
+//     use xi_core::judgment::Primitive;
+//     use xi_proc_macro::term;
+//     use xi_uuid::VarUuid;
 
-    #[test]
-    fn sanity_test() {
-        let text0 = "val lambda |T : Type| T";
-        assert_eq!(frontend(text0).unwrap(), term!(Lam | T: U | T));
+//     #[test]
+//     fn sanity_test() {
+//         let text0 = "val lambda |T : Type| T";
+//         assert_eq!(frontend(text0).unwrap(), term!(Lam | T: U | T));
 
-        let text1 = "val lambda |T : Type, t : T| t";
-        assert_eq!(frontend(text1).unwrap(), term!(Lam | T: U, t: T | t))
-    }
+//         let text1 = "val lambda |T : Type, t : T| t";
+//         assert_eq!(frontend(text1).unwrap(), term!(Lam | T: U, t: T | t))
+//     }
 
-    #[test]
-    fn type_infer_test() {
-        let text1 = "fn f |x| {val x}  val f 5";
-        assert_eq!(
-            frontend(text1).unwrap(),
-            term!((Lam |bv0 : [NumberType] -> [NumberType]| bv0 [NumberElem("5".into())]) (
-                    Lam | bv0: [NumberType] | bv0
-                )
-            )
-        );
+//     #[test]
+//     fn type_infer_test() {
+//         let text1 = "fn f |x| {val x}  val f 5";
+//         assert_eq!(
+//             frontend(text1).unwrap(),
+//             term!((Lam |bv0 : [NumberType] -> [NumberType]| bv0 [NumberElem("5".into())]) (
+//                     Lam | bv0: [NumberType] | bv0
+//                 )
+//             )
+//         );
 
-        let text2 = "fn f |x : Int| -> Int {val x}
-        fn g |x| {val f x}
-        val g 5";
-        assert_eq!(
-            frontend(text2).unwrap(),
-            term!((Lam |bv0: [NumberType] -> [NumberType]| (Lam |bv1: [NumberType] -> [NumberType]| bv1 [NumberElem("5".into())]) (Lam |bv1: [NumberType]| bv0 bv1)) (Lam |bv0: [NumberType]| bv0)),
-        );
+//         let text2 = "fn f |x : Int| -> Int {val x}
+//         fn g |x| {val f x}
+//         val g 5";
+//         assert_eq!(
+//             frontend(text2).unwrap(),
+//             term!((Lam |bv0: [NumberType] -> [NumberType]| (Lam |bv1: [NumberType] -> [NumberType]| bv1 [NumberElem("5".into())]) (Lam |bv1: [NumberType]| bv0 bv1)) (Lam |bv0: [NumberType]| bv0)),
+//         );
 
-        let text3 = "fn f |x| -> Int {val x}
-        val 4";
-        assert_eq!(
-            frontend(text3).unwrap(),
-            term!((Lam |bv0: [NumberType] -> [NumberType]| [NumberElem("4".into())]) (Lam |bv0: [NumberType]| bv0)),
-        );
+//         let text3 = "fn f |x| -> Int {val x}
+//         val 4";
+//         assert_eq!(
+//             frontend(text3).unwrap(),
+//             term!((Lam |bv0: [NumberType] -> [NumberType]| [NumberElem("4".into())]) (Lam |bv0: [NumberType]| bv0)),
+//         );
 
-        let text4 = "val lambda |T : Type, t : T| t
-        ";
-        assert_eq!(frontend(text4).unwrap(), term!(Lam | T: U, t: T | t));
+//         let text4 = "val lambda |T : Type, t : T| t
+//         ";
+//         assert_eq!(frontend(text4).unwrap(), term!(Lam | T: U, t: T | t));
 
-        let text5 = " fn test |T : Type, t : T| { let id = lambda |x| x val id t }
-        val 4";
-        assert_eq!(
-            frontend(text5).unwrap(),
-            term!((Lam |bv0: Pi |bv0: U| bv0 -> bv0| [NumberElem("4".into())]) (Lam |bv0: U, bv1: bv0| (Lam |bv2: bv0 -> bv0| bv2 bv1) (Lam |bv2: bv0| bv2))),
-        );
-    }
+//         let text5 = " fn test |T : Type, t : T| { let id = lambda |x| x val id t }
+//         val 4";
+//         assert_eq!(
+//             frontend(text5).unwrap(),
+//             term!((Lam |bv0: Pi |bv0: U| bv0 -> bv0| [NumberElem("4".into())]) (Lam |bv0: U, bv1: bv0| (Lam |bv2: bv0 -> bv0| bv2 bv1) (Lam |bv2: bv0| bv2))),
+//         );
+//     }
 
-    #[test]
-    fn ffi_test() {
-        let text = "
-        ffi \"./some_file.js\"{
-            UnitType : Type,
-            unit : UnitType,
-            console_output: String -> IO UnitType,
-        }
-        let me = console_output(\"hello\")!
-        val unit!
-        ";
+//     #[test]
+//     fn ffi_test() {
+//         let text = "
+//         ffi \"./some_file.js\"{
+//             UnitType : Type,
+//             unit : UnitType,
+//             console_output: String -> IO UnitType,
+//         }
+//         let me = console_output(\"hello\")!
+//         val unit!
+//         ";
 
-        crate::frontend(text).unwrap();
-    }
+//         crate::frontend(text).unwrap();
+//     }
 
-    #[test]
-    fn dependent_type_test() {
-        let text = " val lambda |T: Type, succ: T -> T| succ ";
-        assert_eq!(
-            crate::frontend(text).unwrap(),
-            term!(Lam |T : U, succ : T -> T| succ),
-        );
+//     #[test]
+//     fn dependent_type_test() {
+//         let text = " val lambda |T: Type, succ: T -> T| succ ";
+//         assert_eq!(
+//             crate::frontend(text).unwrap(),
+//             term!(Lam |T : U, succ : T -> T| succ),
+//         );
 
-        let text2 = " val lambda |T: Type, zero : T, succ: T -> T| succ zero";
-        assert_eq!(
-            crate::frontend(text2).unwrap(),
-            term!(Lam |T : U, zero : T, succ : T -> T| succ zero),
-        );
-    }
+//         let text2 = " val lambda |T: Type, zero : T, succ: T -> T| succ zero";
+//         assert_eq!(
+//             crate::frontend(text2).unwrap(),
+//             term!(Lam |T : U, zero : T, succ : T -> T| succ zero),
+//         );
+//     }
 
-    #[test]
-    fn actual_type_inference_test() {
-        let text = "let id : Pi | T : Type, t : T| T = lambda |T, t| t
-        val 5
-        ";
-        assert_eq!(
-            crate::frontend(text).unwrap(),
-            term!((Lam |bv0: Pi |bv0: U| bv0 -> bv0| [NumberElem("5".into())]) (Lam |bv0: U, bv1: bv0| bv1)),
-        );
-    }
-}
+//     #[test]
+//     fn actual_type_inference_test() {
+//         let text = "let id : Pi | T : Type, t : T| T = lambda |T, t| t
+//         val 5
+//         ";
+//         assert_eq!(
+//             crate::frontend(text).unwrap(),
+//             term!((Lam |bv0: Pi |bv0: U| bv0 -> bv0| [NumberElem("5".into())]) (Lam |bv0: U, bv1: bv0| bv1)),
+//         );
+//     }
+// }

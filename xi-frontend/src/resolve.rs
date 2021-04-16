@@ -1,56 +1,14 @@
-use crate::rowan_ast::{nonextra_children, SyntaxKind, SyntaxNode};
-use crate::type_inference::UiBinaryOp as BinaryOp;
+use crate::ModuleItem;
+use crate::{rowan_ast::Lang, type_inference::UiBinaryOp as BinaryOp, Module};
+use crate::{
+    rowan_ast::{nonextra_children, SyntaxKind, SyntaxNode},
+    type_inference::{UiMetadata, UiPrim},
+};
 use rowan::{TextRange, TextSize};
 use std::collections::BTreeMap;
+use xi_core::judgment::Judgment;
 use xi_uuid::VarUuid;
 
-// remember to change the prims() method below
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum ResolvePrim {
-    IOMonad,
-    String,
-    Int,
-}
-impl ResolvePrim {
-    pub fn prims() -> Vec<ResolvePrim> {
-        use ResolvePrim::*;
-        vec![IOMonad, String, Int]
-    }
-}
-
-impl std::fmt::Display for ResolvePrim {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use ResolvePrim::*;
-        let res = match self {
-            IOMonad => "IO",
-            String => "String",
-            Int => "Int",
-        };
-        write!(f, "{}", res)
-    }
-}
-
-impl ResolvePrim {
-    fn get_ctx() -> (Context, BTreeMap<VarUuid, ResolvePrim>) {
-        let mut ident_map = BTreeMap::new();
-        let mut resolve_map = BTreeMap::new();
-        for prim in ResolvePrim::prims() {
-            let var = VarBinder {
-                index: VarUuid::new(),
-                name: prim.to_string(),
-                span: Span::new(TextSize::from(0), TextSize::from(0)),
-                var_type: None,
-            };
-
-            ident_map.insert(prim.to_string(), var.clone());
-            resolve_map.insert(var.index, prim.clone());
-        }
-
-        (Context(ident_map), resolve_map)
-    }
-}
-#[derive(Clone, Debug)]
-pub struct SourceFile(pub Vec<Stmt>, pub BTreeMap<VarUuid, ResolvePrim>);
 #[derive(Clone, Debug)]
 pub enum Error {
     // Stmt(StmtError),
@@ -126,6 +84,21 @@ pub struct Var {
     pub index: VarUuid,
     pub name: String,
     pub span: Span,
+    pub local_or_global: LocalOrGlobal,
+}
+
+#[derive(Clone, Debug)]
+pub enum LocalOrGlobal {
+    Local,
+    Global,
+}
+#[derive(Clone, Debug)]
+pub struct ImportVar {
+    pub index: VarUuid,
+    pub var_type: Judgment<UiPrim, UiMetadata>,
+    pub name: String,
+    pub span: Span,
+    // pub origin
 }
 
 #[derive(Clone, Debug)]
@@ -137,29 +110,20 @@ pub struct NameNotFoundError {
 pub type Span = rowan::TextRange;
 
 #[derive(Clone, Debug)]
-struct Context(BTreeMap<String, VarBinder>);
-
-pub fn parse_source_file(node: &SyntaxNode) -> SourceFile {
-    let (mut ctx, resolve_var) = ResolvePrim::get_ctx();
-    let mut stmts = vec![];
-    // let mut errors = vec![];
-    // let mut previous_error = false;
-
-    for child in nonextra_children(node) {
-        let child_stmt = ctx.parse_stmt(&child);
-
-        stmts.push(child_stmt);
-        // if let SyntaxKind::ERROR = child.kind() {
-        //     if previous_error == false {
-        //         previous_error = true;
-        //         errors.push(child_errors)
-        //     }
-        // }
-    }
-    SourceFile(stmts, resolve_var)
+struct Context {
+    local_ctx: BTreeMap<String, VarBinder>,
+    import_ctx: Module,
+    dependencies: Vec<VarUuid>,
 }
 
 impl Context {
+    pub fn new(module: Module) -> Context {
+        Context {
+            local_ctx: BTreeMap::new(),
+            import_ctx: module,
+            dependencies: vec![],
+        }
+    }
     fn create_var(&mut self, node: &SyntaxNode, var_type: Option<Expr>) -> VarBinder {
         assert_eq!(node.kind(), SyntaxKind::IDENT);
         let index = VarUuid::new();
@@ -174,11 +138,12 @@ impl Context {
             name: var_name.clone(),
             span: node.text_range(),
         };
-        self.0.insert(var_name.clone(), var.clone());
+        self.local_ctx.insert(var_name.clone(), var.clone());
 
         var
     }
 
+    // check if the ident exists in the local context, then check if it exists in module, if it does, then check has it been used before, if not, then add it onto the dependencies vec.
     fn parse_var(&self, node: &SyntaxNode) -> Result<Var, NameNotFoundError> {
         assert!(node.kind() == SyntaxKind::IDENT);
         let var_name = node
@@ -186,19 +151,29 @@ impl Context {
             .expect("Expected a child for an var")
             .text()
             .into();
-        let var = match self.0.get(&var_name) {
-            None => Err(NameNotFoundError {
-                name: var_name,
-                span: node.text_range(),
-            }),
+        match self.local_ctx.get(&var_name) {
             Some(var) => Ok(Var {
                 index: var.index,
                 name: var_name,
                 span: node.text_range(),
+                local_or_global: LocalOrGlobal::Local,
             }),
-        };
-
-        var
+            None => {
+                if let Some(index) = self.import_ctx.str_to_index.get(&var_name) {
+                    Ok(Var {
+                        index: *index,
+                        name: var_name,
+                        span: node.text_range(),
+                        local_or_global: LocalOrGlobal::Global,
+                    })
+                } else {
+                    Err(NameNotFoundError {
+                        name: var_name,
+                        span: node.text_range(),
+                    })
+                }
+            }
+        }
     }
 
     fn parse_stmt(&mut self, node: &SyntaxNode) -> Stmt {
@@ -501,39 +476,64 @@ impl Context {
     }
 }
 
+pub fn parse_module_stmt(module: &mut Module, node: &SyntaxNode) -> (String, ModuleStmt) {
+    let mut ctx = Context::new(module.clone());
+    let children = nonextra_children(node).collect::<Vec<_>>();
+
+    let name: String = match node.kind() {
+        SyntaxKind::LET_STMT => children[0].first_token().expect("a token").text().into(),
+        SyntaxKind::FN_STMT => children[0].first_token().expect("a token").text().into(),
+        SyntaxKind::IMPORT_STMT => todo!(),
+        SyntaxKind::FFI_STMT => todo!(),
+        _ => panic!("wrong stmt on the module level"),
+    };
+
+    (
+        name,
+        ModuleStmt {
+            impl_: ctx.parse_stmt(node),
+        },
+    )
+}
+
+#[derive(Clone, Debug)]
+pub struct ModuleStmt {
+    pub impl_: Stmt,
+}
+
 #[cfg(test)]
 mod test {
-    use super::{parse_source_file, SourceFile};
-    use crate::rowan_ast::string_to_syntax;
+    // use super::{parse_source_file, SourceFile};
+    // use crate::rowan_ast::string_to_syntax;
 
-    fn source_code_to_parse(text: &str) -> SourceFile {
-        let node = string_to_syntax(text);
-        parse_source_file(&node)
-    }
+    // fn source_code_to_parse(text: &str) -> SourceFile {
+    //     let node = string_to_syntax(text);
+    //     parse_source_file(&node)
+    // }
 
-    #[test]
-    fn test_parser() {
-        // let text = "fn foo |x : Type, y : Type| -> Type {
-        //     val x}";
-        // let node = source_code_to_parse(text);
-        // dbg!(node);
+    // #[test]
+    // fn test_parser() {
+    //     // let text = "fn foo |x : Type, y : Type| -> Type {
+    //     //     val x}";
+    //     // let node = source_code_to_parse(text);
+    //     // dbg!(node);
 
-        // // let text2 = "fn foo |x| {val x}
-        // // val foo (Pi |y: Type| y)";
-        // // let node2 = source_code_to_parse(text2);
-        // // dbg!(node2);
+    //     // // let text2 = "fn foo |x| {val x}
+    //     // // val foo (Pi |y: Type| y)";
+    //     // // let node2 = source_code_to_parse(text2);
+    //     // // dbg!(node2);
 
-        // let text = "val \"hello\"";
-        // let node = source_code_to_parse(text);
-        // dbg!(node);
+    //     // let text = "val \"hello\"";
+    //     // let node = source_code_to_parse(text);
+    //     // dbg!(node);
 
-        let text = "ffi \"some_file.js\" {
-            add1: Type -> Type,
-            add2: Type -> Type,
-            Justin: Type,
-        }
-        val add1 add2 Justin";
-        let node = source_code_to_parse(text);
-        dbg!(node);
-    }
+    //     let text = "ffi \"some_file.js\" {
+    //         add1: Type -> Type,
+    //         add2: Type -> Type,
+    //         Justin: Type,
+    //     }
+    //     val add1 add2 Justin";
+    //     let node = source_code_to_parse(text);
+    //     dbg!(node);
+    // }
 }

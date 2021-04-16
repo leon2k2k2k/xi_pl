@@ -1,4 +1,10 @@
-    let coe1_helper : Pi | A : Type, B : Type| (Pi | F : Type -> Type| F A -> F B) -> (B -> A) = lambda |A, B, eq_literal| eq_literal (lambda |S| S -> A) (lambda |t| t)
+import hello from hello.ap
 
+fn f |x : Int| -> Int {
+    do hello
+    val x
+}
 
-val 5
+fn g | x : Int| -> Int {
+    val f x
+}

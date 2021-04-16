@@ -1,6 +1,6 @@
-use crate::{resolve::{self, Expr, ExprKind, ResolvePrim, SourceFile, Stmt, StmtKind}};
+use crate::{ Module, resolve::{self, Expr, ExprKind, ModuleStmt, Stmt, StmtKind}};
 use resolve::StringTokenKind;
-use std::collections::BTreeMap;
+use xi_core::judgment::{Judgment, JudgmentKind, Metadata, Primitive};
 use xi_uuid::VarUuid;
 use crate::type_inference::UiPrim;
 use crate::type_inference::UiMetadata;
@@ -43,6 +43,7 @@ pub enum Judg_mentKind<T, S> {
     Let(Judg_ment<T, S>, VarUuid, Option<Judg_ment<T, S>>, Judg_ment<T, S>),
     Bind(Judg_ment<T, S>, Judg_ment<T, S>),
     Pure(Judg_ment<T, S>),
+    Original(Judgment<T,S>)
 }
 
 
@@ -78,13 +79,17 @@ impl Judg_ment<UiPrim, UiMetadata> {
     fn let_(arg: Judg_ment<UiPrim, UiMetadata>, var : VarUuid, var_type: Option<Judg_ment<UiPrim, UiMetadata>>, rest: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
         Judg_ment(Box::new(Judg_mentKind::Let(arg, var, var_type, rest)), UiMetadata{})
     }
+    fn original(judgment: Judgment<UiPrim, UiMetadata>) ->  Judg_ment<UiPrim, UiMetadata>{
+        Judg_ment(Box::new(Judg_mentKind::Original(judgment)), UiMetadata{})
+    }
 }
 
 struct Context {
-    prim_map: BTreeMap<VarUuid, ResolvePrim>,
+    // todo: maybe there should be something here?
 }
 
 impl Context {
+    // this desugars the body of a stmt_expr
     fn desugar_stmt_vec(&self, stmts: &[Stmt]) -> Judg_ment<UiPrim, UiMetadata>  {
         if stmts.is_empty() {
             panic!("expected a val or something");
@@ -167,21 +172,15 @@ impl Context {
     // }
 
     fn desugar_var(&self, var: &resolve::Var) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::FreeVar(var.index)), UiMetadata{})
+        match var.local_or_global {
+            resolve::LocalOrGlobal::Local => Judg_ment(Box::new(Judg_mentKind::FreeVar(var.index)), UiMetadata{})  ,
+            resolve::LocalOrGlobal::Global => Judg_ment::prim(UiPrim::Global(var.index)),
+        }
     }
 
     fn desugar_expr(&self, expr: &Expr) -> Judg_ment<UiPrim, UiMetadata> {
         match &*expr.0 {
-            ExprKind::Var(var) => match self.prim_map.get(&var.index) {
-                Some(prim) => {
-                    let prim = match prim {
-                        ResolvePrim::IOMonad => UiPrim::IOMonad,
-                        ResolvePrim::String => UiPrim::StringType,
-                        ResolvePrim::Int => UiPrim::NumberType,
-                    };
-                    Judg_ment::prim(prim.clone())}
-                None => self.desugar_var(var),
-            },
+            ExprKind::Var(var) => self.desugar_var(var),
             ExprKind::Type => Judg_ment::u(),
             ExprKind::Bang(expr) => {
                 Judg_ment::pure(self.desugar_expr(expr))
@@ -243,17 +242,7 @@ impl Context {
     }
 }
 
-pub fn source_file_to_judg_ment(source_file: SourceFile) -> Judg_ment<UiPrim, UiMetadata> {
-
-    let stmts = &source_file.0;
-    let ctx = Context {
-        prim_map: source_file.1,
-    };
-
-    ctx.desugar_stmt_vec(stmts)
-}
-
-impl <T : std::fmt::Debug + Clone, S : std::fmt::Debug + Clone>std::fmt::Debug for Judg_ment<T, S> {
+impl <T : Primitive, S : Metadata >std::fmt::Debug for Judg_ment<T, S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &*self.0 {
             Judg_mentKind::Type => f.write_str("Type")?,
@@ -294,63 +283,88 @@ impl <T : std::fmt::Debug + Clone, S : std::fmt::Debug + Clone>std::fmt::Debug f
             Judg_mentKind::Pure(arg) => {
                 f.write_str(&format!("(Pure {:?})", arg))?;
             }
+            Judg_mentKind::Original(judgment) => {
+                f.write_str(&format!("Original {:?}", judgment))?;
+            }
         }
         Ok(())
     }
 }
 
-mod test {
-    #[test]
-    fn test_de_sugar() {
-        use super::*;
-        use crate::desugar::source_file_to_judg_ment;
-        use resolve::parse_source_file;
-        use crate::rowan_ast::{string_to_syntax};
-        use crate::type_inference::{ UiMetadata, UiPrim};
-        fn text_to_judg_ment(text : &str) -> Judg_ment<UiPrim, UiMetadata>{
-            let syntax_node = string_to_syntax(text);
-            // dbg!(&syntax_node);
-            // syntax_node is the rowan tree level
-            let source_file = parse_source_file(&syntax_node);
-            // dbg!(&source_file);
-            // source_file is at the name resolution level
-            let judg_ment = source_file_to_judg_ment(source_file);
-            // judg_ment is at the desugar level.
-            judg_ment
+
+pub fn desugar_module_stmt(module: &mut Module, module_stmt : ModuleStmt) -> Mod_uleItem {
+    match module_stmt.impl_.0 {
+        StmtKind::Let(var_bind, expr) => {
+            let ctx = Context{};
+            let judg_ment = ctx.desugar_expr(&expr);
+            let expected_type = match var_bind.var_type{
+                Some(var_type) => {Some(ctx.desugar_expr(&var_type))},
+                None => None,
+            };
+
+            Mod_uleItem{
+                impl_: judg_ment,
+                expected_type: expected_type,
+            }
         }
-        // let text = "fn foo |x : Type| -> Type { val x}
-        // val foo
-        // ";
-        // let judg_ment = text_to_judg_ment(text);
-        // dbg!(judg_ment);
-
-        let text2 = "fn foo |x| {val x}
-        val foo (Pi |y: Type| y)";
-        let judg_ment2 = text_to_judg_ment(text2);
-        dbg!(judg_ment2);
-
-        // let text3 = "let in = console_input!
-        // let y = console_output(in)!
-        // val unit!";
-        // let judg_ment3 = text_to_judg_ment(text3);
-        // dbg!(judg_ment3);
-
-        // let ffi_text = "ffi \"some_file.js\"{
-        //     Int : Type,
-        //     five : Int,
-        //     six : Int,
-        //     add : Int -> Int -> Int,
-        //     int_to_string : Int -> String 
-        // }
-        
-        // let ans = add five six
-        // let better_ans = add ans six
-        // let even_better_ans = int_to_string(better_ans)
-        
-        // do console_output(even_better_ans)!
-        // val unit!";
-
-        // let judg_ment = frontend(ffi_text);
-        // dbg!(judg_ment);
+        StmtKind::Val(_) => unreachable!(),
+        StmtKind::Ffi(_, _) => unreachable!(),
     }
 }
+pub struct Mod_uleItem {
+    pub impl_: Judg_ment<UiPrim, UiMetadata>,
+    pub expected_type: Option<Judg_ment<UiPrim, UiMetadata>>,
+}
+// mod test {
+//     #[test]
+//     fn test_de_sugar() {
+//         pub use super::*;
+//         use crate::rowan_ast::{string_to_syntax};
+//         use crate::type_inference::{ UiMetadata, UiPrim};
+//         fn text_to_judg_ment(text : &str) -> Judg_ment<UiPrim, UiMetadata>{
+//             let syntax_node = string_to_syntax(text);
+//             // dbg!(&syntax_node);
+//             // syntax_node is the rowan tree level
+//             let source_file = parse_source_file(&syntax_node);
+//             // dbg!(&source_file);
+//             // source_file is at the name resolution level
+//             let judg_ment = source_file_to_judg_ment(source_file);
+//             // judg_ment is at the desugar level.
+//             judg_ment
+//         }
+//         // let text = "fn foo |x : Type| -> Type { val x}
+//         // val foo
+//         // ";
+//         // let judg_ment = text_to_judg_ment(text);
+//         // dbg!(judg_ment);
+
+//         let text2 = "fn foo |x| {val x}
+//         val foo (Pi |y: Type| y)";
+//         let judg_ment2 = text_to_judg_ment(text2);
+//         dbg!(judg_ment2);
+
+//         // let text3 = "let in = console_input!
+//         // let y = console_output(in)!
+//         // val unit!";
+//         // let judg_ment3 = text_to_judg_ment(text3);
+//         // dbg!(judg_ment3);
+
+//         // let ffi_text = "ffi \"some_file.js\"{
+//         //     Int : Type,
+//         //     five : Int,
+//         //     six : Int,
+//         //     add : Int -> Int -> Int,
+//         //     int_to_string : Int -> String 
+//         // }
+        
+//         // let ans = add five six
+//         // let better_ans = add ans six
+//         // let even_better_ans = int_to_string(better_ans)
+        
+//         // do console_output(even_better_ans)!
+//         // val unit!";
+
+//         // let judg_ment = frontend(ffi_text);
+//         // dbg!(judg_ment);
+//     }
+// }

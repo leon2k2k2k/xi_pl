@@ -31,7 +31,3 @@ let ok =  lambda |T : Type, f : Type -> T| f T
 let id = lambda |T : Type, t : T| t
 
 let id : Pi |T: Type | T -> T = lambda |T : Type, t : T| t
-
-
-
-val 5

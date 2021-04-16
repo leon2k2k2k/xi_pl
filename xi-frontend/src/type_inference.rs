@@ -346,11 +346,11 @@ impl<'a, 'b> Context<'a, 'b> {
         let lhs = lhs.clone();
         let rhs = rhs.clone();
 
-        if let JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), prim_type) = &*lhs.tree {
+        if let JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), _prim_type) = &*lhs.tree {
             self.add_constraint(*type_var, rhs.clone())?;
             return Ok(rhs);
         }
-        if let JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), prim_type) = &*rhs.tree {
+        if let JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), _prim_type) = &*rhs.tree {
             self.add_constraint(*type_var, lhs.clone())?;
             return Ok(lhs);
         }
@@ -590,7 +590,7 @@ impl Primitive for UiPrim {
                 Some(result)
             }
             Ffi(_, _) => None,
-            Global(index) => None,
+            Global(_index) => None,
         }
     }
 }

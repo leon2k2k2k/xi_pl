@@ -602,7 +602,7 @@ mod test {
         use super::*;
         use xi_proc_macro::term;
         use xi_uuid::VarUuid;
-        let ((a, b), t): (_, Judgment<(), ()>) = term!(|fv9 : U, fv12 : Pi |bv0: U -> U| bv0 fv9 -> bv0 (Pi |bv2: U| bv2 -> bv2)| fv12 (Lam |bv0: U| bv0 -> fv9) (Lam |bv0 : fv9| bv0));
+        let ((_a, _b), t): (_, Judgment<(), ()>) = term!(|fv9 : U, fv12 : Pi |bv0: U -> U| bv0 fv9 -> bv0 (Pi |bv2: U| bv2 -> bv2)| fv12 (Lam |bv0: U| bv0 -> fv9) (Lam |bv0 : fv9| bv0));
         dbg!(t.type_of());
     }
 }

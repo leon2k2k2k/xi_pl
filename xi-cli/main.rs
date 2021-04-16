@@ -1,16 +1,14 @@
 // #![allow(dead_code)]
 // // Take an Aplite UI &str and returns a string of JavaScript.
-fn ui_to_js(text: &str) -> String {
+fn ui_to_js(text: &str, func_name: &str) -> String {
     use xi_backend::output::to_js_program;
-    use xi_frontend::frontend;
+    use xi_frontend::{compile_module_item, ui_to_module};
     use xi_kernel::front_to_back::front_to_back;
-    let frontend_judgment = frontend(text);
-    dbg!(frontend_judgment);
-    // dbg!(&frontend_judgment);
-    // let backend_judgment = front_to_back(frontend_judgment);
-    // // dbg!(&backend_judgment);
-    // to_js_program(backend_judgment)
-    todo!();
+    let module = ui_to_module(text);
+    dbg!(&module);
+    let compiled_judgment = compile_module_item(module, func_name);
+    let backend_judgment = front_to_back(compiled_judgment);
+    to_js_program(backend_judgment)
 }
 
 // fn ap_lib_to_judg(text: &str) -> Vec<ModuleItem> {
@@ -47,10 +45,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let string2 = "let str = \" hello \"
     // let y = console_output(str)!
     // val unit!";
-    let file_name = std::env::args().collect::<Vec<_>>();
-    let string = std::fs::read_to_string(file_name[1].clone())?;
+    let input = std::env::args().collect::<Vec<_>>();
+    let file_name = std::fs::read_to_string(input[1].clone())?;
+    let func_name = input[2].clone();
 
-    let js = ui_to_js(&string);
+    let js = ui_to_js(&file_name, &func_name);
 
     println!("{}", js);
     runtime::run_js_from_string(js).await?;

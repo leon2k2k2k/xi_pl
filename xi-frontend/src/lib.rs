@@ -1,10 +1,11 @@
 use desugar::desugar_module_stmt;
-use resolve::{parse_module_stmt, Var};
+use resolve::parse_module_stmt;
 use rowan::SyntaxNode;
 use rowan_ast::{nonextra_children, string_to_syntax, Lang};
 use std::collections::BTreeMap;
-use type_inference::{type_infer_mod_ule_item, TypeError, UiMetadata, UiPrim};
-use xi_core::judgment::{Judgment, Metadata, Primitive};
+use std::rc::Rc;
+use type_inference::{type_infer_mod_ule_item, UiMetadata, UiPrim};
+use xi_core::judgment::Judgment;
 use xi_uuid::VarUuid;
 
 mod desugar;
@@ -43,6 +44,7 @@ impl Module {
 #[derive(Clone, Debug)]
 pub enum ModuleItem {
     Define(DefineItem),
+    Something,
     // Import(ImportItem),
     // impl_: Judgment<UiPrim, UiMetadata>,
     // pub type_: Judgment<UiPrim, UiMetadata>,
@@ -74,7 +76,7 @@ pub struct DefineItem {
 //     Public,
 // }
 
-pub fn frontend(text: &str) -> Module {
+pub fn ui_to_module(text: &str) -> Module {
     let syntax_node = string_to_syntax(text);
     // dbg!(&syntax_node);
     // syntax_node is the rowan tree level
@@ -83,6 +85,30 @@ pub fn frontend(text: &str) -> Module {
         module.add_stmt_to_module_item(&child);
     }
     module
+}
+
+pub fn compile_module_item(module: Module, func_name: &str) -> Judgment<UiPrim, UiMetadata> {
+    let index = *module.str_to_index.get(func_name).unwrap();
+    compile_module_item_from_index(module, index).clone()
+}
+
+pub fn compile_module_item_from_index(
+    module: Module,
+    index: VarUuid,
+) -> Judgment<UiPrim, UiMetadata> {
+    let module_item = module.module_items.get(&index).unwrap();
+    if let ModuleItem::Define(define_item) = module_item {
+        let impl_ = define_item.clone().impl_;
+        let run_impl_: Judgment<UiPrim, UiMetadata> = impl_.define_prim(Rc::new(
+            move |prim: UiPrim, prim_type, define_prim| match prim {
+                UiPrim::Global(index1) => compile_module_item_from_index(module.clone(), index1),
+                _ => Judgment::prim(prim, define_prim(prim_type), None),
+            },
+        ));
+        run_impl_
+    } else {
+        todo!()
+    }
 }
 
 //     // #[test]

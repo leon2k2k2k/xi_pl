@@ -12,21 +12,16 @@ let zero1 : Pi |T : Type|  T -> (T -> T) -> T  = lambda | T : Type, zero : T, su
 let hello =  Pi| T : Type| T -> (T -> T) -> T 
 
 
-// this does work
 let zero = lambda | T : Type, zero : T, succ: T -> T| zero
 
-
-// this DOESN'T work!!!!!!!!!!!!!!!!!!!!!!!! Probably a type inference issue
+// this works finally!
 let one : Pi| T: Type | T -> (T -> T) -> T = lambda | T, zero, succ| (succ zero)
 
 
 
-// This also DOESN'T work!!!!!!!!!!!!!!!!!!!!!
+// this also works!
 let ok =  lambda |T : Type, f : Type -> T| f T
 // There is something wrong with app and variable binding. Maybe we have fixed it.
-
-
-// problem with app, and variables out of scope.
 
 let id = lambda |T : Type, t : T| t
 

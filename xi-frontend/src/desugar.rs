@@ -1,6 +1,6 @@
 use crate::{ Module, resolve::{self, Expr, ExprKind, ModuleStmt, Stmt, StmtKind}};
 use resolve::StringTokenKind;
-use xi_core::judgment::{Judgment, JudgmentKind, Metadata, Primitive};
+use xi_core::judgment::{Judgment,  Metadata, Primitive};
 use xi_uuid::VarUuid;
 use crate::type_inference::UiPrim;
 use crate::type_inference::UiMetadata;
@@ -79,9 +79,7 @@ impl Judg_ment<UiPrim, UiMetadata> {
     fn let_(arg: Judg_ment<UiPrim, UiMetadata>, var : VarUuid, var_type: Option<Judg_ment<UiPrim, UiMetadata>>, rest: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
         Judg_ment(Box::new(Judg_mentKind::Let(arg, var, var_type, rest)), UiMetadata{})
     }
-    fn original(judgment: Judgment<UiPrim, UiMetadata>) ->  Judg_ment<UiPrim, UiMetadata>{
-        Judg_ment(Box::new(Judg_mentKind::Original(judgment)), UiMetadata{})
-    }
+
 }
 
 struct Context {
@@ -292,7 +290,7 @@ impl <T : Primitive, S : Metadata >std::fmt::Debug for Judg_ment<T, S> {
 }
 
 
-pub fn desugar_module_stmt(module: &mut Module, module_stmt : ModuleStmt) -> Mod_uleItem {
+pub fn desugar_module_stmt(_module: &mut Module, module_stmt : ModuleStmt) -> Mod_uleItem {
     match module_stmt.impl_.0 {
         StmtKind::Let(var_bind, expr) => {
             let ctx = Context{};

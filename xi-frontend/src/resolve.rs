@@ -1,10 +1,9 @@
-use crate::ModuleItem;
-use crate::{rowan_ast::Lang, type_inference::UiBinaryOp as BinaryOp, Module};
 use crate::{
     rowan_ast::{nonextra_children, SyntaxKind, SyntaxNode},
     type_inference::{UiMetadata, UiPrim},
 };
-use rowan::{TextRange, TextSize};
+use crate::{type_inference::UiBinaryOp as BinaryOp, Module};
+use rowan::TextRange;
 use std::collections::BTreeMap;
 use xi_core::judgment::Judgment;
 use xi_uuid::VarUuid;

@@ -1,5 +1,2 @@
-ffi "test.js" {
-            Int : Type,
-        } 
-        
-        val 4 + 5
+let many |UnitType : Type, UnitTypeCons: UnitType -> Pi |T : Type| T -> T| = 
+    (Pi |T : Type| T -> T, lambda |t| t)

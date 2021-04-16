@@ -3,6 +3,8 @@ use std::{
     rc::Rc,
 };
 
+use crate::get_impl_;
+
 use crate::{
     desugar::{Judg_ment, Judg_mentKind, Mod_uleItem},
     DefineItem, Module, ModuleItem,
@@ -87,15 +89,8 @@ impl<'a, 'b> Context<'a, 'b> {
                         if let UiPrim::Global(index) = prim {
                             let module_item = ctx.module.module_items.get(&index).unwrap();
                             if let ModuleItem::Define(define_item) = &*module_item {
-                                let type_ = &define_item.type_;
-                                let type_var_type =
-                                    type_.define_prim(Rc::new(|t, prim_type, define_prim| {
-                                        Judgment::prim(
-                                            TypeVarPrim::Prim(t),
-                                            define_prim(prim_type),
-                                            None,
-                                        )
-                                    }));
+                                let type_ = define_item.type_.clone();
+                                let type_var_type = ui_prim_to_type_var_prim(type_);
                                 Judgment::prim(TypeVarPrim::Prim(prim.clone()), type_var_type, None)
                             } else {
                                 panic!("expected variable to be a global")
@@ -261,11 +256,9 @@ impl<'a, 'b> Context<'a, 'b> {
                     None,
                 ))
             }),
-            Judg_mentKind::Original(judgment) => Ok(judgment.define_prim(Rc::new(
-                |ui_prim, prim_type, define_prim| {
-                    Judgment::prim(TypeVarPrim::Prim(ui_prim), define_prim(prim_type), None)
-                },
-            ))),
+            Judg_mentKind::LetMany(_, _) => {
+                todo!();
+            }
         }
     }
 
@@ -595,31 +588,6 @@ impl Primitive for UiPrim {
     }
 }
 
-// pub fn to_judgment(
-//     judg_ment: Judg_ment<UiPrim, UiMetadata>,
-// ) -> Result<Judgment<UiPrim, UiMetadata>, TypeError> {
-//     let mut ctx = Context {
-//         var_map: BTreeMap::new(),
-//         resps: vec![],
-//         constraints: &mut BTreeMap::new(),
-//     };
-
-//     let judgment_with_type_var = ctx.type_infer(judg_ment)?;
-
-//     if !ctx.resps.is_empty() {
-//         panic!("we shouldn't have any type variables left");
-//     }
-
-//     Ok(
-//         judgment_with_type_var.define_prim(Rc::new(|type_var_prim, prim_type, define_prim| {
-//             match type_var_prim {
-//                 TypeVarPrim::TypeVar(_) => unreachable!("resps should be empty"),
-//                 TypeVarPrim::Prim(prim) => Judgment::prim(prim, define_prim(prim_type), None),
-//             }
-//         })),
-//     )
-// }
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TypeVarPrim {
     TypeVar(TypeVar),
@@ -643,6 +611,14 @@ impl Primitive for TypeVarPrim {
     }
 }
 
+fn ui_prim_to_type_var_prim(
+    expr: Judgment<UiPrim, UiMetadata>,
+) -> Judgment<TypeVarPrim, UiMetadata> {
+    expr.define_prim(Rc::new(|t, prim_type, define_prim| {
+        Judgment::prim(TypeVarPrim::Prim(t), define_prim(prim_type), None)
+    }))
+}
+
 #[derive(Clone, Default, PartialEq, Eq, Debug)]
 pub struct UiMetadata {
     // pub ffi: Option<(String, String)>,
@@ -651,19 +627,58 @@ pub struct UiMetadata {
 // var_name: Option<String>,
 }
 
-pub fn type_infer_mod_ule_item(module: &Module, mod_ule_item: Mod_uleItem) -> ModuleItem {
+pub fn type_infer_mod_ule_item(module: &Module, mod_ule_item: &Mod_uleItem) -> ModuleItem {
     let mut ctx = Context {
         var_map: BTreeMap::new(),
         resps: vec![],
         constraints: &mut BTreeMap::new(),
         module: module,
     };
-    let type_var_judgment = match mod_ule_item.expected_type {
+
+    let module = module.clone();
+    let mod_ule_item_clone = (*mod_ule_item).clone();
+
+    let type_var_judgment = match &mod_ule_item.expected_type {
         Some(expected_type) => {
-            let expected_type = ctx.type_infer(expected_type).unwrap();
-            ctx.type_check(mod_ule_item.impl_, expected_type).unwrap()
+            let expected_type_without_impl_dependencies =
+                ctx.type_infer(expected_type.clone()).unwrap();
+            let expected_type = expected_type_without_impl_dependencies.define_prim(Rc::new(
+                move |prim, prim_type, define_prim| match prim {
+                    TypeVarPrim::TypeVar(_index) => {
+                        Judgment::prim(prim, define_prim(prim_type), None)
+                    }
+                    TypeVarPrim::Prim(prim) => match prim {
+                        UiPrim::Global(index) => {
+                            if mod_ule_item_clone.with_list.contains(&index) {
+                                ui_prim_to_type_var_prim(get_impl_(module.clone(), index).unwrap())
+                            } else {
+                                Judgment::prim(
+                                    TypeVarPrim::Prim(prim),
+                                    define_prim(prim_type),
+                                    None,
+                                )
+                            }
+                        }
+                        _ => Judgment::prim(TypeVarPrim::Prim(prim), define_prim(prim_type), None),
+                    },
+                },
+            ));
+            ctx.type_check(mod_ule_item.clone().impl_, expected_type)
+                .unwrap()
         }
-        None => ctx.type_infer(mod_ule_item.impl_).unwrap(),
+        None => ctx.type_infer(mod_ule_item.impl_.clone()).unwrap(),
+    };
+
+    let type_ = match &mod_ule_item.expected_type {
+        Some(expected_type) => Some(ctx.type_infer(expected_type.clone()).unwrap().define_prim(
+            Rc::new(
+                |type_var_prim, prim_type, define_prim| match type_var_prim {
+                    TypeVarPrim::TypeVar(_) => unreachable!("resps should be empty"),
+                    TypeVarPrim::Prim(prim) => Judgment::prim(prim, define_prim(prim_type), None),
+                },
+            ),
+        )),
+        None => None,
     };
 
     let judgment: Judgment<UiPrim, UiMetadata> =
@@ -675,7 +690,10 @@ pub fn type_infer_mod_ule_item(module: &Module, mod_ule_item: Mod_uleItem) -> Mo
         }));
 
     let define_item = DefineItem {
-        type_: judgment.type_of().unwrap(),
+        type_: match type_ {
+            Some(type_) => type_,
+            None => judgment.type_of().unwrap(),
+        },
         impl_: judgment,
         type_dependencies: vec![],
     };

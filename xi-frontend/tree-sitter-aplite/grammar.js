@@ -54,6 +54,7 @@ module.exports = grammar({
         $.import_stmt,
         $.ffi_stmt,
         $.if_stmt,
+        $.with_stmt,
       ),
 
     let_stmt: ($) =>
@@ -81,6 +82,8 @@ module.exports = grammar({
     else_if_phrase: ($) => seq("else if", $._expr, $._expr),
 
     else_phrase: ($) => seq("else", $._expr),
+
+    with_stmt: ($) => seq("with", $.ident, $._stmt),
 
     ident: ($) => /\p{XID_Start}\p{XID_Continue}*/u,
 

@@ -183,18 +183,20 @@ impl Context {
             SyntaxKind::LET_STMT => {
                 if children.len() == 3 {
                     let var_type = self.parse_expr(&children[1]);
-
-                    let var = self.create_var(&children[0], Some(var_type));
                     let body = self.parse_expr(&children[2]);
+                    let var = self.create_var(&children[0], Some(var_type));
+
                     StmtKind::Let(var, body)
                 } else if children.len() == 2 {
-                    let var = self.create_var(&children[0], None);
                     let body = self.parse_expr(&children[1]);
+                    let var = self.create_var(&children[0], None);
+
                     StmtKind::Let(var, body)
                 } else {
                     panic!("The length of the let_stmt should be 2 or 4.")
                 }
             }
+
             SyntaxKind::DO_STMT => {
                 // do expr
                 // becomes let _ = expr;
@@ -238,7 +240,8 @@ impl Context {
 
                     let body_expr_kind = ExprKind::Lam(binders, body.clone());
                     let body_expr = Expr(Box::new(body_expr_kind), body.1);
-                    StmtKind::Let(var, body_expr)
+
+                    StmtKind::Let(var.clone(), body_expr)
                 } else if children.len() == 3 {
                     let (binders, new_ctx) = self.parse_binders(&children[1]);
                     let body = new_ctx.parse_expr(&children[2]); // lamda |binders| body
@@ -246,7 +249,7 @@ impl Context {
                     let body_expr = Expr(Box::new(body_expr_kind), body.1);
                     let var = self.create_var(&children[0], None);
 
-                    StmtKind::Let(var, body_expr)
+                    StmtKind::Let(var.clone(), body_expr)
                 } else {
                     panic!("the length of fn_stmt should be 4 or 3")
                 }
@@ -271,10 +274,9 @@ impl Context {
                     panic!("ffi_stmt should only have two children")
                 }
             }
-            // SyntaxKind::ERROR => {
-            //     let first_word = &children[0];
-            //     todo!();
-            // }
+            SyntaxKind::WITH_STMT => {
+                panic!("we don't support with in a statement expr")
+            }
             _ => panic!("parse_stmt can only parse an stmt, got {:?}", node.kind()),
         };
 
@@ -477,20 +479,34 @@ impl Context {
 
 pub fn parse_module_stmt(module: &mut Module, node: &SyntaxNode) -> (String, ModuleStmt) {
     let mut ctx = Context::new(module.clone());
-    let children = nonextra_children(node).collect::<Vec<_>>();
 
-    let name: String = match node.kind() {
-        SyntaxKind::LET_STMT => children[0].first_token().expect("a token").text().into(),
-        SyntaxKind::FN_STMT => children[0].first_token().expect("a token").text().into(),
-        SyntaxKind::IMPORT_STMT => todo!(),
-        SyntaxKind::FFI_STMT => todo!(),
-        _ => panic!("wrong stmt on the module level"),
+    let mut node = node.clone();
+    let mut with_list = vec![];
+    while node.kind() == SyntaxKind::WITH_STMT {
+        let children = nonextra_children(&node).collect::<Vec<_>>();
+
+        with_list.push(ctx.parse_var(&children[0]).unwrap());
+        node = children[1].clone();
+    }
+
+    let stmt = ctx.parse_stmt(&node);
+
+    let children = nonextra_children(&node).collect::<Vec<_>>();
+    let name = match node.kind() {
+        SyntaxKind::LET_STMT => children[0].first_token().unwrap().text().into(),
+        SyntaxKind::FN_STMT => children[0].first_token().unwrap().text().into(),
+        // SyntaxKind::IMPORT_STMT => {}
+        // SyntaxKind::FFI_STMT => {}
+        // SyntaxKind::IF_STMT => {}
+        // SyntaxKind::WITH_STMT => {}
+        _ => panic!(),
     };
 
     (
         name,
         ModuleStmt {
-            impl_: ctx.parse_stmt(node),
+            impl_: stmt,
+            with_list: with_list,
         },
     )
 }
@@ -498,6 +514,7 @@ pub fn parse_module_stmt(module: &mut Module, node: &SyntaxNode) -> (String, Mod
 #[derive(Clone, Debug)]
 pub struct ModuleStmt {
     pub impl_: Stmt,
+    pub with_list: Vec<Var>,
 }
 
 #[cfg(test)]

@@ -26,6 +26,7 @@ pub enum SyntaxKind {
     IMPORT_STMT,
     FFI_STMT,
     IF_STMT,
+    WITH_STMT,
 
     IDENT_EXPR,
     TYPE_EXPR,

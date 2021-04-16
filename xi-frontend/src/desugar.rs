@@ -1,9 +1,14 @@
-use crate::{ Module, resolve::{self, Expr, ExprKind, ModuleStmt, Stmt, StmtKind}};
-use resolve::StringTokenKind;
-use xi_core::judgment::{Judgment,  Metadata, Primitive};
-use xi_uuid::VarUuid;
-use crate::type_inference::UiPrim;
+use std::collections::BTreeSet;
+
 use crate::type_inference::UiMetadata;
+use crate::type_inference::UiPrim;
+use crate::{
+    resolve::{self, Expr, ExprKind, ModuleStmt, Stmt, StmtKind},
+    Module,
+};
+use resolve::StringTokenKind;
+use xi_core::judgment::{Judgment, Metadata, Primitive};
+use xi_uuid::VarUuid;
 
 pub use crate::resolve::Span;
 
@@ -40,46 +45,80 @@ pub enum Judg_mentKind<T, S> {
     Pi(VarUuid, Option<Judg_ment<T, S>>, Judg_ment<T, S>),
     Lam(VarUuid, Option<Judg_ment<T, S>>, Judg_ment<T, S>),
     App(Judg_ment<T, S>, Judg_ment<T, S>),
-    Let(Judg_ment<T, S>, VarUuid, Option<Judg_ment<T, S>>, Judg_ment<T, S>),
+    Let(
+        Judg_ment<T, S>,
+        VarUuid,
+        Option<Judg_ment<T, S>>,
+        Judg_ment<T, S>,
+    ),
+    LetMany(
+        Vec<(VarUuid, Option<Judg_ment<T, S>>, Judg_ment<T, S>)>,
+        Judg_ment<T, S>,
+    ),
     Bind(Judg_ment<T, S>, Judg_ment<T, S>),
     Pure(Judg_ment<T, S>),
-    Original(Judgment<T,S>)
 }
-
 
 impl Judg_ment<UiPrim, UiMetadata> {
     fn u() -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Type), UiMetadata{})
+        Judg_ment(Box::new(Judg_mentKind::Type), UiMetadata {})
     }
 
-    fn prim(prim : UiPrim) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Prim(prim)), UiMetadata{})
-    }
-    
-    fn app(func: Judg_ment<UiPrim, UiMetadata>, arg: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::App(func, arg)), UiMetadata{})
+    fn prim(prim: UiPrim) -> Judg_ment<UiPrim, UiMetadata> {
+        Judg_ment(Box::new(Judg_mentKind::Prim(prim)), UiMetadata {})
     }
 
-    fn bind(ma : Judg_ment<UiPrim, UiMetadata>, a_to_mb : Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Bind(ma, a_to_mb)), UiMetadata{})
+    fn app(
+        func: Judg_ment<UiPrim, UiMetadata>,
+        arg: Judg_ment<UiPrim, UiMetadata>,
+    ) -> Judg_ment<UiPrim, UiMetadata> {
+        Judg_ment(Box::new(Judg_mentKind::App(func, arg)), UiMetadata {})
     }
 
-    fn pure(a : Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Pure(a)), UiMetadata{})
+    fn bind(
+        ma: Judg_ment<UiPrim, UiMetadata>,
+        a_to_mb: Judg_ment<UiPrim, UiMetadata>,
+    ) -> Judg_ment<UiPrim, UiMetadata> {
+        Judg_ment(Box::new(Judg_mentKind::Bind(ma, a_to_mb)), UiMetadata {})
     }
 
-    pub fn lam(var : VarUuid, var_type: Option<Judg_ment<UiPrim, UiMetadata>>, expr: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Lam(var, var_type, expr)), UiMetadata{})
+    fn pure(a: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
+        Judg_ment(Box::new(Judg_mentKind::Pure(a)), UiMetadata {})
     }
 
-    fn pi(var : VarUuid, var_type: Option<Judg_ment<UiPrim, UiMetadata>>, expr: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Pi(var, var_type, expr)), UiMetadata{})
+    pub fn lam(
+        var: VarUuid,
+        var_type: Option<Judg_ment<UiPrim, UiMetadata>>,
+        expr: Judg_ment<UiPrim, UiMetadata>,
+    ) -> Judg_ment<UiPrim, UiMetadata> {
+        Judg_ment(
+            Box::new(Judg_mentKind::Lam(var, var_type, expr)),
+            UiMetadata {},
+        )
     }
 
-    fn let_(arg: Judg_ment<UiPrim, UiMetadata>, var : VarUuid, var_type: Option<Judg_ment<UiPrim, UiMetadata>>, rest: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Let(arg, var, var_type, rest)), UiMetadata{})
+    fn pi(
+        var: VarUuid,
+        var_type: Option<Judg_ment<UiPrim, UiMetadata>>,
+        expr: Judg_ment<UiPrim, UiMetadata>,
+    ) -> Judg_ment<UiPrim, UiMetadata> {
+        Judg_ment(
+            Box::new(Judg_mentKind::Pi(var, var_type, expr)),
+            UiMetadata {},
+        )
     }
 
+    fn let_(
+        arg: Judg_ment<UiPrim, UiMetadata>,
+        var: VarUuid,
+        var_type: Option<Judg_ment<UiPrim, UiMetadata>>,
+        rest: Judg_ment<UiPrim, UiMetadata>,
+    ) -> Judg_ment<UiPrim, UiMetadata> {
+        Judg_ment(
+            Box::new(Judg_mentKind::Let(arg, var, var_type, rest)),
+            UiMetadata {},
+        )
+    }
 }
 
 struct Context {
@@ -88,7 +127,7 @@ struct Context {
 
 impl Context {
     // this desugars the body of a stmt_expr
-    fn desugar_stmt_vec(&self, stmts: &[Stmt]) -> Judg_ment<UiPrim, UiMetadata>  {
+    fn desugar_stmt_vec(&self, stmts: &[Stmt]) -> Judg_ment<UiPrim, UiMetadata> {
         if stmts.is_empty() {
             panic!("expected a val or something");
         }
@@ -111,14 +150,9 @@ impl Context {
                     let index = var.index;
                     let var_type =  var.var_type.clone().map(|var_type| self.desugar_expr(&var_type));
                     Judg_ment::let_(arg, index, var_type, rest)
-                    // let rest_kind = Judg_ment::lam(var.index, var.var_type.clone().map(|var_type| self.desugar_expr(&var_type)), rest);
-
-                    // Judg_ment::app(
-                    //     rest_kind, arg
-                    // )
-
                 }
             }
+
             StmtKind::Val(expr) => self.desugar_expr(&expr),
             StmtKind::Ffi(file_name, vars) => {
                 let rest = self.desugar_stmt_vec(stmt_rest);
@@ -126,7 +160,7 @@ impl Context {
                 let mut result = rest;
 
                 let mut vars = vars.clone();
-                
+
                 vars.reverse();
 
                 for var in vars {
@@ -136,7 +170,7 @@ impl Context {
                     // let ffi_kind = Judg_mentKind::Ffi(file_name.clone(), var.name.clone());
                     // let ffi = Judg_ment(Box::new(ffi_kind), UiMetadata{});
                     let ffi = Judg_ment::prim(UiPrim::Ffi(file_name.clone(), var.name.clone()));
-                    
+
                     // let result_kind = Judg_mentKind::App(func, ffi);
                     // result = Judg_ment(Box::new(result_kind), result_span);
                     result = Judg_ment::app(func, ffi)
@@ -155,7 +189,7 @@ impl Context {
 
     // fn desugar_var_binder(&mut self, var: &resolve::VarBinder) -> (VarBinder, Context) {
     //     let new_ctx = self.clone();
-    //     let depth = 
+    //     let depth =
     //     new_ctx.var_map.ins
 
     //     let var_binder = VarBinder {
@@ -171,7 +205,9 @@ impl Context {
 
     fn desugar_var(&self, var: &resolve::Var) -> Judg_ment<UiPrim, UiMetadata> {
         match var.local_or_global {
-            resolve::LocalOrGlobal::Local => Judg_ment(Box::new(Judg_mentKind::FreeVar(var.index)), UiMetadata{})  ,
+            resolve::LocalOrGlobal::Local => {
+                Judg_ment(Box::new(Judg_mentKind::FreeVar(var.index)), UiMetadata {})
+            }
             resolve::LocalOrGlobal::Global => Judg_ment::prim(UiPrim::Global(var.index)),
         }
     }
@@ -180,15 +216,17 @@ impl Context {
         match &*expr.0 {
             ExprKind::Var(var) => self.desugar_var(var),
             ExprKind::Type => Judg_ment::u(),
-            ExprKind::Bang(expr) => {
-                Judg_ment::pure(self.desugar_expr(expr))
-            }
+            ExprKind::Bang(expr) => Judg_ment::pure(self.desugar_expr(expr)),
             ExprKind::App(func, elem) => {
                 Judg_ment::app(self.desugar_expr(&func), self.desugar_expr(&elem))
             }
             ExprKind::Fun(source, target) => {
                 let var = VarUuid::new();
-                Judg_ment::pi(var, Some(self.desugar_expr(&source)), self.desugar_expr(&target))
+                Judg_ment::pi(
+                    var,
+                    Some(self.desugar_expr(&source)),
+                    self.desugar_expr(&target),
+                )
             }
             ExprKind::Lam(binders, lam_expr) => {
                 let var_list = &binders.0;
@@ -197,11 +235,13 @@ impl Context {
                 let mut result = expr;
 
                 for var in var_list.iter().rev() {
-                    let var_type = var.var_type.clone().map(|var_type| self.desugar_expr(&var_type));
+                    let var_type = var
+                        .var_type
+                        .clone()
+                        .map(|var_type| self.desugar_expr(&var_type));
                     result = Judg_ment::lam(var.index, var_type, result);
                 }
                 result
-
             }
             ExprKind::Pi(binders, pi_expr) => {
                 let var_list = &binders.0;
@@ -210,7 +250,10 @@ impl Context {
                 let mut result = expr;
 
                 for var in var_list.iter().rev() {
-                    let var_type = var.var_type.clone().map(|var_type| self.desugar_expr(&var_type));
+                    let var_type = var
+                        .var_type
+                        .clone()
+                        .map(|var_type| self.desugar_expr(&var_type));
                     result = Judg_ment::pi(var.index, var_type, result);
                 }
                 result
@@ -231,16 +274,17 @@ impl Context {
             }
             ExprKind::Binary(op, lhs, rhs) => {
                 let judg_ment_op = Judg_ment::prim(UiPrim::Binary(op.clone()));
-                Judg_ment::app(Judg_ment::app(judg_ment_op, self.desugar_expr(lhs)), self.desugar_expr(rhs))
+                Judg_ment::app(
+                    Judg_ment::app(judg_ment_op, self.desugar_expr(lhs)),
+                    self.desugar_expr(rhs),
+                )
             }
-            ExprKind::Number(num) => {
-                Judg_ment::prim(UiPrim::NumberElem(num.clone()))            
-            }
+            ExprKind::Number(num) => Judg_ment::prim(UiPrim::NumberElem(num.clone())),
         }
     }
 }
 
-impl <T : Primitive, S : Metadata >std::fmt::Debug for Judg_ment<T, S> {
+impl<T: Primitive, S: Metadata> std::fmt::Debug for Judg_ment<T, S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &*self.0 {
             Judg_mentKind::Type => f.write_str("Type")?,
@@ -273,45 +317,72 @@ impl <T : Primitive, S : Metadata >std::fmt::Debug for Judg_ment<T, S> {
                 f.write_str(&format!("({:?})", arg))?;
             }
             Judg_mentKind::Let(arg, index, var_type, rest) => {
-                f.write_str(&format!("Let {} : {:?} = {:?};", index.index(), var_type, arg))?;
+                f.write_str(&format!(
+                    "Let {} : {:?} = {:?};",
+                    index.index(),
+                    var_type,
+                    arg
+                ))?;
                 f.write_str(&format!("{:?}", rest))?;
             }
             Judg_mentKind::Bind(arg, func) => {
-                f.write_str(&format!("(Bind {:?} {:?})", arg, func))?}
+                f.write_str(&format!("(Bind {:?} {:?})", arg, func))?
+            }
             Judg_mentKind::Pure(arg) => {
                 f.write_str(&format!("(Pure {:?})", arg))?;
             }
-            Judg_mentKind::Original(judgment) => {
-                f.write_str(&format!("Original {:?}", judgment))?;
-            }
+
+            Judg_mentKind::LetMany(_, _) => todo!("I'm lazy lol"),
         }
         Ok(())
     }
 }
 
-
-pub fn desugar_module_stmt(_module: &mut Module, module_stmt : ModuleStmt) -> Mod_uleItem {
+pub fn desugar_module_stmt(module: &mut Module, module_stmt: ModuleStmt) -> Mod_uleItem {
     match module_stmt.impl_.0 {
         StmtKind::Let(var_bind, expr) => {
-            let ctx = Context{};
+            let ctx = Context {};
             let judg_ment = ctx.desugar_expr(&expr);
-            let expected_type = match var_bind.var_type{
-                Some(var_type) => {Some(ctx.desugar_expr(&var_type))},
+            let expected_type = match var_bind.var_type {
+                Some(var_type) => Some(ctx.desugar_expr(&var_type)),
                 None => None,
             };
 
-            Mod_uleItem{
+            let with_list = module_stmt.with_list.iter().map(|var| var.index).collect();
+            Mod_uleItem {
                 impl_: judg_ment,
                 expected_type: expected_type,
+                with_list,
             }
         }
         StmtKind::Val(_) => unreachable!(),
         StmtKind::Ffi(_, _) => unreachable!(),
+        // StmtKind::LetMany(binders, tuple) => {
+        //     let mut mod_ule_items = vec![];
+        //     let ctx = Context {};
+        //     let mut type_dependencies = BTreeSet::new();
+        //     for (expr, var_bind) in tuple.iter().zip(binders.0) {
+        //         let judg_ment = ctx.desugar_expr(&expr);
+        //         let expected_type = match var_bind.var_type {
+        //             Some(var_type) => Some(ctx.desugar_expr(&var_type)),
+        //             None => None,
+        //         };
+        //         mod_ule_items.push(Mod_uleItem {
+        //             impl_: judg_ment,
+        //             expected_type: expected_type,
+        //             type_dependencies: type_dependencies.clone(),
+        //         });
+        //         type_dependencies.insert(var_bind.index);
+        //     }
+        //     mod_ule_items
+        // }
     }
 }
+#[derive(Clone, Debug)]
 pub struct Mod_uleItem {
     pub impl_: Judg_ment<UiPrim, UiMetadata>,
     pub expected_type: Option<Judg_ment<UiPrim, UiMetadata>>,
+    pub with_list: BTreeSet<VarUuid>,
 }
 // mod test {
 //     #[test]
@@ -352,13 +423,13 @@ pub struct Mod_uleItem {
 //         //     five : Int,
 //         //     six : Int,
 //         //     add : Int -> Int -> Int,
-//         //     int_to_string : Int -> String 
+//         //     int_to_string : Int -> String
 //         // }
-        
+
 //         // let ans = add five six
 //         // let better_ans = add ans six
 //         // let even_better_ans = int_to_string(better_ans)
-        
+
 //         // do console_output(even_better_ans)!
 //         // val unit!";
 

@@ -30,7 +30,7 @@ impl Module {
     pub fn add_stmt_to_module_item(&mut self, child: &SyntaxNode<Lang>) {
         let (name, module_stmt) = parse_module_stmt(self, child);
         let mod_ule_item = desugar_module_stmt(self, module_stmt);
-        let module_item = type_infer_mod_ule_item(self, mod_ule_item);
+        let module_item = type_infer_mod_ule_item(self, &mod_ule_item);
         self.add(name, module_item)
     }
 
@@ -106,6 +106,15 @@ pub fn compile_module_item_from_index(
             },
         ));
         run_impl_
+    } else {
+        todo!()
+    }
+}
+
+pub fn get_impl_(module: Module, index: VarUuid) -> Option<Judgment<UiPrim, UiMetadata>> {
+    let module_item = module.module_items.get(&index)?;
+    if let ModuleItem::Define(define_item) = module_item {
+        Some(define_item.impl_.clone())
     } else {
         todo!()
     }

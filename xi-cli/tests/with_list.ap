@@ -1,0 +1,5 @@
+let UnitType = Pi |T : Type| T -> T
+
+with UnitType let UnitTypeCons : (Pi |T : Type| T -> T) -> UnitType = lambda |t| t
+
+let unit = UnitTypeCons (lambda|T, t| t)

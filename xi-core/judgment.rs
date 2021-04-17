@@ -275,8 +275,8 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
                     panic!("Expected type of a function to be a Pi")
                 }
             }
-            JudgmentKind::FreeVar(_free_var, var_type) => Some(var_type),
-            JudgmentKind::Prim(_t, prim_type) => Some(prim_type),
+            JudgmentKind::FreeVar(_free_var, var_type) => Some(var_type.nbe()),
+            JudgmentKind::Prim(_t, prim_type) => Some(prim_type.nbe()),
         }
     }
 
@@ -427,6 +427,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             ) -> Judgment<U, S>,
         >,
     ) -> Judgment<U, S> {
+        dbg!("define prim on {:?}", self);
         let prim_meaning_clone = prim_meaning.clone();
         let prim_fn = Rc::new(move |judgment: Judgment<T, S>| {
             judgment.define_prim(prim_meaning_clone.clone())

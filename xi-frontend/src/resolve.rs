@@ -3,11 +3,63 @@ use crate::{
     type_inference::{UiMetadata, UiPrim},
 };
 use crate::{type_inference::UiBinaryOp as BinaryOp, Module};
-use rowan::TextRange;
+use rowan::{TextRange, TextSize};
 use std::collections::BTreeMap;
 use xi_core::judgment::Judgment;
 use xi_uuid::VarUuid;
 
+// remember to change the prims() method below
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum ResolvePrim {
+    IOMonad,
+    String,
+    Int,
+}
+impl ResolvePrim {
+    pub fn prims() -> Vec<ResolvePrim> {
+        use ResolvePrim::*;
+        vec![IOMonad, String, Int]
+    }
+}
+
+impl std::fmt::Display for ResolvePrim {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use ResolvePrim::*;
+        let res = match self {
+            IOMonad => "IO",
+            String => "String",
+            Int => "Int",
+        };
+        write!(f, "{}", res)
+    }
+}
+
+impl ResolvePrim {
+    fn get_ctx(module: &mut Module) -> (Context, BTreeMap<VarUuid, ResolvePrim>) {
+        let mut ident_map = BTreeMap::new();
+        let mut resolve_map = BTreeMap::new();
+        for prim in ResolvePrim::prims() {
+            let var = VarBinder {
+                index: VarUuid::new(),
+                name: prim.to_string(),
+                span: Span::new(TextSize::from(0), TextSize::from(0)),
+                var_type: None,
+            };
+
+            ident_map.insert(prim.to_string(), var.clone());
+            resolve_map.insert(var.index, prim.clone());
+        }
+
+        (
+            Context {
+                local_ctx: ident_map,
+                import_ctx: module.clone(),
+                dependencies: vec![],
+            },
+            resolve_map,
+        )
+    }
+}
 #[derive(Clone, Debug)]
 pub enum Error {
     // Stmt(StmtError),
@@ -477,8 +529,11 @@ impl Context {
     }
 }
 
-pub fn parse_module_stmt(module: &mut Module, node: &SyntaxNode) -> (String, ModuleStmt) {
-    let mut ctx = Context::new(module.clone());
+pub fn parse_module_stmt(
+    module: &mut Module,
+    node: &SyntaxNode,
+) -> (String, ModuleStmt, BTreeMap<VarUuid, ResolvePrim>) {
+    let (mut ctx, resolve_var) = ResolvePrim::get_ctx(module);
 
     let mut node = node.clone();
     let mut with_list = vec![];
@@ -508,6 +563,7 @@ pub fn parse_module_stmt(module: &mut Module, node: &SyntaxNode) -> (String, Mod
             impl_: stmt,
             with_list: with_list,
         },
+        resolve_var,
     )
 }
 

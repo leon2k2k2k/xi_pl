@@ -1,7 +1,7 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
-use crate::type_inference::UiMetadata;
 use crate::type_inference::UiPrim;
+use crate::{resolve::ResolvePrim, type_inference::UiMetadata};
 use crate::{
     resolve::{self, Expr, ExprKind, ModuleStmt, Stmt, StmtKind},
     Module,
@@ -122,7 +122,7 @@ impl Judg_ment<UiPrim, UiMetadata> {
 }
 
 struct Context {
-    // todo: maybe there should be something here?
+    prim_map: BTreeMap<VarUuid, ResolvePrim>,
 }
 
 impl Context {
@@ -204,11 +204,21 @@ impl Context {
     // }
 
     fn desugar_var(&self, var: &resolve::Var) -> Judg_ment<UiPrim, UiMetadata> {
-        match var.local_or_global {
-            resolve::LocalOrGlobal::Local => {
-                Judg_ment(Box::new(Judg_mentKind::FreeVar(var.index)), UiMetadata {})
+        match self.prim_map.get(&var.index) {
+            Some(prim) => {
+                let prim = match prim {
+                    ResolvePrim::IOMonad => UiPrim::IOMonad,
+                    ResolvePrim::String => UiPrim::StringType,
+                    ResolvePrim::Int => UiPrim::NumberType,
+                };
+                Judg_ment::prim(prim.clone())
             }
-            resolve::LocalOrGlobal::Global => Judg_ment::prim(UiPrim::Global(var.index)),
+            None => match var.local_or_global {
+                resolve::LocalOrGlobal::Local => {
+                    Judg_ment(Box::new(Judg_mentKind::FreeVar(var.index)), UiMetadata {})
+                }
+                resolve::LocalOrGlobal::Global => Judg_ment::prim(UiPrim::Global(var.index)),
+            },
         }
     }
 
@@ -338,10 +348,16 @@ impl<T: Primitive, S: Metadata> std::fmt::Debug for Judg_ment<T, S> {
     }
 }
 
-pub fn desugar_module_stmt(module: &mut Module, module_stmt: ModuleStmt) -> Mod_uleItem {
+pub fn desugar_module_stmt(
+    module: &mut Module,
+    module_stmt: ModuleStmt,
+    resolve_var: BTreeMap<VarUuid, ResolvePrim>,
+) -> Mod_uleItem {
     match module_stmt.impl_.0 {
         StmtKind::Let(var_bind, expr) => {
-            let ctx = Context {};
+            let ctx = Context {
+                prim_map: resolve_var,
+            };
             let judg_ment = ctx.desugar_expr(&expr);
             let expected_type = match var_bind.var_type {
                 Some(var_type) => Some(ctx.desugar_expr(&var_type)),

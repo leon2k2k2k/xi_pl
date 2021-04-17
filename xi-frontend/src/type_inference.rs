@@ -175,7 +175,10 @@ impl<'a, 'b> Context<'a, 'b> {
 
                         Ok(Judgment::app_unchecked(func, arg, None))
                     }
-                    _ => panic!("the type of func should be a pi or a type variable"),
+                    _ => panic!(
+                        "the type of func should be a pi or a type variable, func is {:?}",
+                        &func
+                    ),
                 }
             }),
             Judg_mentKind::Let(old_arg, index, old_var_type, rest) => {
@@ -336,8 +339,8 @@ impl<'a, 'b> Context<'a, 'b> {
         lhs: &Judgment<TypeVarPrim, UiMetadata>,
         rhs: &Judgment<TypeVarPrim, UiMetadata>,
     ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
-        let lhs = lhs.clone();
-        let rhs = rhs.clone();
+        let lhs = lhs.clone().nbe();
+        let rhs = rhs.clone().nbe();
 
         if let JudgmentKind::Prim(TypeVarPrim::TypeVar(type_var), _prim_type) = &*lhs.tree {
             self.add_constraint(*type_var, rhs.clone())?;
@@ -374,8 +377,24 @@ impl<'a, 'b> Context<'a, 'b> {
                 )
             }
 
-            (JudgmentKind::Lam(_, _), _) => {
-                panic!("our nbe lord has failed us, this is all over... here goes dongi")
+            (JudgmentKind::Lam(var_type1, sexpr1), JudgmentKind::Lam(var_type2, sexpr2)) => {
+                let (index1, expr1) = sexpr1.clone().unbind();
+                let expr2 = sexpr2.clone().replace_free_var(index1);
+
+                let var_type = self.unify(var_type1, var_type2)?;
+
+                // TODO: probably broken
+                let new_expr1 = self.substitute(&expr1)?;
+                let new_expr2 = self.substitute(&expr2)?;
+
+                if new_expr1 == new_expr2 {
+                    Judgment::lam(var_type, new_expr1.bind(index1), None)
+                } else {
+                    panic!(
+                        "lhs and rhs failed to unify, lhs: {:?}, rhs: {:?}",
+                        new_expr1, new_expr2
+                    );
+                }
             }
             (JudgmentKind::BoundVar(_index1, _var_type), _) => {
                 unreachable!();

@@ -1,5 +1,34 @@
-ffi "./some_file.js" {
-    six : Type,
-    five : six,
+let UnitType = {
+    ffi "./some_file.js" {
+        UnitType : Type
+    }
+    val UnitType
 }
-val five
+
+let unit : UnitType = {
+    ffi "./some_file.js" {
+        unit : UnitType
+    }
+    val unit
+}
+
+
+let foo =  {
+//
+ffi "./some_file.js"{
+
+// //    Int : Type,
+// //    six : Int,
+// //    five : Int,
+// //    add : Int -> Int -> Int,
+// //    int_to_string : Int -> String,
+     console_output: String -> IO String,
+     console_input: IO String,
+}
+
+let a = "hello"
+
+
+let me = console_output(a)!
+val me!
+}

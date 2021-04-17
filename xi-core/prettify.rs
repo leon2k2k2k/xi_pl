@@ -139,7 +139,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
             // we put VarUuid in the beginning.
             JudgmentTree::BoundVar(index, var_type) => match depth.checked_sub(1 + index) {
                 // _ => format!("(v{} : {})", index, tts_rec(&*var_type, free_vars, Precedence::Top, depth))
-                Some(value) => format!("bv{}", value),
+                Some(value) => format!("v{}", value),
                 None => format!(
                     "(v_not_bound{}: {})",
                     1 + index - depth,
@@ -167,7 +167,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
                     .map(|(s, new_depth)| tts_rec(&*s, free_vars, Precedence::Top, new_depth));
                 let binding_str = var_types
                     .zip(depth..)
-                    .map(|(binding, new_depth)| format!("bv{}: {}", new_depth, binding))
+                    .map(|(binding, new_depth)| format!("v{} : {}", new_depth, binding))
                     .collect::<Vec<String>>()
                     .join(", ");
 
@@ -186,7 +186,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
                     .map(|(s, new_depth)| tts_rec(&*s, free_vars, Precedence::Top, new_depth));
                 let binding_str = var_types
                     .zip(depth..)
-                    .map(|(binding, new_depth)| format!("bv{}: {}", new_depth, binding))
+                    .map(|(binding, new_depth)| format!("v{} : {}", new_depth, binding))
                     .collect::<Vec<String>>()
                     .join(", ");
 

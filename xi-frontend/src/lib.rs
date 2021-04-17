@@ -28,8 +28,8 @@ impl Module {
     }
     // takes a syntaxnode child, parse it with the module (the imports), and then add it on at the end.
     pub fn add_stmt_to_module_item(&mut self, child: &SyntaxNode<Lang>) {
-        let (name, module_stmt) = parse_module_stmt(self, child);
-        let mod_ule_item = desugar_module_stmt(self, module_stmt);
+        let (name, module_stmt, resolve_var) = parse_module_stmt(self, child);
+        let mod_ule_item = desugar_module_stmt(self, module_stmt, resolve_var);
         let module_item = type_infer_mod_ule_item(self, &mod_ule_item);
         self.add(name, module_item)
     }

@@ -1,0 +1,60 @@
+
+/// Pair data structure//
+let Pair : Type -> Type -> Type = lambda| A : Type, B : Type| Pi |T : Type| (A -> B -> T) -> T
+with Pair let PairCons: Pi | A : Type, B : Type| A -> B -> (Pair A B) =
+   lambda|A, B, a , b, T, f| f a b
+with Pair let PairElim: Pi | A : Type, B : Type, T : Type|
+        (A -> B -> T) -> (Pair A B) -> T =
+        lambda |A, B, T, f, foo| foo T f
+with Pair let PairFirst : Pi |A : Type, B : Type| Pair A B -> A = lambda |A, B, foo| foo A (lambda |a,b| a)
+with Pair let PairSecond : Pi |A : Type, B : Type| Pair A B -> B = lambda |A, B, foo| foo B (lambda |a,b| b)
+
+let Bool = Pi | T : Type| T -> T -> T
+with Bool let true : Bool = lambda |T, true, false| true
+with Bool let false : Bool  = lambda |T, true, false| false
+with Bool let BoolElim : Bool -> Pi |T : Type| T -> T -> T = lambda |t| t
+with Bool let BoolCons: (Pi | T : Type| T -> T -> T) -> Bool = lambda |t| t
+
+
+let Y = lambda |A : Type| {
+    ffi "./some_file.js" {
+        YCombinator_please_accept_us : (A -> A) -> IO A
+    }
+    val YCombinator_please_accept_us
+}
+
+let console_output = {
+    ffi "./some_file.js" {
+        console_output : String -> IO Bool
+    }
+    val console_output
+}
+
+let int_to_string = {
+    ffi "./some_file.js" {
+        int_to_string : Int -> String
+    }
+    val int_to_string
+}
+
+let add5 = {
+    ffi "./some_file.js" {
+        add : Int -> Int -> Int
+    }
+    val (add 5)
+}
+
+
+fn loop_fn |loop : (Int -> IO Bool)| -> (Int -> IO Bool) {
+    val lambda |i| {
+        let i_add = add5 i
+        do console_output(int_to_string i_add)!
+        val (loop i_add)
+    }
+}
+
+let main = {
+    let a = (Y (Int -> IO Bool) loop_fn)!
+    do (a 5)!
+    val 5!
+}

@@ -11,6 +11,24 @@ export function add(a) {
   return (b) => a + b;
 }
 
+function io_pure2(val) {
+  return () => val;
+}
+
+export function io_pure(_) {
+  return io_pure2;
+}
+
+export function equals(a) {
+  return (b) => {
+    if (a === b) {
+      return ((var_80056) => ((var_80057) => ((var_80058) => var_80057)));
+    } else {
+      return ((var_80056) => ((var_80057) => ((var_80058) => var_80058)));
+    }
+  };
+}
+
 export function int_to_string(a) {
   return a.toString();
 }
@@ -38,4 +56,18 @@ export function console_output(out_str) {
     Deno.writeAllSync(Deno.stdout, new TextEncoder().encode(out_str));
     Deno.writeAllSync(Deno.stdout, new Uint8Array([0x0a])); // newline
   };
+}
+
+export function panic(out_str) {
+  return () => {
+    console_output(out_str)();
+    throw "exception";
+  };
+}
+
+export function YCombinator_please_accept_us(fn) {
+  return () =>
+    ((x) => x(x))(
+      (maker) => (...args) => fn(maker(maker))(...args),
+    );
 }

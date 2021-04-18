@@ -259,7 +259,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
 
                 Some(Judgment::pi(
                     var_type.clone(),
-                    expr.type_of().unwrap().bind(index),
+                    expr.type_of().unwrap().nbe().bind(index),
                     None,
                 ))
             }
@@ -427,7 +427,6 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             ) -> Judgment<U, S>,
         >,
     ) -> Judgment<U, S> {
-        dbg!("define prim on {:?}", self);
         let prim_meaning_clone = prim_meaning.clone();
         let prim_fn = Rc::new(move |judgment: Judgment<T, S>| {
             judgment.define_prim(prim_meaning_clone.clone())
@@ -469,6 +468,58 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
         }
     }
 
+    pub fn define_prim_unchecked<U: Primitive>(
+        &self,
+        prim_meaning: Rc<
+            dyn Fn(
+                T,
+                Judgment<T, S>,
+                Rc<dyn Fn(Judgment<T, S>) -> Judgment<U, S>>,
+            ) -> Judgment<U, S>,
+        >,
+    ) -> Judgment<U, S> {
+        let prim_meaning_clone = prim_meaning.clone();
+        let prim_fn = Rc::new(move |judgment: Judgment<T, S>| {
+            judgment.define_prim(prim_meaning_clone.clone())
+        });
+
+        let metadata = Some(self.metadata.clone());
+        match *self.tree.clone() {
+            JudgmentKind::Type => Judgment::u(metadata),
+            JudgmentKind::Prim(prim, prim_type) => {
+                prim_meaning(prim.clone(), prim_type.clone(), prim_fn)
+            }
+            JudgmentKind::FreeVar(index, var_type) => Judgment::free(
+                index,
+                var_type.define_prim_unchecked(prim_meaning),
+                metadata,
+            ),
+            JudgmentKind::Pi(var_type, sexpr) => {
+                let (index, expr) = sexpr.unbind();
+                Judgment::pi_unchecked(
+                    var_type.define_prim_unchecked(prim_meaning.clone()),
+                    expr.define_prim_unchecked(prim_meaning).bind(index),
+                    metadata,
+                )
+            }
+            JudgmentKind::Lam(var_type, sexpr) => {
+                let (index, expr) = sexpr.unbind();
+                Judgment::lam(
+                    var_type.define_prim_unchecked(prim_meaning.clone()),
+                    expr.define_prim_unchecked(prim_meaning).bind(index),
+                    metadata,
+                )
+            }
+            JudgmentKind::BoundVar(_index, _var_type) => {
+                unreachable!()
+            }
+            JudgmentKind::App(lhs, rhs) => Judgment::app_unchecked(
+                lhs.define_prim_unchecked(prim_meaning.clone()),
+                rhs.define_prim_unchecked(prim_meaning),
+                metadata,
+            ),
+        }
+    }
     pub fn cast_metadata<N: Metadata>(self, metadata_func: Rc<dyn Fn(S) -> N>) -> Judgment<T, N> {
         let metadata = metadata_func(self.metadata);
         let result: JudgmentKind<T, N> = match *self.tree {

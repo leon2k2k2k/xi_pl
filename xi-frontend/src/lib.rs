@@ -2,8 +2,8 @@ use desugar::desugar_module_stmt;
 use resolve::parse_module_stmt;
 use rowan::SyntaxNode;
 use rowan_ast::{nonextra_children, string_to_syntax, Lang};
-use std::collections::BTreeMap;
 use std::rc::Rc;
+use std::{cell::RefCell, collections::BTreeMap};
 use type_inference::{type_infer_mod_ule_item, UiMetadata, UiPrim};
 use xi_core::judgment::Judgment;
 use xi_uuid::VarUuid;
@@ -89,26 +89,39 @@ pub fn ui_to_module(text: &str) -> Module {
 
 pub fn compile_module_item(module: Module, func_name: &str) -> Judgment<UiPrim, UiMetadata> {
     let index = *module.str_to_index.get(func_name).unwrap();
-    compile_module_item_from_index(module, index).clone()
+    let empty_cache = Rc::new(RefCell::new(BTreeMap::new()));
+    compile_module_item_from_index(module, index, empty_cache).clone()
 }
 
 pub fn compile_module_item_from_index(
     module: Module,
     index: VarUuid,
+    cache: Rc<RefCell<BTreeMap<VarUuid, Judgment<UiPrim, UiMetadata>>>>,
 ) -> Judgment<UiPrim, UiMetadata> {
+    let maybe_cached_body = cache.clone().borrow().get(&index).cloned();
+    if let Some(cached_result) = maybe_cached_body {
+        return cached_result;
+    }
+
+    let cache_clone = cache.clone();
     let module_item = module.module_items.get(&index).unwrap();
-    if let ModuleItem::Define(define_item) = module_item {
+    let result = if let ModuleItem::Define(define_item) = module_item {
         let impl_ = define_item.clone().impl_;
-        let run_impl_: Judgment<UiPrim, UiMetadata> = impl_.define_prim(Rc::new(
-            move |prim: UiPrim, prim_type, define_prim| match prim {
-                UiPrim::Global(index1) => compile_module_item_from_index(module.clone(), index1),
-                _ => Judgment::prim(prim, define_prim(prim_type), None),
+        let run_impl_: Judgment<UiPrim, UiMetadata> = impl_.define_prim_unchecked(Rc::new(
+            move |prim: UiPrim, prim_type, define_prim_unchecked| match prim {
+                UiPrim::Global(index1) => {
+                    compile_module_item_from_index(module.clone(), index1, cache_clone.clone())
+                }
+                _ => Judgment::prim(prim, define_prim_unchecked(prim_type), None),
             },
         ));
         run_impl_
     } else {
         todo!()
-    }
+    };
+
+    cache.borrow_mut().insert(index, result.clone());
+    result
 }
 
 pub fn get_impl_(module: Module, index: VarUuid) -> Option<Judgment<UiPrim, UiMetadata>> {

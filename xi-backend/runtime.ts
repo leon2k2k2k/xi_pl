@@ -1,3 +1,5 @@
+export const IO = (_: any) => "IO";
+
 function io_bind2<T, U>(arg: () => T) {
   return (func: ((_: T) => (() => U))) => {
     const value = arg();
@@ -36,7 +38,7 @@ function promise_pure2<T>(val: T) {
 }
 
 export function promise_pure(_: any) {
-  return promise_pure;
+  return promise_pure2;
 }
 
 export function id(val: any) {
@@ -58,24 +60,3 @@ export function multiply(a: any) {
 export function modulo(a: any) {
   return (b: any) => a % b;
 }
-/*
-let add1: int -> int = js.add1 
-foo.bar
-
-let two = js.add1 1
-
-
-
-
-
-
-
-
-a = [1, 2, 3]
-a.append(4)
-
-vec![1, 2, 3]
-
-a = 
-val add1 5
- */

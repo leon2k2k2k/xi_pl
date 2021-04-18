@@ -33,7 +33,7 @@ pub fn front_to_back(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim, Js
 
     let changed_metadata = front.cast_metadata(Rc::new(|_: UiMetadata| JsMetadata()));
 
-    changed_metadata.define_prim(Rc::new(
+    changed_metadata.define_prim_unchecked(Rc::new(
         move |s, prim_type, define_prim| -> Judgment<JsPrim, JsMetadata> {
             match s {
                 UiPrim::IOMonad => io_monad.clone(),

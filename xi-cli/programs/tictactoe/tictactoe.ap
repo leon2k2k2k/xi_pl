@@ -1,0 +1,334 @@
+// we are going to make a tic-tac-toe in Aplite.
+
+// a tic tac toe board is a church encoded pair of 9 sqwuare
+
+// a square is a church encoded enum of three things
+
+let Square = Pi |T : Type| T -> T -> T -> T
+with Square let SquareCons : (Pi |T : Type| T -> T -> T -> T) -> Square = lambda |t| t
+with Square let SquareElim : Square -> (Pi |T : Type| T -> T -> T -> T) = lambda |t| t
+let square_x = SquareCons(lambda |T, x, o, empty| x)
+let square_o = SquareCons(lambda |T, x, o, empty| o)
+let square_empty = SquareCons(lambda |T, x, o, empty| empty)
+
+
+let Triple: Type -> Type = lambda|S| (Pi | T : Type| (S -> S -> S -> T) -> T)
+with Triple let TripleCons : Pi |S : Type| ((Pi | T : Type| (S -> S -> S -> T) -> T) -> Triple S) = lambda |S, t| t
+with Triple let triple_first : Pi |S : Type| Triple S -> S = lambda |S, triple| triple S (lambda |first, second, third| first)
+with Triple let triple_second : Pi |S : Type| Triple S -> S = lambda |S, triple| triple S (lambda |first, second, third| second)
+with Triple let triple_third : Pi |S : Type| Triple S -> S = lambda |S, triple| triple S (lambda |first, second, third| third)
+
+let TripleHelper : Pi |S : Type| (S -> S -> S -> Triple S) = lambda |S, s1, s2, s3| TripleCons S (lambda |T, triple| triple s1 s2 s3 )
+let update_first: Pi |S : Type| Triple S -> S -> Triple S = lambda |S, triple, value| TripleHelper S value (triple_second S triple) (triple_third S triple)
+let update_second:Pi |S : Type| Triple S -> S -> Triple S = lambda |S, triple, value| TripleHelper S  (triple_first  S triple) value (triple_third S triple)
+let update_third: Pi |S : Type| Triple S -> S -> Triple S = lambda |S, triple, value| TripleHelper S  (triple_first  S triple) (triple_second S triple) value
+
+
+
+let Three = Square
+with Three let one : Three = square_x
+with Three let two : Three = square_o
+with Three let three : Three = square_empty
+with Three let ThreeElim : Three -> Pi |T : Type| T -> T -> T -> T = SquareElim
+let ThreeElimHelper: Pi |S : Type| S -> S -> S -> Three -> S = lambda |S, s1, s2, s3, x| (ThreeElim x) S s1 s2 s3
+
+let index: Pi |S : Type| Triple S -> Three -> S = lambda |S, triple, num| (ThreeElim num) S (triple_first S triple) (triple_second S triple) (triple_third S triple)
+
+let update_helper: Three -> (Pi |S : Type| Triple S -> S -> Triple S)
+         = lambda |x| (ThreeElimHelper (Pi |S : Type| Triple S -> S -> Triple S) update_first update_second update_third x)
+
+let update_triple : Pi |S : Type| Triple S -> Three -> S -> Triple S = lambda |S, triple, index, new_value| update_helper index S triple new_value
+
+
+let Board = Triple (Triple Square)
+with Board let BoardCons: Triple (Triple Square) -> Board = lambda |t| t
+with Board let BoardElim: Board -> Triple (Triple Square) = lambda |t| t
+
+
+
+fn get_row | board : Board, row : Three| -> Triple Square {
+    let triple_of_triple = BoardElim(board)
+    val index (Triple Square) triple_of_triple row
+}
+
+
+fn index_of_board |board : Board, row : Three, col : Three| -> Square {
+    let row_triple = get_row board row
+    val index Square row_triple col
+}
+
+
+
+fn update_board |board : Board, row : Three, col : Three, new_value : Square| -> Board {
+    let row_triple = get_row board row
+    let updated_row_triple = update_triple Square row_triple col new_value
+    let updated_triple_of_triple = update_triple (Triple Square) (BoardElim board) row updated_row_triple
+    val BoardCons(updated_triple_of_triple)
+}
+
+let empty_triple = TripleHelper Square square_empty square_empty square_empty
+
+let empty_board : Board = BoardCons(TripleHelper (Triple Square) empty_triple empty_triple empty_triple)
+
+//////////////Now we need to define Bool////////////
+
+let Bool = Pi | T : Type| T -> T -> T
+with Bool let true : Bool = lambda |T, true, false| true
+with Bool let false : Bool  = lambda |T, true, false| false
+with Bool let BoolElim : Bool -> Pi |T : Type| T -> T -> T = lambda |t| t
+with Bool let BoolCons: (Pi | T : Type| T -> T -> T) -> Bool = lambda |t| t
+
+fn is_true |bool : Bool| -> Bool { val (BoolElim bool) Bool true false }
+fn is_false |bool : Bool| -> Bool  { val (BoolElim bool) Bool false true }
+
+fn and |b1 : Bool, b2 : Bool| -> Bool { val ((BoolElim b1) (Bool -> Bool) is_true (lambda |x| false)) b2 }
+fn or |b1 : Bool, b2 : Bool| -> Bool { val ((BoolElim b1) (Bool -> Bool) (lambda|x| true) (is_true)) b2 }
+
+
+fn is_x |square : Square| -> Bool { val (SquareElim square) Bool true false false }
+fn is_o |square : Square| -> Bool { val (SquareElim square) Bool false true false }
+fn is_empty |square : Square| -> Bool { val (SquareElim square) Bool false false true }
+
+fn square_eq |sq1 : Square, sq2 : Square| -> Bool { val ((SquareElim sq1) (Square -> Bool) is_x is_o is_empty) sq2 }
+
+fn check_empty |board: Board, row : Three, col : Three| -> Bool {
+  let square = index_of_board board row col
+  val is_empty square
+}
+
+fn bool_to_string |bool : Bool| -> String {
+    val (BoolElim bool) String "true" "false"
+}
+
+let expected_true = bool_to_string (check_empty empty_board one one)
+
+let console_output = {
+    ffi "./some_file.js" {
+        console_output : String -> IO Bool
+    }
+    val console_output
+}
+
+let concat = {
+    ffi "./some_file.js" {
+        add : String -> String -> String
+    }
+    val add
+}
+
+fn square_to_string |square : Square| -> String {
+    val (SquareElim square) String "x" "o" " "
+}
+
+fn row_to_string |row : Triple Square| -> String {
+    let first = square_to_string (triple_first Square row)
+    let second = square_to_string (triple_second Square row)
+    let third = square_to_string (triple_third Square row)
+    val concat (concat (concat (concat first "|") second) "|") third
+}
+
+fn board_to_string |board : Board| -> String {
+    let first = row_to_string (triple_first (Triple Square) (BoardElim board))
+    let second = row_to_string (triple_second (Triple Square) (BoardElim board))
+    let third = row_to_string (triple_third (Triple Square) (BoardElim board))
+    val concat (concat (concat (concat first "
+-----
+") second) "
+-----
+") third
+}
+
+fn print_board |board: Board| -> IO Bool {
+    let graph = board_to_string board
+    do console_output graph!
+    val true !
+}
+
+let new_board = update_board empty_board one one square_o
+
+let new_new_board = update_board new_board two two square_o
+
+let main = print_board new_new_board
+
+let expected_false = bool_to_string (check_empty new_new_board two two)
+
+let main2 = {
+    do console_output(expected_false)!
+    val true!
+}
+
+fn check_if_all_three |square : Square, triple : Triple Square| -> Bool {
+    val and (and (square_eq square (triple_first Square triple)) (square_eq square (triple_second Square triple))) (square_eq square (triple_third Square triple))
+}
+
+ fn triple_index |board : Board, x_s : Triple Three, y_s : Triple Three, square : Square| -> Bool {
+     let triple_square = TripleHelper Square (index_of_board board (triple_first Three x_s) (triple_first Three y_s))
+             (index_of_board board (triple_second Three x_s) (triple_second Three y_s))
+                 (index_of_board board (triple_third Three x_s) (triple_third Three y_s))
+     val check_if_all_three square triple_square
+}
+
+fn check_is_winning |square : Square, board : Board| -> Bool {
+    let ones = TripleHelper Three one one one
+    let twos = TripleHelper Three two two two
+    let threes = TripleHelper Three three three three
+    let nums = TripleHelper Three one two three
+    let nums_revs = TripleHelper Three three two one
+
+    fn win |x_s : Triple Three, y_s : Triple Three| -> Bool {
+               val  triple_index board x_s y_s square
+    }
+
+    val or  (or (or (win ones nums) (win twos nums)) (or (win threes nums) (win nums ones)))
+            (or (or (win nums twos) (win nums threes)) (or (win nums nums) (win nums nums_revs)))
+}
+
+
+
+ let new_board = update_board empty_board one one square_o
+
+let new_new_board = update_board new_board two two square_o
+
+let new_new_new_board = update_board new_new_board three three square_o
+
+let expected_true = bool_to_string (check_is_winning square_o new_new_new_board)
+
+let str_equals = {
+    ffi "./some_file.js" {
+        equals : String -> String -> Bool
+    }
+    val equals
+}
+
+let pure ={
+    ffi "./some_file.js" {
+        io_pure: Pi |A : Type| A -> IO A
+    }
+
+    val io_pure
+}
+
+let test = {
+    do console_output (bool_to_string (str_equals "hello" "asdlf"))!
+    val 5!
+}
+
+
+fn error |A : Type, message : String| -> IO A {
+    ffi "./some_file.js" {
+        panic : String -> IO A
+    }
+    let p = panic(message)
+    val p
+}
+
+fn parse_three |str : String| -> IO Three {
+    val (BoolElim (str_equals str "1")) (IO Three) (pure Three one) (
+    (BoolElim (str_equals str "2")) (IO Three) (pure Three two) (
+    (BoolElim (str_equals str "3")) (IO Three) (pure Three three) (
+error Three "expected a 1, 2, 3"
+)
+)
+)
+}
+
+fn play_move_part1 |board : Board, x : Three, y : Three, square : Square| -> IO Board {
+    let is_empty_square = is_empty (index_of_board board x y)
+    let result = ((BoolElim is_empty_square) (IO Board) (
+        pure Board (update_board board x y square)
+    ) (error Board "not empty"))!
+    let is_winning = check_is_winning square result
+    let asdf = ((BoolElim is_winning) (IO Board) (
+        error Board "congrats you won"
+    ) ({ do print_board(result)!
+        val                                pure Board result}
+    ))!
+    val asdf!
+}
+
+let Y = lambda |A : Type| {
+    ffi "./some_file.js" {
+        YCombinator_please_accept_us : (A -> A) -> IO A
+    }
+    val YCombinator_please_accept_us
+}
+
+/// Pair data structure//
+let Pair : Type -> Type -> Type = lambda| A : Type, B : Type| Pi |T : Type| (A -> B -> T) -> T
+with Pair let PairCons: Pi | A : Type, B : Type| A -> B -> (Pair A B) =
+   lambda|A, B, a , b, T, f| f a b
+with Pair let PairElim: Pi | A : Type, B : Type, T : Type|
+        (A -> B -> T) -> (Pair A B) -> T =
+        lambda |A, B, T, f, foo| foo T f
+with Pair let PairFirst : Pi |A : Type, B : Type| Pair A B -> A = lambda |A, B, foo| foo A (lambda |a,b| a)
+with Pair let PairSecond : Pi |A : Type, B : Type| Pair A B -> B = lambda |A, B, foo| foo B (lambda |a,b| b)
+
+// fn forever_func |play_move : Pair Board Square -> Pair Board Square| -> IO (Pair Board Square -> Pair Board Square) {
+//
+// }
+//
+// loop(board : Board, square : Square) -> IO () {
+//     let new_board = play_mvoe(board, square)
+//     let new_square = swap_x_o square
+//     loop(new_board, new_square)
+// }
+
+// fn |loop : (Board, Square) -> IO ()| {
+//     lambda |board, square|
+//         let new_board = play_mvoe(board, square)
+//         let new_square = swap_x_o square
+//         loop(new_board, new_square)
+// }
+
+
+let console_input = {
+    ffi "./some_file.js" {
+        console_input : IO String
+    }
+    val console_input
+}
+
+fn play_move |board : Board, square : Square| -> IO Board {
+    do console_output("please enter a x pos")!
+    let x_string = console_input!
+    do console_output("please enter an y pos")!
+    let y_string = console_input!
+    let x = parse_three x_string!
+    let y = parse_three y_string!
+    val play_move_part1 board x y square
+}
+
+fn swap_x_o |square : Square| -> Square {
+    val BoolElim(is_x square) Square square_o square_x
+}
+
+fn loop_fn |loop : Pair Board Square -> IO Bool| -> (Pair Board Square -> IO Bool) {
+    val lambda |board_square : Pair Board Square| {
+        let board = PairFirst Board Square board_square
+        let square = PairSecond Board Square board_square
+        let new_board = (play_move board square)!
+        let new_square =  swap_x_o square
+        val (loop (PairCons Board Square new_board new_square))
+    }
+}
+
+// the type of the above is ((Board, Square) -> IO ()) -> ((Board, Square) -> IO ())
+
+
+
+
+
+// main function
+let main = {
+    let board = empty_board
+    let square =  square_x
+    let pair = PairCons Board Square board square
+    let y_fn = (Y (Pair Board Square -> IO Bool) loop_fn)!
+    do (y_fn pair)!
+    val 5!
+}
+
+let main1 : IO Bool = {
+    do console_output expected_true!
+     val true !
+ }

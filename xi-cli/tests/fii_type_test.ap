@@ -5,16 +5,12 @@ let UnitType = {
     val UnitType
 }
 
-let unit : UnitType = {
+
     ffi "./some_file.js" {
         unit : UnitType
     }
-    val unit
-}
 
 
-let foo =  {
-//
 ffi "./some_file.js"{
 
 // //    Int : Type,
@@ -25,6 +21,9 @@ ffi "./some_file.js"{
      console_output: String -> IO String,
      console_input: IO String,
 }
+let foo =  {
+
+
 
 let a = "hello"
 

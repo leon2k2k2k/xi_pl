@@ -55,6 +55,8 @@ module.exports = grammar({
         $.ffi_stmt,
         $.if_stmt,
         $.with_stmt,
+        $.enum_stmt,
+        $.struct_stmt,
       ),
 
     let_stmt: ($) =>
@@ -84,6 +86,30 @@ module.exports = grammar({
     else_phrase: ($) => seq("else", $._expr),
 
     with_stmt: ($) => seq("with", $.ident, $._stmt),
+
+    enum_stmt: ($) =>
+      seq(
+        "enum",
+        $.ident,
+        optional($.binders),
+        $.enum_components,
+      ),
+
+    enum_components: ($) => seq("{", separated($.enum_component, ","), "}"),
+
+    enum_component: ($) => seq($.ident, optional(seq("(", $._expr, ")"))),
+
+    struct_stmt: ($) =>
+      seq(
+        "struct",
+        $.ident,
+        optional($.binders),
+        $.struct_components,
+      ),
+
+    struct_components: ($) => seq("{", separated($.struct_component, ","), "}"),
+
+    struct_component: ($) => seq($.ident, ":", $._expr),
 
     ident: ($) => /\p{XID_Start}\p{XID_Continue}*/u,
 

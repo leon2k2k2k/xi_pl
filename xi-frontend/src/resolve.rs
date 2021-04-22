@@ -4,7 +4,7 @@ use crate::{
 };
 use crate::{type_inference::UiBinaryOp as BinaryOp, Module};
 use rowan::{TextRange, TextSize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use xi_core::judgment::Judgment;
 use xi_uuid::VarUuid;
 
@@ -34,32 +34,6 @@ impl std::fmt::Display for ResolvePrim {
     }
 }
 
-impl ResolvePrim {
-    fn get_ctx(module: &mut Module) -> (Context, BTreeMap<VarUuid, ResolvePrim>) {
-        let mut ident_map = BTreeMap::new();
-        let mut resolve_map = BTreeMap::new();
-        for prim in ResolvePrim::prims() {
-            let var = VarBinder {
-                index: VarUuid::new(),
-                name: prim.to_string(),
-                span: Span::new(TextSize::from(0), TextSize::from(0)),
-                var_type: None,
-            };
-
-            ident_map.insert(prim.to_string(), var.clone());
-            resolve_map.insert(var.index, prim.clone());
-        }
-
-        (
-            Context {
-                local_ctx: ident_map,
-                import_ctx: module.clone(),
-                dependencies: vec![],
-            },
-            resolve_map,
-        )
-    }
-}
 #[derive(Clone, Debug)]
 pub enum Error {
     // Stmt(StmtError),
@@ -73,10 +47,12 @@ pub struct Stmt(pub StmtKind, pub Span);
 
 #[derive(Clone, Debug)]
 pub enum StmtKind {
-    Let(VarBinder, Expr),
+    Let(Var, Option<Expr>, Expr, BTreeSet<VarUuid>),
     // Do(Expr),
     Val(Expr),
-    Ffi(String, Vec<VarBinder>),
+    Ffi(String, Vec<(Var, Expr)>),
+    Enum(Var, Option<Binders>, Var, Vec<(Var, Option<Expr>)>),
+    Struct(Var, Option<Binders>, Vec<(Var, Expr)>),
     // Fn(Ident, Binders, Option<Expr>, Expr), // Expr should be a stmt_expr.
     // Import(Var),
     // Error(StmtError)
@@ -120,23 +96,15 @@ pub enum StringTokenKind {
 }
 
 #[derive(Clone, Debug)]
-pub struct Binders(pub Vec<VarBinder>, pub Span);
-
-#[derive(Clone, Debug)]
-pub struct VarBinder {
-    pub index: VarUuid,
-    pub var_type: Option<Expr>,
-    pub name: String,
-    pub span: Span,
-}
-
-#[derive(Clone, Debug)]
 pub struct Var {
     pub index: VarUuid,
     pub name: String,
     pub span: Span,
     pub local_or_global: LocalOrGlobal,
 }
+
+#[derive(Clone, Debug)]
+pub struct Binders(pub Vec<(Var, Option<Expr>)>, pub Span);
 
 #[derive(Clone, Debug)]
 pub enum LocalOrGlobal {
@@ -162,20 +130,42 @@ pub type Span = rowan::TextRange;
 
 #[derive(Clone, Debug)]
 struct Context {
-    local_ctx: BTreeMap<String, VarBinder>,
+    local_ctx: BTreeMap<String, Var>,
     import_ctx: Module,
     dependencies: Vec<VarUuid>,
 }
 
+pub fn new_span() -> Span {
+    Span::new(TextSize::from(0), TextSize::from(0))
+}
+
 impl Context {
-    pub fn new(module: Module) -> Context {
-        Context {
-            local_ctx: BTreeMap::new(),
-            import_ctx: module,
-            dependencies: vec![],
+    fn get_ctx(module: &mut Module) -> (Context, BTreeMap<VarUuid, ResolvePrim>) {
+        let mut ident_map = BTreeMap::new();
+        let mut resolve_map = BTreeMap::new();
+        for prim in ResolvePrim::prims() {
+            let var = Var {
+                index: VarUuid::new(),
+                name: prim.to_string(),
+                span: Span::new(TextSize::from(0), TextSize::from(0)),
+                local_or_global: LocalOrGlobal::Local,
+            };
+
+            ident_map.insert(prim.to_string(), var.clone());
+            resolve_map.insert(var.index, prim.clone());
         }
+
+        (
+            Context {
+                local_ctx: ident_map,
+                import_ctx: module.clone(),
+                dependencies: vec![],
+            },
+            resolve_map,
+        )
     }
-    fn create_var(&mut self, node: &SyntaxNode, var_type: Option<Expr>) -> VarBinder {
+
+    fn create_var(&mut self, node: &SyntaxNode) -> Var {
         assert_eq!(node.kind(), SyntaxKind::IDENT);
         let index = VarUuid::new();
         let var_name: String = node
@@ -183,18 +173,18 @@ impl Context {
             .expect("Expected a child for an var")
             .text()
             .into();
-        let var = VarBinder {
+
+        let var = Var {
             index: index,
-            var_type: var_type,
             name: var_name.clone(),
             span: node.text_range(),
+            local_or_global: LocalOrGlobal::Local,
         };
         self.local_ctx.insert(var_name.clone(), var.clone());
 
         var
     }
 
-    // check if the ident exists in the local context, then check if it exists in module, if it does, then check has it been used before, if not, then add it onto the dependencies vec.
     fn parse_var(&self, node: &SyntaxNode) -> Result<Var, NameNotFoundError> {
         assert!(node.kind() == SyntaxKind::IDENT);
         let var_name = node
@@ -236,14 +226,14 @@ impl Context {
                 if children.len() == 3 {
                     let var_type = self.parse_expr(&children[1]);
                     let body = self.parse_expr(&children[2]);
-                    let var = self.create_var(&children[0], Some(var_type));
+                    let var = self.create_var(&children[0]);
 
-                    StmtKind::Let(var, body)
+                    StmtKind::Let(var, Some(var_type), body, BTreeSet::new())
                 } else if children.len() == 2 {
                     let body = self.parse_expr(&children[1]);
-                    let var = self.create_var(&children[0], None);
+                    let var = self.create_var(&children[0]);
 
-                    StmtKind::Let(var, body)
+                    StmtKind::Let(var, None, body, BTreeSet::new())
                 } else {
                     panic!("The length of the let_stmt should be 2 or 4.")
                 }
@@ -256,13 +246,13 @@ impl Context {
                 if children.len() == 1 {
                     let expr = self.parse_expr(&children[0]);
                     let var_index = VarUuid::new();
-                    let var = VarBinder {
+                    let var = Var {
                         index: var_index,
-                        var_type: None,
                         name: "_".into(),
                         span: TextRange::empty(expr.1.start()),
+                        local_or_global: LocalOrGlobal::Local,
                     };
-                    StmtKind::Let(var, expr)
+                    StmtKind::Let(var, None, expr, BTreeSet::new())
                 } else {
                     panic!("the length of do_stmt should be 1")
                 }
@@ -283,25 +273,26 @@ impl Context {
                     let (binders, new_ctx) = self.parse_binders(&children[1]);
                     let ret_type = new_ctx.parse_expr(&children[2]);
                     let body = new_ctx.parse_expr(&children[3]);
+
                     let func_expr_kind = ExprKind::Pi(binders.clone(), ret_type.clone());
                     let func_span = TextRange::new(binders.1.start(), ret_type.1.end());
                     let func_expr = Expr(Box::new(func_expr_kind), func_span);
-                    let var = self.create_var(&children[0], Some(func_expr));
+                    let var = self.create_var(&children[0]);
 
                     // StmtKind::Fn(var, binders, Some(expr), body);
 
                     let body_expr_kind = ExprKind::Lam(binders, body.clone());
                     let body_expr = Expr(Box::new(body_expr_kind), body.1);
 
-                    StmtKind::Let(var.clone(), body_expr)
+                    StmtKind::Let(var.clone(), Some(func_expr), body_expr, BTreeSet::new())
                 } else if children.len() == 3 {
                     let (binders, new_ctx) = self.parse_binders(&children[1]);
                     let body = new_ctx.parse_expr(&children[2]); // lamda |binders| body
                     let body_expr_kind = ExprKind::Lam(binders, body.clone());
                     let body_expr = Expr(Box::new(body_expr_kind), body.1);
-                    let var = self.create_var(&children[0], None);
+                    let var = self.create_var(&children[0]);
 
-                    StmtKind::Let(var.clone(), body_expr)
+                    StmtKind::Let(var.clone(), None, body_expr, BTreeSet::new())
                 } else {
                     panic!("the length of fn_stmt should be 4 or 3")
                 }
@@ -323,11 +314,94 @@ impl Context {
 
                     StmtKind::Ffi(file_name, result)
                 } else {
-                    panic!("ffi_stmt should only have two children")
+                    panic!("the length of ffi_stmt should be 2")
                 }
             }
             SyntaxKind::WITH_STMT => {
-                panic!("we don't support with in a statement expr")
+                if children.len() == 2 {
+                    let with_var = self.parse_var(&children[0]).expect("expected var");
+                    let inside_stmt = self.parse_stmt(&children[1]);
+                    let new_inside_stmt = match inside_stmt.0 {
+                        StmtKind::Let(var_name, var_type, body, with_list) => {
+                            let mut new_with_list = with_list.clone();
+                            new_with_list.insert(with_var.index);
+                            StmtKind::Let(var_name, var_type, body, new_with_list)
+                        }
+                        _ => panic!("with only works with let"),
+                    };
+
+                    new_inside_stmt
+                } else {
+                    panic!("the length of with_stmt should be 2")
+                }
+            }
+            SyntaxKind::ENUM_STMT => {
+                if children.len() == 3 || children.len() == 2 {
+                    let enum_var = self.create_var(&children[0]);
+                    let (binders, new_ctx) = match children.len() {
+                        3 => {
+                            let (binders, new_ctx) = self.parse_binders(&children[1]);
+                            (Some(binders), new_ctx)
+                        }
+                        2 => (None, self.clone()),
+                        _ => panic!("the length of enum_stmt should be 2 or 3"),
+                    };
+
+                    let self_var = Var {
+                        index: VarUuid::new(),
+                        name: "Self".into(),
+                        span: children[0].text_range(),
+                        local_or_global: LocalOrGlobal::Local,
+                    };
+                    self.local_ctx.insert("Self".into(), self_var.clone());
+
+                    let mut variants = vec![];
+                    for child in nonextra_children(&children[children.len() - 1]) {
+                        let grandchildren = nonextra_children(&child).collect::<Vec<_>>();
+
+                        let variant_var = self.create_var(&grandchildren[0]);
+
+                        let variant_type = if grandchildren.len() == 1 {
+                            None
+                        } else {
+                            Some(new_ctx.parse_expr(&grandchildren[1]))
+                        };
+
+                        variants.push((variant_var, variant_type))
+                    }
+
+                    StmtKind::Enum(enum_var, binders, self_var, variants)
+                } else {
+                    panic!("the length of enum_stmt should be 2 or 3")
+                }
+            }
+            SyntaxKind::STRUCT_STMT => {
+                if children.len() == 3 || children.len() == 2 {
+                    let type_u = Some(Expr(Box::new(ExprKind::Type), children[0].text_range()));
+                    let struct_var = self.create_var(&children[0]);
+                    let (binders, new_ctx) = match children.len() {
+                        3 => {
+                            let (binders, new_ctx) = self.parse_binders(&children[1]);
+                            (Some(binders), new_ctx)
+                        }
+                        2 => (None, self.clone()),
+                        _ => panic!("the length of enum_stmt should be 2 or 3"),
+                    };
+
+                    let mut fields = vec![];
+                    for child in nonextra_children(&children[children.len() - 1]) {
+                        let grandchildren = nonextra_children(&child).collect::<Vec<_>>();
+
+                        let field_var = self.create_var(&grandchildren[0]);
+
+                        let field_type = new_ctx.parse_expr(&grandchildren[1]);
+                        fields.push((field_var, field_type))
+                    }
+
+                    StmtKind::Struct(struct_var, binders, fields)
+                } else {
+                    panic!("the length of enum_stmt should be 2 or 3")
+                }
             }
             _ => panic!("parse_stmt can only parse an stmt, got {:?}", node.kind()),
         };
@@ -335,7 +409,7 @@ impl Context {
         Stmt(stmt_kind, node.text_range())
     }
 
-    fn parse_ffi_dict(&mut self, node: &SyntaxNode) -> Vec<VarBinder> {
+    fn parse_ffi_dict(&mut self, node: &SyntaxNode) -> Vec<(Var, Expr)> {
         let children = nonextra_children(node).collect::<Vec<_>>();
         assert!(node.kind() == SyntaxKind::DICT_EXPR);
         let mut components = vec![];
@@ -345,9 +419,9 @@ impl Context {
             if grandchildren.len() == 2 {
                 let ffi_type = self.parse_expr(&grandchildren[1]);
 
-                let ffi_var = self.create_var(&grandchildren[0], Some(ffi_type));
+                let ffi_var = self.create_var(&grandchildren[0]);
 
-                components.push(ffi_var);
+                components.push((ffi_var, ffi_type));
             } else {
                 panic!("dict component should have 3 things")
             }
@@ -512,11 +586,11 @@ impl Context {
                 if grandchildren.len() == 2 {
                     let expr = ctx.parse_expr(&grandchildren[1]);
 
-                    let binder_name = ctx.create_var(&grandchildren[0], Some(expr));
-                    binders.push(binder_name);
+                    let binder_name = ctx.create_var(&grandchildren[0]);
+                    binders.push((binder_name, Some(expr)));
                 } else if grandchildren.len() == 1 {
-                    let binder_name = ctx.create_var(&grandchildren[0], None);
-                    binders.push(binder_name);
+                    let binder_name = ctx.create_var(&grandchildren[0]);
+                    binders.push((binder_name, None));
                 } else {
                     panic!("bind_components should be of the form x")
                 }
@@ -532,45 +606,11 @@ impl Context {
 pub fn parse_module_stmt(
     module: &mut Module,
     node: &SyntaxNode,
-) -> (String, ModuleStmt, BTreeMap<VarUuid, ResolvePrim>) {
-    let (mut ctx, resolve_var) = ResolvePrim::get_ctx(module);
+) -> (Stmt, BTreeMap<VarUuid, ResolvePrim>) {
+    let (mut ctx, resolve_var) = Context::get_ctx(module);
+    let stmt = ctx.parse_stmt(node);
 
-    let mut node = node.clone();
-    let mut with_list = vec![];
-    while node.kind() == SyntaxKind::WITH_STMT {
-        let children = nonextra_children(&node).collect::<Vec<_>>();
-
-        with_list.push(ctx.parse_var(&children[0]).unwrap());
-        node = children[1].clone();
-    }
-
-    let stmt = ctx.parse_stmt(&node);
-
-    let children = nonextra_children(&node).collect::<Vec<_>>();
-    let name = match node.kind() {
-        SyntaxKind::LET_STMT => children[0].first_token().unwrap().text().into(),
-        SyntaxKind::FN_STMT => children[0].first_token().unwrap().text().into(),
-        // SyntaxKind::IMPORT_STMT => {}
-        // SyntaxKind::FFI_STMT => {}
-        // SyntaxKind::IF_STMT => {}
-        // SyntaxKind::WITH_STMT => {}
-        _ => panic!(),
-    };
-
-    (
-        name,
-        ModuleStmt {
-            impl_: stmt,
-            with_list: with_list,
-        },
-        resolve_var,
-    )
-}
-
-#[derive(Clone, Debug)]
-pub struct ModuleStmt {
-    pub impl_: Stmt,
-    pub with_list: Vec<Var>,
+    (stmt, resolve_var)
 }
 
 #[cfg(test)]

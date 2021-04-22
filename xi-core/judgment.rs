@@ -94,7 +94,6 @@ impl<T: Primitive, S: Metadata> ScopedJudgment<T, S> {
                 JudgmentKind::FreeVar(i, var_type) => {
                     if i == index {
                         *sub.tree.clone()
-                    // CAN DELETE METADATA
                     } else {
                         JudgmentKind::FreeVar(i, instantiate_rec(var_type, index, sub))
                     }

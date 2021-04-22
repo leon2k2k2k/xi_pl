@@ -1,15 +1,15 @@
 // this works
-let asldfj  = lambda |T: Type, succ: T -> T| succ 
+let asldfj  = lambda |T: Type, succ: T -> T| succ
 
 // this works
-let oasdlfj = lambda |T : Type, zero: T, succ: T -> T| succ zero 
+let oasdlfj = lambda |T : Type, zero: T, succ: T -> T| succ zero
 
 
 // this also works.
 let zero1 : Pi |T : Type|  T -> (T -> T) -> T  = lambda | T : Type, zero : T, succ: T -> T| zero
 
 // this works.
-let hello =  Pi| T : Type| T -> (T -> T) -> T 
+let hello =  Pi| T : Type| T -> (T -> T) -> T
 
 
 let zero = lambda | T : Type, zero : T, succ: T -> T| zero
@@ -19,7 +19,7 @@ let one : Pi| T: Type | T -> (T -> T) -> T = lambda | T, zero, succ| (succ zero)
 
 
 
-// this also works!
+// this also
 let ok =  lambda |T : Type, f : Type -> T| f T
 // There is something wrong with app and variable binding. Maybe we have fixed it.
 

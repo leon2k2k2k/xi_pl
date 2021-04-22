@@ -7,7 +7,6 @@ use std::{cell::RefCell, collections::BTreeMap};
 use type_inference::{type_infer_mod_ule_item, UiMetadata, UiPrim};
 use xi_core::judgment::Judgment;
 use xi_uuid::VarUuid;
-
 mod desugar;
 mod resolve;
 mod rowan_ast;
@@ -28,14 +27,22 @@ impl Module {
     }
     // takes a syntaxnode child, parse it with the module (the imports), and then add it on at the end.
     pub fn add_stmt_to_module_item(&mut self, child: &SyntaxNode<Lang>) {
-        let (name, module_stmt, resolve_var) = parse_module_stmt(self, child);
-        let mod_ule_item = desugar_module_stmt(self, module_stmt, resolve_var);
-        let module_item = type_infer_mod_ule_item(self, &mod_ule_item);
-        self.add(name, module_item)
+        let (module_stmt, resolve_var) = parse_module_stmt(self, child);
+
+        let mod_ule_items = desugar_module_stmt(module_stmt, resolve_var);
+        for mod_ule_item in mod_ule_items {
+            let (index, module_item) = type_infer_mod_ule_item(self, &mod_ule_item);
+            self.add(index, module_item);
+        }
     }
 
-    pub fn add(&mut self, name: String, module_item: ModuleItem) {
-        let index = VarUuid::new();
+    pub fn add(&mut self, index: VarUuid, module_item: ModuleItem) {
+        let name = match module_item.clone() {
+            ModuleItem::Define(define_item) => define_item.name,
+            ModuleItem::Import(_) => {
+                unimplemented!()
+            }
+        };
         self.str_to_index.insert(name, index);
         self.module_items.insert(index, module_item);
     }
@@ -44,22 +51,21 @@ impl Module {
 #[derive(Clone, Debug)]
 pub enum ModuleItem {
     Define(DefineItem),
-    Something,
-    // Import(ImportItem),
-    // impl_: Judgment<UiPrim, UiMetadata>,
-    // pub type_: Judgment<UiPrim, UiMetadata>,
-    // pub name: String,
-    // pub index: VarUuid,
-    // // pub public_or_private: Publicity,
-    // pub dependencies: Vec<VarUuid>
+    Import(ImportItem),
 }
 
 #[derive(Clone, Debug)]
 pub struct DefineItem {
+    pub name: String,
     pub type_: Judgment<UiPrim, UiMetadata>,
     pub impl_: Judgment<UiPrim, UiMetadata>,
     pub type_dependencies: Vec<VarUuid>,
     // pub publicity
+}
+#[derive(Clone, Debug)]
+
+pub struct ImportItem {
+    pub name: String,
 }
 // #[derive(Clone, Debug)]
 // pub struct ImportItem {

@@ -200,7 +200,7 @@ let str_equals = {
     val equals
 }
 
-let pure ={
+let pure = {
     ffi "./some_file.js" {
         io_pure: Pi |A : Type| A -> IO A
     }
@@ -289,9 +289,9 @@ let console_input = {
 }
 
 fn play_move |board : Board, square : Square| -> IO Board {
-    do console_output("please enter a x pos")!
+    do console_output("please enter a row pos")!
     let x_string = console_input!
-    do console_output("please enter an y pos")!
+    do console_output("please enter an column pos")!
     let y_string = console_input!
     let x = parse_three x_string!
     let y = parse_three y_string!

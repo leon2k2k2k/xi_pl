@@ -1,2 +1,5 @@
-let many |UnitType : Type, UnitTypeCons: UnitType -> Pi |T : Type| T -> T| = 
-    (Pi |T : Type| T -> T, lambda |t| t)
+struct Square {
+    square_x : Int,
+    x : Int,
+    y : Int,
+}

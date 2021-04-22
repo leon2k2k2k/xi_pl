@@ -27,6 +27,8 @@ pub enum SyntaxKind {
     FFI_STMT,
     IF_STMT,
     WITH_STMT,
+    ENUM_STMT,
+    STRUCT_STMT,
 
     IDENT_EXPR,
     TYPE_EXPR,
@@ -43,7 +45,8 @@ pub enum SyntaxKind {
     DICT_EXPR,
     TUPLE_EXPR,
     LIST_EXPR,
-
+    // ENUM_EXPR,
+    // STRUCT_EXPR,
     IF_PHRASE,
     ELSE_IF_PHRASE,
     ELSE_PHRASE,
@@ -52,6 +55,10 @@ pub enum SyntaxKind {
     BINDER_COMPONENT,
     STRING_COMPONENT,
     DICT_COMPONENT,
+    ENUM_COMPONENT,
+    ENUM_COMPONENTS,
+    STRUCT_COMPONENT,
+    STRUCT_COMPONENTS,
     // These need to be the last things
     ERROR,
     UNKNOWN,

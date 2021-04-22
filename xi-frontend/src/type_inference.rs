@@ -114,7 +114,9 @@ impl<'a, 'b> Context<'a, 'b> {
 
                 Ok(Judgment::free(index, ctx.lookup_type_var(type_var), None))
             }),
-            Judg_mentKind::Pi(index, var_type, expr) => self.subcontext(|ctx| {
+            Judg_mentKind::BoundVar(_) => unreachable!(),
+            Judg_mentKind::Pi(var_type, sexpr) => self.subcontext(|ctx| {
+                let (index, expr) = sexpr.unbind();
                 let type_var = ctx.new_type_var();
                 ctx.assign_type_var(index, type_var);
 
@@ -129,7 +131,8 @@ impl<'a, 'b> Context<'a, 'b> {
 
                 Ok(Judgment::pi(ctx.lookup_type_var(&type_var), pi_scope, None))
             }),
-            Judg_mentKind::Lam(index, var_type, expr) => self.subcontext(|ctx| {
+            Judg_mentKind::Lam(var_type, sexpr) => self.subcontext(|ctx| {
+                let (index, expr) = sexpr.unbind();
                 let type_var = ctx.new_type_var();
                 ctx.assign_type_var(index, type_var);
 
@@ -181,7 +184,9 @@ impl<'a, 'b> Context<'a, 'b> {
                     ),
                 }
             }),
-            Judg_mentKind::Let(old_arg, index, old_var_type, rest) => {
+            Judg_mentKind::Let(old_arg, old_var_type, rest) => {
+                let (index, rest) = rest.unbind();
+
                 // if the old_var_type is not None, then we use it to type check arg.
                 // if var_type is none, we type_infer arg and use it as the var_type for fv(index)
                 self.subcontext(|ctx| {
@@ -259,9 +264,6 @@ impl<'a, 'b> Context<'a, 'b> {
                     None,
                 ))
             }),
-            Judg_mentKind::LetMany(_, _) => {
-                todo!();
-            }
         }
     }
 
@@ -272,9 +274,10 @@ impl<'a, 'b> Context<'a, 'b> {
     ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
         match (*expr.0.clone(), *expected.tree.clone()) {
             (
-                Judg_mentKind::Lam(index, lam_var_type, lam_body),
+                Judg_mentKind::Lam(lam_var_type, lam_sbody),
                 JudgmentKind::Pi(pi_var_type, pi_body),
             ) => self.subcontext(|ctx| {
+                let (index, lam_body) = lam_sbody.unbind();
                 let type_var = ctx.new_type_var();
                 ctx.assign_type_var(index, type_var);
 
@@ -646,7 +649,10 @@ pub struct UiMetadata {
 // var_name: Option<String>,
 }
 
-pub fn type_infer_mod_ule_item(module: &Module, mod_ule_item: &Mod_uleItem) -> ModuleItem {
+pub fn type_infer_mod_ule_item(
+    module: &Module,
+    mod_ule_item: &Mod_uleItem,
+) -> (VarUuid, ModuleItem) {
     let mut ctx = Context {
         var_map: BTreeMap::new(),
         resps: vec![],
@@ -709,6 +715,7 @@ pub fn type_infer_mod_ule_item(module: &Module, mod_ule_item: &Mod_uleItem) -> M
         }));
 
     let define_item = DefineItem {
+        name: mod_ule_item.clone().var.name,
         type_: match type_ {
             Some(type_) => type_,
             None => judgment.type_of().unwrap(),
@@ -716,7 +723,7 @@ pub fn type_infer_mod_ule_item(module: &Module, mod_ule_item: &Mod_uleItem) -> M
         impl_: judgment,
         type_dependencies: vec![],
     };
-    ModuleItem::Define(define_item)
+    (mod_ule_item.var.index, ModuleItem::Define(define_item))
 }
 
 impl Metadata for UiMetadata {}

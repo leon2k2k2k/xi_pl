@@ -683,8 +683,7 @@ impl Context {
 
                 let t_index = VarUuid::new();
                 let mut result = Judg_ment::freevar(t_index);
-                let mut fields1 = fields.clone();
-                for field in fields1.iter().rev() {
+                for field in fields.iter().rev() {
                     result = Judg_ment::fun(self.desugar_expr(&(field.1)), result)
                 }
                 result = Judg_ment::fun(result, Judg_ment::freevar(t_index));
@@ -717,7 +716,7 @@ impl Context {
 
                 if let Some(binders) = binders.clone() {
                     let var_list = &binders.0;
-                    for (var, _var_type) in var_list.iter().rev() {
+                    for (var, _var_type) in var_list {
                         struct_apply_to_binders =
                             Judg_ment::app(struct_apply_to_binders, Judg_ment::freevar(var.index));
                     }
@@ -810,7 +809,7 @@ impl Context {
                 // first we have [name] [binders]
                 let mut expected_type = struct_apply_to_binders.clone();
                 // now we add in all the arrows:
-                for field in fields1.iter().rev() {
+                for field in fields.iter().rev() {
                     expected_type = Judg_ment::fun(self.desugar_expr(&(field.1)), expected_type)
                 }
                 // now we add the Pi| [binders]|

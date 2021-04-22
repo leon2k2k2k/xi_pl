@@ -1,10 +1,4 @@
-struct X|S: Type, T : Type|{
-    a : Int,
-    b :Int -> Int,
-
-}
-
-enum List|S: Type, T : Type| {
-    nil,
-    cons(S, Self)
+struct Pair |A : Type, B : Type| {
+    PairFirst : A,
+    PairSecond : B,
 }

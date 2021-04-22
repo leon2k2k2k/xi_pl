@@ -51,7 +51,7 @@ pub enum StmtKind {
     // Do(Expr),
     Val(Expr),
     Ffi(String, Vec<(Var, Expr)>),
-    Enum(Var, Option<Binders>, Var, Vec<(Var, Option<Expr>)>),
+    Enum(Var, Option<Binders>, Var, Vec<(Var, Vec<Expr>)>),
     Struct(Var, Option<Binders>, Vec<(Var, Expr)>),
     // Fn(Ident, Binders, Option<Expr>, Expr), // Expr should be a stmt_expr.
     // Import(Var),
@@ -338,7 +338,7 @@ impl Context {
             SyntaxKind::ENUM_STMT => {
                 if children.len() == 3 || children.len() == 2 {
                     let enum_var = self.create_var(&children[0]);
-                    let (binders, new_ctx) = match children.len() {
+                    let (binders, mut new_ctx) = match children.len() {
                         3 => {
                             let (binders, new_ctx) = self.parse_binders(&children[1]);
                             (Some(binders), new_ctx)
@@ -353,7 +353,7 @@ impl Context {
                         span: children[0].text_range(),
                         local_or_global: LocalOrGlobal::Local,
                     };
-                    self.local_ctx.insert("Self".into(), self_var.clone());
+                    new_ctx.local_ctx.insert("Self".into(), self_var.clone());
 
                     let mut variants = vec![];
                     for child in nonextra_children(&children[children.len() - 1]) {
@@ -362,9 +362,9 @@ impl Context {
                         let variant_var = self.create_var(&grandchildren[0]);
 
                         let variant_type = if grandchildren.len() == 1 {
-                            None
+                            vec![]
                         } else {
-                            Some(new_ctx.parse_expr(&grandchildren[1]))
+                            new_ctx.parse_tuple(&grandchildren[1])
                         };
 
                         variants.push((variant_var, variant_type))
@@ -573,15 +573,22 @@ impl Context {
         Expr(Box::new(expr_kind), node.text_range())
     }
 
+    fn parse_tuple(&self, node: &SyntaxNode) -> Vec<Expr> {
+        assert_eq!(SyntaxKind::TUPLE_EXPR, node.kind());
+
+        let mut exprs = vec![];
+        for child in nonextra_children(node) {
+            exprs.push(self.parse_expr(&child));
+        }
+        exprs
+    }
+
     fn parse_binders(&self, node: &SyntaxNode) -> (Binders, Context) {
         if let SyntaxKind::BINDERS = node.kind() {
-            let children = nonextra_children(node).collect::<Vec<_>>();
-
             let mut ctx = self.clone();
 
             let mut binders = vec![];
-
-            for child in children {
+            for child in nonextra_children(node) {
                 let grandchildren = nonextra_children(&child).collect::<Vec<_>>();
                 if grandchildren.len() == 2 {
                     let expr = ctx.parse_expr(&grandchildren[1]);

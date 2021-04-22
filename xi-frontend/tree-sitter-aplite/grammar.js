@@ -97,7 +97,7 @@ module.exports = grammar({
 
     enum_components: ($) => seq("{", separated($.enum_component, ","), "}"),
 
-    enum_component: ($) => seq($.ident, optional(seq("(", $._expr, ")"))),
+    enum_component: ($) => seq($.ident, optional($.tuple_expr)),
 
     struct_stmt: ($) =>
       seq(

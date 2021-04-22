@@ -45,8 +45,6 @@ pub enum SyntaxKind {
     DICT_EXPR,
     TUPLE_EXPR,
     LIST_EXPR,
-    // ENUM_EXPR,
-    // STRUCT_EXPR,
     IF_PHRASE,
     ELSE_IF_PHRASE,
     ELSE_PHRASE,

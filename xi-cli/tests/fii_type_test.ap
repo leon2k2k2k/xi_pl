@@ -21,8 +21,12 @@ ffi "./some_file.js"{
      console_output: String -> IO String,
      console_input: IO String,
 }
-let foo =  {
+let foo = {
 
+fn foo |x: Int, y : Int | -> Int
+
+
+foo (2,3)
 
 
 let a = "hello"

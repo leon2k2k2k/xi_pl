@@ -1,11 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::resolve::{self, Binders, Expr, ExprKind, Stmt, StmtKind};
 use crate::type_inference::UiPrim;
 use crate::{resolve::ResolvePrim, type_inference::UiMetadata};
-use crate::{
-    resolve::{self, Expr, ExprKind, Stmt, StmtKind},
-    Module,
-};
 use resolve::{new_span, LocalOrGlobal, StringTokenKind, Var};
 use xi_core::judgment::{Metadata, Primitive};
 use xi_uuid::VarUuid;
@@ -258,6 +255,37 @@ struct Context {
 }
 
 impl Context {
+    fn binders_to_pi(
+        &self,
+        binders: Binders,
+        init: Judg_ment<UiPrim, UiMetadata>,
+    ) -> Judg_ment<UiPrim, UiMetadata> {
+        let mut result = init;
+        let var_list = &binders.0;
+        for (var, var_type) in var_list.iter().rev() {
+            let var_type = var_type
+                .clone()
+                .map(|var_type| self.desugar_expr(&var_type));
+            result = Judg_ment::pi(var_type, result.bind(var.index));
+        }
+        result
+    }
+
+    fn binders_to_lam(
+        &self,
+        binders: Binders,
+        init: Judg_ment<UiPrim, UiMetadata>,
+    ) -> Judg_ment<UiPrim, UiMetadata> {
+        let mut result = init;
+        let var_list = &binders.0;
+        for (var, var_type) in var_list.iter().rev() {
+            let var_type = var_type
+                .clone()
+                .map(|var_type| self.desugar_expr(&var_type));
+            result = Judg_ment::lam(var_type, result.bind(var.index));
+        }
+        result
+    }
     // this desugars the body of a stmt_expr
     fn desugar_stmt_vec(&self, stmts: &[Stmt]) -> Judg_ment<UiPrim, UiMetadata> {
         if stmts.is_empty() {
@@ -465,35 +493,35 @@ impl Context {
                 }
                 mod_ule_items
             }
-            StmtKind::Enum(var_binder, binders, self_index, variants) => {
-                todo!()
-            }
-            StmtKind::Struct(var_binder, binders, fields) => {
+            StmtKind::Enum(var_binder, binders, self_var, variants) => {
                 let mut mod_ule_items = vec![];
 
-                // creating the first mod_ule_stmt: let [name] = lam|binders| Pi|T : Type| (first_field -> second_field..  -> T) -> T
+                // first we need to create: let [var_binder] = lam|binders| Pi|T : Type| (T or (variant1 -> T)) -> (T or (variant2 -> T)) -> T.
+                //  each exprs1 is variant1[0] -> variant1[1] -> variant1[2]...
+                //to do that, for each enum_item, we first create variant1[0] -> variant1[1] -> variant1[2]... -> T:
 
-                let t_index = VarUuid::new();
-                let mut result = Judg_ment::freevar(t_index);
-                let mut fields1 = fields.clone();
-                fields1.reverse();
-                for field in fields1 {
-                    result = Judg_ment::fun(self.desugar_expr(&(field.1)), result)
-                }
-                result = Judg_ment::fun(result, Judg_ment::freevar(t_index));
-                // now adding the Pi|T : Type|
-                result = Judg_ment::pi(Some(Judg_ment::u()), result.bind(t_index));
+                let mut vec = vec![];
 
-                // now adding lams
-                let result = if let Some(binders) = binders.clone() {
-                    let var_list = &binders.0;
-                    for (var, var_type) in var_list.iter().rev() {
-                        let var_type = var_type
-                            .clone()
-                            .map(|var_type| self.desugar_expr(&var_type));
-                        result = Judg_ment::lam(var_type, result.bind(var.index));
+                for (var, exprs) in &variants {
+                    let mut judg_ment = Judg_ment::freevar(self_var.index);
+                    for expr in exprs.iter().rev() {
+                        judg_ment = Judg_ment::fun(self.desugar_expr(&expr), judg_ment);
                     }
-                    result
+                    vec.push(judg_ment)
+                }
+
+                let mut result = Judg_ment::freevar(self_var.index);
+                // now we map them all together:
+                for judg_ment in vec.into_iter().rev() {
+                    result = Judg_ment::fun(judg_ment, result)
+                }
+                // now we bind the T:
+                let result = Judg_ment::pi(Some(Judg_ment::u()), result.bind(self_var.index));
+                // we need this later for eliminator.
+                let result2 = result.clone();
+                // now we add the lam|binders|
+                let result = if let Some(binders) = binders.clone() {
+                    self.binders_to_lam(binders, result)
                 } else {
                     result
                 };
@@ -506,6 +534,180 @@ impl Context {
                 };
 
                 mod_ule_items.push(first_mod_ule_item);
+
+                // we will need with [name] for all the other statements, [name] is the name of the enum.
+                let mut with_var = BTreeSet::new();
+                with_var.insert(var_binder.clone().index);
+
+                // we also need [name][binders]
+                let mut name_binders = Judg_ment::prim(UiPrim::Global(var_binder.clone().index));
+
+                if let Some(binders) = binders.clone() {
+                    let var_list = &binders.0;
+                    for (var, _var_type) in var_list {
+                        name_binders = Judg_ment::app(name_binders, Judg_ment::freevar(var.index));
+                    }
+                };
+
+                // now we need the constructors: for each (var, variant_i) in variants,
+                // we get a map [variants.var.name]: pi |binders| expr0 -> expr1 -> ... -> [name] [binders]
+                // = lambda|binders, e0: expr0, e1: expr,... T, variant1, variant2..., | variant_i e0 e1..., where e replace self with
+
+                for (var, mut exprs) in variants.clone() {
+                    // first we do expected_type, if there is a self, it need to be [name][binders]
+                    let mut expected_type = name_binders.clone();
+                    for expr in exprs.iter().rev() {
+                        expected_type = Judg_ment::fun(self.desugar_expr(&expr), expected_type)
+                    }
+                    expected_type = expected_type
+                        .bind(self_var.index.clone())
+                        .instantiate(&name_binders.clone());
+
+                    // if there is expr, then have expr -> [name] [binders]
+                    // if let Some(expr) = expr {
+                    //     let judg_ment1 = self.desugar_expr(&expr);
+                    //     // we need to replace all self with name_binders:
+                    //     let lam_judg_ment =
+                    //         Judg_ment::lam(Some(Judg_ment::u()), judg_ment1.bind(self_var.index));
+                    //     let app_judg_ment = Judg_ment::app(lam_judg_ment, name_binders.clone());
+                    //     expected_type = Judg_ment::fun(app_judg_ment, expected_type)
+                    // }
+                    // now we add in the pi|binders|:
+                    expected_type = if let Some(binders) = binders.clone() {
+                        self.binders_to_pi(binders, expected_type)
+                    } else {
+                        expected_type
+                    };
+
+                    // now we move on to impl_:
+                    // lambda|binders, e0: expr0, e1: expr,... T, variant1, variant2..., |
+                    //variant_i e0 e1..., where e replace self with the complicated thingy
+                    let t_index = VarUuid::new();
+
+                    // first we do variant_i e0 e1:
+                    let variant_i_index = var.index;
+                    let mut impl_ = Judg_ment::freevar(variant_i_index);
+                    let mut e_indexes = vec![];
+                    for expr in &exprs {
+                        let e_index = VarUuid::new();
+                        e_indexes.push(e_index);
+                        let arg = if let ExprKind::Var(var) = &*expr.0 {
+                            if var.index == self_var.clone().index {
+                                //example: for nat: we need succ (n T zero succ), basically we need to apply everything to n,
+                                // so that's e_index T variant0 variant1
+                                let mut arg = Judg_ment::freevar(e_index);
+                                // apply T
+                                arg = Judg_ment::app(arg, Judg_ment::freevar(t_index));
+
+                                for (var, _exprs) in variants.clone() {
+                                    arg = Judg_ment::app(arg, Judg_ment::freevar(var.index))
+                                }
+                                arg
+                            } else {
+                                Judg_ment::freevar(e_index)
+                            }
+                        } else {
+                            Judg_ment::freevar(e_index)
+                        };
+                        impl_ = Judg_ment::app(impl_, arg);
+                    }
+                    // now we lambda over all the variant (different exprs):
+                    for (var, _exprs) in variants.iter().rev() {
+                        impl_ = Judg_ment::lam(None, impl_.bind(var.index))
+                    }
+                    // now we lam over T:
+                    impl_ = Judg_ment::lam(None, impl_.bind(t_index));
+                    // now we lam over expr0, expr1...
+                    for e_index in e_indexes.iter().rev() {
+                        impl_ = Judg_ment::lam(None, impl_.bind(*e_index));
+                    }
+                    // now we lam over binders...
+
+                    impl_ = if let Some(binders) = binders.clone() {
+                        self.binders_to_lam(binders, impl_)
+                    } else {
+                        impl_
+                    };
+
+                    let mod_ule_item = Mod_uleItem {
+                        var: var,
+                        impl_: impl_,
+                        expected_type: Some(expected_type),
+                        with_list: with_var.clone(),
+                    };
+                    mod_ule_items.push(mod_ule_item);
+                }
+
+                // lastly we get the eliminator:
+                // [name]Elim : pi |binders| [name][binders] -> pi thing above = lambda||binders|,f, x| x
+                // let's do the expected type:
+                let mut expected_type = name_binders.clone();
+                // map to the pi thing above
+                expected_type = Judg_ment::fun(expected_type, result2);
+                // pi all the binders:
+                expected_type = if let Some(binders) = binders.clone() {
+                    self.binders_to_pi(binders, expected_type)
+                } else {
+                    expected_type
+                };
+
+                // now the implementation: lambda||binders|, x| x
+                let x_index = VarUuid::new();
+                let mut impl_ = Judg_ment::lam(None, Judg_ment::freevar(x_index).bind(x_index));
+                // now the binders:
+                impl_ = if let Some(binders) = binders.clone() {
+                    self.binders_to_lam(binders, impl_)
+                } else {
+                    impl_
+                };
+                let var = Var {
+                    index: VarUuid::new(),
+                    name: var_binder.clone().name + "Elim",
+                    span: new_span(),
+                    local_or_global: LocalOrGlobal::Global,
+                };
+                let mod_ule_item = Mod_uleItem {
+                    var: var,
+                    impl_: impl_,
+                    expected_type: Some(expected_type),
+                    with_list: with_var.clone(),
+                };
+                mod_ule_items.push(mod_ule_item);
+
+                mod_ule_items
+            }
+            StmtKind::Struct(var_binder, binders, fields) => {
+                let mut mod_ule_items = vec![];
+
+                // creating the first mod_ule_stmt: let [name] = lam|binders| Pi|T : Type| (first_field -> second_field..  -> T) -> T
+
+                let t_index = VarUuid::new();
+                let mut result = Judg_ment::freevar(t_index);
+                let mut fields1 = fields.clone();
+                for field in fields1.iter().rev() {
+                    result = Judg_ment::fun(self.desugar_expr(&(field.1)), result)
+                }
+                result = Judg_ment::fun(result, Judg_ment::freevar(t_index));
+                // now adding the Pi|T : Type|
+                result = Judg_ment::pi(Some(Judg_ment::u()), result.bind(t_index));
+
+                // now adding lams
+                let result = if let Some(binders) = binders.clone() {
+                    self.binders_to_lam(binders, result)
+                } else {
+                    result
+                };
+
+                let first_mod_ule_item = Mod_uleItem {
+                    var: var_binder.clone(),
+                    impl_: result,
+                    expected_type: None,
+                    with_list: BTreeSet::new(),
+                };
+
+                mod_ule_items.push(first_mod_ule_item);
+
+                // we will need with [var_binder] for all the other statements
 
                 let mut with_var = BTreeSet::new();
                 with_var.insert(var_binder.clone().index);
@@ -527,9 +729,7 @@ impl Context {
                     // we first construct projection to the i^th factor function:
                     let field_type = self.desugar_expr(&field_type);
                     let mut proj_i = Judg_ment::freevar(field_var.index);
-                    let mut fields2 = fields.clone();
-                    fields2.reverse();
-                    for field in fields2 {
+                    for field in fields.iter().rev().clone() {
                         proj_i = Judg_ment::lam(None, proj_i.bind(field.0.index))
                     }
 
@@ -542,13 +742,7 @@ impl Context {
                     let mut proj_i = Judg_ment::lam(None, proj_i.bind(f_index));
                     // now we add the binders
                     if let Some(binders) = binders.clone() {
-                        let var_list = &binders.0;
-                        for (var, var_type) in var_list.iter().rev() {
-                            let var_type = var_type
-                                .clone()
-                                .map(|var_type| self.desugar_expr(&var_type));
-                            proj_i = Judg_ment::lam(var_type, proj_i.bind(var.index));
-                        }
+                        proj_i = self.binders_to_lam(binders, proj_i)
                     }
 
                     // now we can move on to the expected types: Pi |[binders]| ([name] [binders]) -> [field.1]
@@ -588,8 +782,7 @@ impl Context {
                 // lam|[binders], 1st_field, 2nd_field,..., T, f : [field1] -> [field2] .. -> T | f 1st_field 2nd_field...
                 let f_index = VarUuid::new();
                 let mut impl_ = Judg_ment::freevar(f_index);
-                let mut fields1 = fields.clone();
-                for field in fields1 {
+                for field in &fields {
                     impl_ = Judg_ment::app(impl_, Judg_ment::freevar(field.0.index))
                 }
                 // now we add lambda|f|:
@@ -598,9 +791,7 @@ impl Context {
                 let t_index = VarUuid::new();
                 impl_ = Judg_ment::lam(Some(Judg_ment::u()), impl_.bind(t_index));
                 //now we add lambda|fields|
-                let mut fields1 = fields.clone();
-                fields1.reverse();
-                for field in fields1 {
+                for field in fields.iter().rev() {
                     impl_ =
                         Judg_ment::lam(Some(self.desugar_expr(&field.1)), impl_.bind(field.0.index))
                 }
@@ -619,9 +810,7 @@ impl Context {
                 // first we have [name] [binders]
                 let mut expected_type = struct_apply_to_binders.clone();
                 // now we add in all the arrows:
-                let mut fields1 = fields.clone();
-                fields1.reverse();
-                for field in fields1 {
+                for field in fields1.iter().rev() {
                     expected_type = Judg_ment::fun(self.desugar_expr(&(field.1)), expected_type)
                 }
                 // now we add the Pi| [binders]|
@@ -637,8 +826,8 @@ impl Context {
 
                 let mod_ule_item = Mod_uleItem {
                     var: var,
-                    impl_: dbg!(impl_),
-                    expected_type: Some(dbg!(expected_type)),
+                    impl_: impl_,
+                    expected_type: Some(expected_type),
                     with_list: with_var.clone(),
                 };
 

@@ -1,5 +1,4 @@
-struct Square {
-    square_x : Int,
-    x : Int,
-    y : Int,
+enum List|S: Type| {
+    nil,
+    Cons(S, Self)
 }

@@ -1,7 +1,10 @@
-struct X |S : Type|{
+struct X|S: Type, T : Type|{
     a : Int,
-    b : Int,
-    c : S,
+    b :Int -> Int,
+
 }
 
-let hello : X Int = XCons Int 5 5 5
+enum List|S: Type, T : Type| {
+    nil,
+    cons(S, Self)
+}

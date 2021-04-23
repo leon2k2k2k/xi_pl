@@ -10,11 +10,12 @@ name = "xi"
 path = "main.rs"
 
 [dependencies]
-tokio = "1.2"
+tokio = { version = "1.2", optional = true }
 xi-frontend = { path = "../xi-frontend" }
-xi-backend = { path = "../xi-backend" }
-xi-kernel = { path = "../xi-kernel" }
+xi-backend = { path = "../xi-backend" , optional = true }
+xi-kernel = { path = "../xi-kernel", optional = true }
 xi-proc-macro = { path = "../xi-proc-macro" }
 xi-core = { path = "../xi-core" }
 
-
+[features]
+deno = ["tokio", "xi-backend", "xi-kernel"]

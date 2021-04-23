@@ -16,9 +16,9 @@ struct Triple |S : Type| {
     triple_third : S,
 }
 
-let update_first: Pi |S : Type| Triple S -> S -> Triple S = lambda |S, triple, value| TripleCons S value (triple_second S triple) (triple_third S triple)
-let update_second:Pi |S : Type| Triple S -> S -> Triple S = lambda |S, triple, value| TripleCons S  (triple_first  S triple) value (triple_third S triple)
-let update_third: Pi |S : Type| Triple S -> S -> Triple S = lambda |S, triple, value| TripleCons S  (triple_first  S triple) (triple_second S triple) value
+let update_first : Pi |S : Type| Triple S -> S -> Triple S = lambda |S, triple, value| TripleCons S value (triple_second S triple) (triple_third S triple)
+let update_second : Pi |S : Type| Triple S -> S -> Triple S = lambda |S, triple, value| TripleCons S  (triple_first  S triple) value (triple_third S triple)
+let update_third : Pi |S : Type| Triple S -> S -> Triple S = lambda |S, triple, value| TripleCons S  (triple_first  S triple) (triple_second S triple) value
 
 
 enum Three {

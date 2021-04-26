@@ -343,6 +343,9 @@ impl Context {
             StmtKind::Struct(_, _, _) => {
                 unimplemented!()
             }
+            StmtKind::Import(_, _) => {
+                unreachable!("we handle imports differently")
+            }
         }
 
         // let first_span = stmts[0].1;
@@ -432,11 +435,18 @@ impl Context {
                     panic!("we don't support string escapes yet :)");
                 }
 
-                match string_components[0].0.clone() {
-                    StringTokenKind::Escape(_) => {
-                        panic!("we don't support string escapes yet :)");
+                // empty string
+                if string_components.len() == 0 {
+                    Judg_ment::prim(UiPrim::StringElem("".into()))
+                } else {
+                    match string_components[0].0.clone() {
+                        StringTokenKind::Escape(_) => {
+                            panic!("we don't support string escapes yet :)");
+                        }
+                        StringTokenKind::String(string) => {
+                            Judg_ment::prim(UiPrim::StringElem(string))
+                        }
                     }
-                    StringTokenKind::String(string) => Judg_ment::prim(UiPrim::StringElem(string)),
                 }
             }
             ExprKind::Binary(op, lhs, rhs) => {
@@ -832,6 +842,9 @@ impl Context {
 
                 mod_ule_items.push(mod_ule_item);
                 mod_ule_items
+            }
+            StmtKind::Import(_, _) => {
+                unreachable!("we handle imports differently")
             }
         }
     }

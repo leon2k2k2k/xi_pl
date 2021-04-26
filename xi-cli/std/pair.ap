@@ -1,0 +1,4 @@
+struct Pair |A : Type, B: Type| {
+    first: A,
+    second: B,
+}

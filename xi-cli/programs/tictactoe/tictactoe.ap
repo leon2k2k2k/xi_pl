@@ -226,7 +226,7 @@ fn play_move_part1 |board : Board, x : Three, y : Three, square : Square| -> IO 
     let asdf = ((BoolElim is_winning) (IO Board) (
         error Board "congrats you won"
     ) ({ do print_board(result)!
-        val                                pure Board result}
+        val pure Board result}
     ))!
     val asdf!
 }

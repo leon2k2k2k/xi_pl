@@ -1,0 +1,91 @@
+import "std/ffi.ap" {
+    add,
+    console_output,
+    console_input,
+    int_to_string,
+}
+
+import "std/bool.ap" {
+    Bool,
+    BoolElim,
+    true,
+    false,
+    bool_to_string,
+}
+
+import "std/pair.ap" {
+    Pair,
+    PairCons,
+    first,
+    second,
+}
+
+enum Bool {
+    true,
+    false,
+}
+
+fn bool_to_string | b : Bool | -> String {
+    val BoolElim b String "true" "false"
+}
+
+
+enum Nat {
+    zero,
+    succ(Self,),
+}
+
+fn is_zero |m : Nat| -> Bool {
+    val NatElim m Bool true (lambda|n| false)
+}
+
+fn natty_nat |n : Nat, A : Type, nil : A, fold : Nat -> A -> A| -> A {
+    val second Nat A (NatElim n (Pair Nat A) (PairCons Nat A zero nil) (
+        lambda |pair| (PairCons Nat A (succ (first Nat A pair)) (fold (first Nat A pair) (second Nat A pair)))
+    ))
+}
+
+
+fn eq |n : Nat| -> (Nat -> Bool) {
+    val NatElim n (Nat -> Bool) is_zero (
+         lambda|prev_n| ( lambda|m| natty_nat m Bool false (lambda|m1, prev_bool| prev_n m1 ))
+    )
+}
+
+fn nat_to_int |n : Nat| -> Int {
+    val NatElim n Int 0 (lambda|m| (m + 1))
+}
+
+fn nat_to_string | n : Nat| -> String {
+    val int_to_string(nat_to_int n)
+}
+
+
+fn pred |n : Nat| -> Nat {
+    val natty_nat n Nat zero (
+        lambda |n, rec| n
+    )
+}
+
+let main = {
+    let bool = eq (succ zero) (succ (succ zero))
+    let str = bool_to_string bool
+    do console_output(str)!
+    val 5!
+}
+
+let test = {
+    let str = nat_to_string (pred zero)
+    do console_output(str)!
+
+    let str = nat_to_string (pred (succ zero))
+    do console_output(str)!
+
+    let str = nat_to_string (pred (succ (succ zero)))
+    do console_output(str)!
+
+    let str = nat_to_string (pred (succ (succ (succ zero))))
+    do console_output(str)!
+
+    val 5!
+}

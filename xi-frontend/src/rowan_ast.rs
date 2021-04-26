@@ -57,6 +57,7 @@ pub enum SyntaxKind {
     ENUM_COMPONENTS,
     STRUCT_COMPONENT,
     STRUCT_COMPONENTS,
+    IMPORT_COMPONENTS,
     // These need to be the last things
     ERROR,
     UNKNOWN,

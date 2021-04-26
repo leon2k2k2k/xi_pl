@@ -1,0 +1,6 @@
+ffi "./some_file.js" {
+    console_output : String -> IO String,
+    add : String -> String -> String,
+    console_input : IO String,
+    int_to_string: Int -> String,
+}

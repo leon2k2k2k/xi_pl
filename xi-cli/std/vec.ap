@@ -1,0 +1,85 @@
+import "std/nat.ap" {
+    Nat,
+    succ,
+    zero,
+    NatElim,
+    NatTypeElim,
+}
+
+let Vec : Type -> Nat -> Type =
+     lambda |S, n| Pi |R : Nat -> Type| R zero -> (Pi |m : Nat| S -> R m -> R (succ m)) -> R n
+
+with Vec let vec_nil : Pi |S : Type| Vec S zero =
+     lambda |S| lambda |R, r_zero, r_succ| r_zero
+
+with Vec let vec_cons : Pi |S, n| S -> Vec S n -> Vec S (succ n) =
+    lambda |S, n, s, v| lambda |R, r_zero, r_succ| r_succ n s (v R r_zero r_succ)
+
+with Vec let VecElim: Pi|S : Type, n : Nat| Vec S n ->
+    Pi |R : Nat -> Type| R zero -> (Pi |m : Nat| S -> R m -> R (succ m)) -> R n = lambda|S,n,f| f
+
+
+let Fin : Nat -> Type =
+    lambda |n| Pi |R : Nat -> Type| (Pi |m : Nat| R (succ m)) -> (Pi |m : Nat| R m -> R (succ m)) -> R n
+
+with Fin let fin_zero : Pi |m : Nat| Fin (succ m) =
+    lambda |m| lambda |R, r_zero, r_succ| r_zero m
+
+with Fin let fin_succ : Pi |m : Nat| Fin m -> Fin (succ m) =
+    lambda |m, f| lambda |R, r_zero, r_succ| r_succ m (f R r_zero r_succ)
+
+with Fin let FinElim : Pi|n : Nat| Fin n ->
+    Pi |R : Nat -> Type| (Pi |m : Nat| R (succ m)) -> (Pi |m : Nat| R m -> R (succ m)) -> R n
+    = lambda|n, f| f
+
+
+// // this doesn't work as UnionFinN S zero can't be proven to be S, rather S \sqcup Fin zero.
+// enum UnionFinN |S : Type, n : Nat| {
+//     scons(S,),
+//     fincons(Fin n,),
+// }
+
+// fn first_term |S : Type, n : Nat, s: S|  -> UnionFinN S (succ n) {
+//     val  scons S (succ n) s
+// }
+
+// fn second_term |S : Type, n : Nat, x : Fin n| -> UnionFinN S (succ n) {
+//     val fincons S (succ n) (fin_succ n x)
+// }
+
+// fn union_fin_n_succ |S : Type, n : Nat, ufn : UnionFinN S n | -> UnionFinN S (succ n) {
+//     val UnionFinNElim S n ufn (UnionFinN S (succ n)) (first_term S n) (second_term S n)
+// }
+
+// UnionFinN S zero = S
+
+// disjoint union:
+enum Union|S : Type, T : Type| {
+    first(S,),
+    second(T,),
+}
+
+enum UnitType {
+    unit,
+}
+
+let UnionFinN : Pi|S: Type, n : Nat| Type = lambda|S, n| NatTypeElim S (lambda|T: Type| Union T UnitType) n
+
+let first_elim_term : Pi |m : Nat| R (succ m)
+
+
+// // // Fin zero is empty. Therefore it has a map to every single type S.
+// fn empty_map |S : Type, x : Fin zero| -> S {
+//     let R = lambda|n| UnionFinN S n
+//     // first_elim is (Pi |m : Nat| R (succ m))
+//     let first_elim_term  : (Pi |m : Nat| R (succ m)) = lambda |m| second(unit)
+//     // second_elim is (Pi |m : Nat| R m -> R (succ m))
+//     let second_elim_term : (Pi |m : Nat| R m -> R (succ m)) = lambda|m, rm| first(rm)
+//     val FinElim zero x R first_elim_term second_elim_term
+// }
+
+// let index : Pi |S : Type, n : Nat|  Vec S n -> Fin n -> S = {
+//     let R : Nat -> Type = lambda|n| Fin n -> S
+//     let
+//     lambda |S, n, v| v
+// }

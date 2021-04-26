@@ -1,0 +1,123 @@
+import "std/nat.ap" {
+    Nat,
+    NatElim,
+    succ,
+    zero,
+    eq,
+    Bool,
+    true,
+    false,
+    BoolElim,
+    nat_to_string,
+    bool_to_string,
+    pred,
+}
+
+import "std/ffi.ap" {
+    add,
+    console_output,
+    console_input,
+    int_to_string,
+}
+
+import "std/pair.ap" {
+    Pair,
+    PairCons,
+    first,
+    second,
+}
+
+enum List |A : Type| {
+    nil,
+    cons(A, Self)
+}
+
+fn foldy_fold |A : Type, l : List A, B : Type, bnil : B, fold: A -> List A -> B -> B| -> B {
+    let helper : Pair (List A) B = {
+        val ListElim A l (Pair (List A) B) (PairCons (List A) B (nil A) bnil) (lambda|a, l_plus_b|
+            PairCons (List A) B (cons A a (first (List A) B l_plus_b)) (fold a (first (List A) B l_plus_b) (second (List A) B l_plus_b)) )
+    }
+    val second (List A) B helper
+}
+
+
+enum Option|A : Type| {
+    None,
+    Some(A,),
+}
+
+fn option_to_string | A : Type, A_to_string : A -> String, oa : Option A| -> String {
+    val OptionElim A oa String "None" (lambda|a : A|   (add (add "Some(" (A_to_string a)) ")")
+}
+
+
+fn len | A : Type, l : List A| -> Nat {
+    val ListElim A l Nat zero (lambda|a, n| succ n)
+}
+
+fn index |A : Type, l : List A, m : Nat| -> Option A {
+    val foldy_fold A l (Nat -> Option A) (lambda |n| None A) (
+        lambda |a, as, new_index : Nat -> Option A| (lambda|n| BoolElim (eq zero n) (Option A) (Some A a) (
+            new_index (pred n))
+        )
+    ) m
+}
+
+fn list_to_string |A : Type, A_to_string : A -> String, l : List A| -> String {
+    fn join |l : List A| -> String {
+        val foldy_fold A l String "" (
+            lambda |a, as, string| ListElim A as String (A_to_string a) (lambda |b, rest| (add (add (A_to_string a) ", ") string))
+        )
+    }
+    val add (add "[" (join l)) "]"
+}
+
+let main : IO Int = {
+    let l = nil Int
+    let l = cons Int 5 l
+    let l = cons Int 6 l
+    let str = list_to_string Int int_to_string l
+    do console_output(str)!
+    val 5!
+}
+
+let test = {
+    let l = nil Int
+    let l = cons Int 5 l
+    let str = nat_to_string (len Int l )
+    do console_output(str)!
+    let str = list_to_string Int int_to_string l
+    do console_output(str)!
+    let str = option_to_string Int int_to_string (index Int l zero)
+    do console_output(str)!
+    let str = option_to_string Int int_to_string (index Int l (succ(zero)))
+    do console_output(str)!
+
+    let l = cons Int 6 l
+
+    let str = nat_to_string (len Int l )
+    do console_output(str)!
+    let str = list_to_string Int int_to_string l
+    do console_output(str)!
+        let str = option_to_string Int int_to_string (index Int l zero)
+    do console_output(str)!
+    let str = option_to_string Int int_to_string (index Int l (succ(zero)))
+    do console_output(str)!
+    val 5!
+}
+
+let main2 = {
+    let l = nil Int
+    let l = cons Int 5 l
+    let l = cons Int 6 l
+    let should_be_6 = index Int l (zero)
+    let should_be_5 = index Int l (succ(zero))
+    let should_be_none = index Int l (succ(succ(zero)))
+    let str0 = option_to_string Int int_to_string should_be_6
+    let str1 = option_to_string Int int_to_string should_be_5
+    let str2 = option_to_string Int int_to_string should_be_none
+    do console_output(str0)!
+    do console_output(str1)!
+    do console_output(str2)!
+    val 5!
+}

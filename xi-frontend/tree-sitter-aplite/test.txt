@@ -1,4 +1,4 @@
-enum List|S: Type| {
-    nil,
-    Cons(S, Self)
+enum Nat {
+    zero,
+    succ(Self, ),
 }

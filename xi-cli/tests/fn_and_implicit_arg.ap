@@ -1,0 +1,5 @@
+fn add | x : Int,  y : Int| -> Int {
+    val 5
+}
+
+do add (3,5)

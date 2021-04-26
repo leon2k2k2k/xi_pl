@@ -1,0 +1,8 @@
+enum Bool {
+    true,
+    false,
+}
+
+fn bool_to_string | b : Bool | -> String {
+    val BoolElim b String "true" "false"
+}

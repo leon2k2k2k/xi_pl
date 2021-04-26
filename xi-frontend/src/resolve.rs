@@ -51,6 +51,7 @@ pub enum StmtKind {
     // Do(Expr),
     Val(Expr),
     Ffi(String, Vec<(Var, Expr)>),
+    Import(String, Vec<Var>),
     Enum(Var, Option<Binders>, Var, Vec<(Var, Vec<Expr>)>),
     Struct(Var, Option<Binders>, Vec<(Var, Expr)>),
     // Fn(Ident, Binders, Option<Expr>, Expr), // Expr should be a stmt_expr.
@@ -298,7 +299,20 @@ impl Context {
                 }
             }
             SyntaxKind::IMPORT_STMT => {
-                todo!()
+                assert_eq!(children.len(), 2);
+                let file_name = children[0]
+                    .first_token()
+                    .unwrap()
+                    .next_token()
+                    .unwrap()
+                    .text()
+                    .into();
+
+                let mut imports = vec![];
+                for import in nonextra_children(&children[1]) {
+                    imports.push(self.create_var(&import));
+                }
+                StmtKind::Import(file_name, imports)
             }
             SyntaxKind::FFI_STMT => {
                 if children.len() == 2 {
@@ -452,6 +466,7 @@ impl Context {
             }
             SyntaxKind::APP_EXPR => {
                 if children.len() == 2 {
+                    // do the special thing where the second children is a tuple:
                     let func = self.parse_expr(&children[0]);
                     let elem = self.parse_expr(&children[1]);
                     ExprKind::App(func, elem)

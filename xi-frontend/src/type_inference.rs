@@ -88,13 +88,11 @@ impl<'a, 'b> Context<'a, 'b> {
                     None => {
                         if let UiPrim::Global(index) = prim {
                             let module_item = ctx.module.module_items.get(&index).unwrap();
-                            if let ModuleItem::Define(define_item) = &*module_item {
-                                let type_ = define_item.type_.clone();
-                                let type_var_type = ui_prim_to_type_var_prim(type_);
-                                Judgment::prim(TypeVarPrim::Prim(prim.clone()), type_var_type, None)
-                            } else {
-                                panic!("expected variable to be a global")
-                            }
+                            Judgment::prim(
+                                TypeVarPrim::Prim(prim.clone()),
+                                ui_prim_to_type_var_prim(module_item.type_()),
+                                None,
+                            )
                         } else {
                             let alpha = ctx.new_type_var();
                             Judgment::prim(
@@ -272,6 +270,7 @@ impl<'a, 'b> Context<'a, 'b> {
         expr: Judg_ment<UiPrim, UiMetadata>,
         expected: Judgment<TypeVarPrim, UiMetadata>,
     ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
+        let expected = expected.nbe();
         match (*expr.0.clone(), *expected.tree.clone()) {
             (
                 Judg_mentKind::Lam(lam_var_type, lam_sbody),
@@ -721,7 +720,6 @@ pub fn type_infer_mod_ule_item(
             None => judgment.type_of().unwrap(),
         },
         impl_: judgment,
-        type_dependencies: vec![],
     };
     (mod_ule_item.var.index, ModuleItem::Define(define_item))
 }

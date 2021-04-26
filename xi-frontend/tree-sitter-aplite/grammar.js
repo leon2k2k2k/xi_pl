@@ -69,7 +69,9 @@ module.exports = grammar({
     fn_stmt: ($) =>
       seq("fn", $.ident, $.binders, optional(seq("->", $._expr)), $.stmt_expr),
 
-    import_stmt: ($) => seq("import", $.string_expr),
+    import_stmt: ($) => seq("import", $.string_expr, $.import_components),
+
+    import_components: ($) => seq("{", separated($.ident, ","), "}"),
 
     ffi_stmt: ($) => seq("ffi", $.string_expr, $.dict_expr),
 

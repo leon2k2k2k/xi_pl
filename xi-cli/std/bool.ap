@@ -6,3 +6,9 @@ enum Bool {
 fn bool_to_string | b : Bool | -> String {
     val BoolElim b String "true" "false"
 }
+
+fn is_true |bool : Bool| -> Bool { val (BoolElim bool) Bool true false }
+fn is_false |bool : Bool| -> Bool  { val (BoolElim bool) Bool false true }
+
+fn and |b1 : Bool, b2 : Bool| -> Bool { val ((BoolElim b1) (Bool -> Bool) is_true (lambda |x| false)) b2 }
+fn or |b1 : Bool, b2 : Bool| -> Bool { val ((BoolElim b1) (Bool -> Bool) (lambda|x| true) (is_true)) b2 }

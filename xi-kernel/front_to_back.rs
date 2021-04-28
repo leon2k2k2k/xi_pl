@@ -69,7 +69,10 @@ pub fn front_to_back(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim, Js
                         "multiply",
                         term!([NumberType] -> [NumberType] -> [NumberType]),
                     ),
-                    UiBinaryOp::Divide => todo!(),
+                    UiBinaryOp::Divide => make_ffi(
+                        "divide",
+                        term!([NumberType] -> [NumberType] -> [NumberType]),
+                    ),
                     UiBinaryOp::Modulo => make_ffi(
                         "modulo",
                         term!([NumberType] -> [NumberType] -> [NumberType]),

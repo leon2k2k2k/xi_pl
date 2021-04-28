@@ -12,7 +12,7 @@ export function add(a) {
 }
 
 function io_pure2(val) {
-  return () => val;
+  return async () => val;
 }
 
 export function io_pure(_) {
@@ -37,7 +37,7 @@ export function concat_hello(a) {
   return a + "hello";
 }
 
-export function console_input() {
+export async function console_input() {
   const input = [];
   const buf = new Uint8Array(1);
   while (buf[0] != 0x0a /* \n */) {
@@ -52,13 +52,13 @@ export function console_input() {
 }
 
 export function console_output(out_str) {
-  return () => {
+  return async () => {
     Deno.writeAllSync(Deno.stdout, new TextEncoder().encode(out_str));
     Deno.writeAllSync(Deno.stdout, new Uint8Array([0x0a])); // newline
   };
 }
 
-export function panic(out_str) {
+export async function panic(out_str) {
   return () => {
     console_output(out_str)();
     throw "exception";
@@ -66,7 +66,7 @@ export function panic(out_str) {
 }
 
 export function YCombinator_please_accept_us(fn) {
-  return () =>
+  return async () =>
     ((x) => x(x))(
       (maker) => (...args) => fn(maker(maker))(...args),
     );

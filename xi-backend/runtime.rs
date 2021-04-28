@@ -9,9 +9,9 @@ use deno_runtime::permissions::Permissions;
 pub const RUNTIME_FILE: &str = "./$deno$runtime.ts";
 
 pub async fn run_js_from_string(source_code: String) -> Result<(), AnyError> {
-    let flags = deno::flags::flags_from_vec(vec!["eval".into()])?;
+    let flags = deno::flags::flags_from_vec(vec!["eval".into(), "--unstable".into()])?;
 
-    let main_module = resolve_url_or_path("./$deno$eval.ts").unwrap();
+    let main_module = resolve_url_or_path("./$deno$eval.js").unwrap();
     let permissions = Permissions::from_options(&flags.clone().into());
     let program_state = ProgramState::build(flags.clone()).await?;
     let mut worker = create_main_worker(&program_state, main_module.clone(), permissions);

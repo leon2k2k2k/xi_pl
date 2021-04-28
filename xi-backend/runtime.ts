@@ -1,10 +1,11 @@
 export const IO = (_: any) => "IO";
 
-function io_bind2<T, U>(arg: () => T) {
-  return (func: ((_: T) => (() => U))) => {
-    const value = arg();
-    return func(value);
-  };
+function io_bind2<T, U>(arg: () => Promise<T>) {
+  return (func: ((_: T) => (() => Promise<U>))) =>
+    async () => {
+      const value = await arg();
+      return await func(value)();
+    };
 }
 
 export function io_bind(_: any) {
@@ -18,7 +19,7 @@ export function app<T, U>(arg: T) {
 }
 
 function io_pure2<T>(val: T) {
-  return () => val;
+  return async () => val;
 }
 
 export function io_pure(_: any) {
@@ -57,6 +58,20 @@ export function multiply(a: any) {
   return (b: any) => a * b;
 }
 
+export function divide(a: any) {
+  return (b: any) => {
+    if (b == 0) {
+      return 0;
+    }
+    return a / b;
+  };
+}
+
 export function modulo(a: any) {
-  return (b: any) => a % b;
+  return (b: any) => {
+    if (b == 0) {
+      return 0;
+    }
+    return a % b;
+  };
 }

@@ -1,0 +1,73 @@
+<html>
+
+<head>
+    <style>
+        body {
+            background-color: #000000;
+        }
+
+        #container {
+            display: grid;
+            grid: repeat(3, 200px) / auto-flow 200px;
+        }
+
+        #container>div {
+            background-color: #eeeeee;
+            width: 190px;
+            height: 190px;
+            font-size: 96;
+            text-align: center;
+        }
+    </style>
+    <script>
+        async function functino(num) {
+            let resp = fetch("http://localhost:8080", { method: "POST", body: JSON.stringify(num) })
+            a = await resp
+            let str = await a.text()
+            let json = JSON.parse(str)
+            if (json.message === "invalid") {
+                invalidMove()
+            } else if (json.message === "move") {
+                validMove()
+                let x_or_o = json.square
+                console.log(x_or_o)
+                let pos = json.pos
+                let won = json.won
+                change_board(x_or_o, pos)
+                if (won === "true") {
+                    Won()
+                }
+            }
+        }
+        function validMove() {
+            document.getElementById("header").innerText = ""
+        }
+
+        function invalidMove() {
+            document.getElementById("header").innerText = "Invalid move"
+        }
+        function Won() {
+            document.getElementById("header").innerText = "Congragulations! You won!"
+        }
+        function change_board(x_or_o, pos) {
+            document.getElementById(pos.toString()).innerText = x_or_o
+        }
+    </script>
+</head>
+
+<body>
+    <h1 id="header" style="color: white"></h1>
+    <div id="container">
+        <div id="0" onclick="functino(0)"></div>
+        <div id="1" onclick="functino(1)"></div>
+        <div id="2" onclick="functino(2)"></div>
+        <div id="3" onclick="functino(3)"></div>
+        <div id="4" onclick="functino(4)"></div>
+        <div id="5" onclick="functino(5)"></div>
+        <div id="6" onclick="functino(6)"></div>
+        <div id="7" onclick="functino(7)"></div>
+        <div id="8" onclick="functino(8)"></div>
+    </div>
+</body>
+
+</html>

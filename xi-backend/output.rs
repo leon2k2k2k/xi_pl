@@ -1,9 +1,9 @@
 use std::{collections::BTreeMap, rc::Rc};
 use swc_common::{FilePathMapping, SourceMap, DUMMY_SP};
 use swc_ecma_ast::{
-    ArrowExpr, BigInt, BindingIdent, BlockStmtOrExpr, CallExpr, Expr, ExprOrSpread, ExprOrSuper,
-    ExprStmt, Ident, ImportDecl, ImportNamedSpecifier, ImportSpecifier, Lit, MemberExpr, Module,
-    ModuleDecl, ModuleItem, ParenExpr, Pat, Stmt, Str,
+    ArrowExpr, AwaitExpr, BigInt, BindingIdent, BlockStmtOrExpr, CallExpr, Expr, ExprOrSpread,
+    ExprOrSuper, ExprStmt, Ident, ImportDecl, ImportNamedSpecifier, ImportSpecifier, Lit,
+    MemberExpr, Module, ModuleDecl, ModuleItem, ParenExpr, Pat, Stmt, Str,
 };
 use swc_ecma_codegen::{text_writer::JsWriter, Config, Emitter};
 use xi_core::judgment::{Judgment, JudgmentKind, Metadata};
@@ -17,9 +17,17 @@ pub struct JsMetadata();
 impl Metadata for JsMetadata {}
 pub fn to_js_program(judgment: Judgment<JsPrim, JsMetadata>) -> String {
     let mut ffi_functions = vec![];
+
+    let main_js = to_js(&judgment, BTreeMap::new(), &mut ffi_functions);
+
+    let main_js2 = Expr::Await(AwaitExpr {
+        span: DUMMY_SP,
+        arg: Box::new(to_js_app(main_js, vec![])),
+    });
+
     let stmt = Stmt::Expr(ExprStmt {
         span: DUMMY_SP,
-        expr: Box::new(to_js(&judgment, BTreeMap::new(), &mut ffi_functions)),
+        expr: Box::new(main_js2),
     });
 
     // dbg!(&stmt);

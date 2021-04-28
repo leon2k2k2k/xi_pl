@@ -1,0 +1,8 @@
+ffi "./programs/tictactoe/tictactoe_runtime.js" {
+    tictactoe1: Int -> Int -> Int -> IO Int
+}
+
+let main = {
+    do (tictactoe1 1 1 1)!
+    val 5!
+}

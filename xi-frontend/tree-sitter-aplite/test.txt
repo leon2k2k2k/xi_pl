@@ -1,4 +1,1 @@
-enum Nat {
-    zero,
-    succ(Self, ),
-}
+let x= f((a,b))

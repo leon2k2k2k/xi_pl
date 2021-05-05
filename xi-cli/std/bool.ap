@@ -4,7 +4,7 @@ enum Bool {
 }
 
 fn bool_to_string | b : Bool | -> String {
-    val BoolElim b String "true" "false"
+    val BoolElim ((b,String, "true", "false"))
 }
 
 fn is_true |bool : Bool| -> Bool { val (BoolElim bool) Bool true false }

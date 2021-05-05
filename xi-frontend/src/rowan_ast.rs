@@ -16,7 +16,7 @@ pub enum SyntaxKind {
     LINE_COMMENT,
     WHITESPACE,
     NEWLINE,
-
+    MUT,
     IDENT,
 
     LET_STMT,

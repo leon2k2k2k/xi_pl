@@ -457,6 +457,7 @@ impl Context {
                 )
             }
             ExprKind::Number(num) => Judg_ment::prim(UiPrim::NumberElem(num.clone())),
+            ExprKind::Tuple(_exprs) => {unimplemented!("we don't support tuples yet")}
         }
     }
     fn desugar_module_stmt(&self, module_stmt: Stmt) -> Vec<Mod_uleItem> {
@@ -965,5 +966,60 @@ pub struct Mod_uleItem {
 
 //         // let judg_ment = frontend(ffi_text);
 //         // dbg!(judg_ment);
+//     }
+// }
+
+trait GetInt {
+    fn get_int(&self) -> u32;
+}
+
+
+
+// fn returns_getint() -> impl GetInt {
+//     "hello".to_string()
+// }
+
+fn x<T: GetInt>(t: T) -> u32 {
+    t.get_int()
+}
+
+// fn hello() -> u32 {
+//     x(returns_getint())
+// }
+
+
+trait GetTwoInt {
+    fn get_int1(&self) -> u32;
+    fn get_int2(&self) -> u32;
+}
+
+impl <T : GetTwoInt> GetInt for T {
+    fn get_int(&self) -> u32 {
+        self.get_int1()
+    }
+}
+
+
+impl <T : GetInt> GetTwoInt for T {
+    fn get_int1(&self) -> u32 {
+        self.get_int( )+ 1
+    }
+
+    fn get_int2(&self) -> u32 {
+        self.get_int( )+ 2
+    }
+}
+
+// fn hello2() -> u32 {
+//     "hello".to_string().get_int()
+// }
+
+// impl GetTwoInt for String {
+//     fn get_int1(&self) -> u32 {
+//         5
+//     }
+
+//     fn get_int2(&self) -> u32 {
+//         6
 //     }
 // }

@@ -199,7 +199,9 @@ module.exports = grammar({
     // a Binder is | <one or more of var_name : Expr> |
     binders: ($) => seq("|", separated($.binder_component, ","), "|"),
 
-    binder_component: ($) => seq($.ident, optional(seq(":", $._expr))),
+    binder_component: ($) => seq(optional($.mut), $.ident, optional(seq(":", $._expr))),
+
+    mut : ($) => "&mut",
 
     dict_expr: ($) => seq("{", separated($.dict_component, ","), "}"),
 

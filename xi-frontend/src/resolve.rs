@@ -85,6 +85,7 @@ pub enum ExprKind {
     StringLit(Vec<StringToken>),
     Number(String),
     Binary(BinaryOp, Expr, Expr),
+    Tuple(Vec<Expr>),
 }
 
 #[derive(Clone, Debug)]
@@ -391,7 +392,6 @@ impl Context {
             }
             SyntaxKind::STRUCT_STMT => {
                 if children.len() == 3 || children.len() == 2 {
-                    let type_u = Some(Expr(Box::new(ExprKind::Type), children[0].text_range()));
                     let struct_var = self.create_var(&children[0]);
                     let (binders, new_ctx) = match children.len() {
                         3 => {
@@ -467,9 +467,19 @@ impl Context {
             SyntaxKind::APP_EXPR => {
                 if children.len() == 2 {
                     // do the special thing where the second children is a tuple:
-                    let func = self.parse_expr(&children[0]);
                     let elem = self.parse_expr(&children[1]);
-                    ExprKind::App(func, elem)
+                    let func = self.parse_expr(&children[0]);
+
+                    if let ExprKind::Tuple(exprs) = *elem.0 {
+                        let mut result = func.clone();
+                        for expr in exprs {
+                            result = Expr(Box::new(ExprKind::App(result, expr)), func.1);
+                        }
+                        *result.0
+                    } else {
+                        ExprKind::App(func, elem)
+                    }
+
                 } else {
                     panic!("app_expr should be of the form [func] [elem]")
                 }
@@ -579,11 +589,19 @@ impl Context {
                 let number = token.text();
                 ExprKind::Number(number.into())
             }
+            SyntaxKind::TUPLE_EXPR => {
+                let mut vec = vec![];
+                for child in children {
+                    vec.push(self.parse_expr(&child))
+                }
+                ExprKind::Tuple(vec)
+            },
+
             SyntaxKind::DICT_EXPR => todo!(),
-            SyntaxKind::TUPLE_EXPR => todo!(),
             SyntaxKind::LIST_EXPR => todo!(),
 
-            _ => panic!("parse_expr can only parse an expr, got {:?}", node.kind()),
+
+            _ => panic!("they are not statements")
         };
         Expr(Box::new(expr_kind), node.text_range())
     }

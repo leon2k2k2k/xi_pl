@@ -1,0 +1,41 @@
+trait Eq |self : Type, self2| {
+    fn eq(self, self) -> bool;
+}
+
+trait Functor |self : Type -> Type| {
+    fn fmap(a -> b, self a) -> self b;
+}
+
+trait that has two types A , B, and eq: A = B
+
+
+f(T : Eq)
+
+
+fn<S : DoubleDrop<u32>>(s : S) {
+
+}
+
+impl DoubleDrop<u32> for String {
+    .....
+}
+
+trait Monad |F : Type -> Type| {
+    fn unit |mut A : Type, a : A| -> F A;
+    fn bind |mut A : Type, mut B : Type, a : A, ....| -> F B;
+}
+
+impl Monad for List
+
+fn Free |F : Type -> Type| -> (Type -> Type) {
+    todo!()
+}
+
+fn FreeMonad |F : Type -> Type| -> Monad (Free F) {
+
+}
+
+// define trait, implement trait, use trait, and return a trait,
+fn asldjf |s :String| -> u32 {
+    s1 == s1
+}

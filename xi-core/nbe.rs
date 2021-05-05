@@ -27,23 +27,18 @@ impl<T: Primitive, S: Metadata> SJudgment<T, S> {
     pub fn semantics_to_syntax(sem: SJudgment<T, S>) -> Judgment<T, S> {
         fn up<T: Primitive, S: Metadata>(syn: Judgment<T, S>) -> SJudgment<T, S> {
             let syn_clone = syn.clone();
-            match syn.type_of() {
-                Some(type_of_syn) => match *type_of_syn.tree {
-                    JudgmentKind::Type => SJudgment::Syn(syn),
-                    JudgmentKind::Pi(var_type, _expr) => SJudgment::Lam(
-                        Box::new(SJudgment::Syn(var_type)),
-                        Rc::new(move |S| {
-                            up(Judgment::app_unchecked(syn_clone.clone(), down(S), None))
-                        }),
-                    ),
+            match *syn.type_of().tree {
+                JudgmentKind::Type => SJudgment::Syn(syn),
+                JudgmentKind::Pi(var_type, _expr) => SJudgment::Lam(
+                    Box::new(SJudgment::Syn(var_type)),
+                    Rc::new(move |S| up(Judgment::app_unchecked(syn_clone.clone(), down(S), None))),
+                ),
 
-                    JudgmentKind::Lam(_, _) => panic!("shoudn't see Lambda on type of syn"),
-                    JudgmentKind::BoundVar(_, _) => SJudgment::Syn(syn),
-                    JudgmentKind::App(_, _) => SJudgment::Syn(syn),
-                    JudgmentKind::Prim(_, _) => SJudgment::Syn(syn),
-                    JudgmentKind::FreeVar(_, _) => SJudgment::Syn(syn),
-                },
-                None => SJudgment::Syn(syn),
+                JudgmentKind::Lam(_, _) => panic!("shoudn't see Lambda on type of syn"),
+                JudgmentKind::BoundVar(_, _) => SJudgment::Syn(syn),
+                JudgmentKind::App(_, _) => SJudgment::Syn(syn),
+                JudgmentKind::Prim(_, _) => SJudgment::Syn(syn),
+                JudgmentKind::FreeVar(_, _) => SJudgment::Syn(syn),
             }
         }
 
@@ -228,7 +223,7 @@ fn eta_expand<T: Primitive, S: Metadata>(
             Judgment::app_unchecked(appn(expr, ctx), var, None)
         }
     }
-    eta_expand_rec(expr.clone(), expr.type_of().unwrap(), ctx)
+    eta_expand_rec(expr.clone(), expr.type_of(), ctx)
 }
 
 impl<T: Primitive> Semantics<T> for T {

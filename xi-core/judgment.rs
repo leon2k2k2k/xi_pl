@@ -245,10 +245,25 @@ where
 pub trait Metadata: Clone + PartialEq + Eq + 'static + std::fmt::Debug + Default {}
 
 impl<T: Primitive, S: Metadata> Judgment<T, S> {
-    /// Takes a judgment and returns its the judgment representing its type
-    pub fn type_of(&self) -> Option<Judgment<T, S>> {
+    pub fn has_type(&self) -> bool {
         match *self.tree.clone() {
-            JudgmentKind::Type => None,
+            JudgmentKind::Type => false,
+            JudgmentKind::Pi(_var_type, sexpr) => {
+                let (_index, expr) = sexpr.unbind();
+                expr.has_type()
+            }
+            JudgmentKind::Lam(_var_type, _sexpr) => true,
+            JudgmentKind::BoundVar(_, _) => unreachable!("Bound Var"),
+            JudgmentKind::App(_func, _elem) => false,
+            JudgmentKind::FreeVar(_free_var, _var_type) => true,
+            JudgmentKind::Prim(_t, _prim_type) => true,
+        }
+    }
+    /// Takes a judgment and returns its the judgment representing its type
+    /// Panics if it has no type
+    pub fn type_of(&self) -> Judgment<T, S> {
+        match *self.tree.clone() {
+            JudgmentKind::Type => unreachable!("expression has no type"),
             JudgmentKind::Pi(_var_type, sexpr) => {
                 let (_index, expr) = sexpr.unbind();
                 expr.type_of()
@@ -256,26 +271,20 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             JudgmentKind::Lam(var_type, sexpr) => {
                 let (index, expr) = sexpr.unbind();
 
-                Some(Judgment::pi(
-                    var_type.clone(),
-                    expr.type_of().unwrap().nbe().bind(index),
-                    None,
-                ))
+                Judgment::pi(var_type.clone(), expr.type_of().nbe().bind(index), None)
             }
             JudgmentKind::BoundVar(_, _) => unreachable!("Bound Var"),
             JudgmentKind::App(func, elem) => {
-                let func_type = func
-                    .type_of()
-                    .expect("Expected type of function to be a Pi");
+                let func_type = func.type_of();
+
                 if let JudgmentKind::Pi(_var_type, sexpr) = *func_type.tree {
-                    let result_type = sexpr.instantiate(&elem).nbe();
-                    Some(result_type)
+                    sexpr.instantiate(&elem).nbe()
                 } else {
                     panic!("Expected type of a function to be a Pi")
                 }
             }
-            JudgmentKind::FreeVar(_free_var, var_type) => Some(var_type.nbe()),
-            JudgmentKind::Prim(_t, prim_type) => Some(prim_type.nbe()),
+            JudgmentKind::FreeVar(_free_var, var_type) => var_type.nbe(),
+            JudgmentKind::Prim(_t, prim_type) => prim_type.nbe(),
         }
     }
 
@@ -294,11 +303,8 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     ) -> Judgment<T, S> {
         let (index, expr) = sexpr.unbind();
 
-        let type_expr = expr.type_of();
-        if let Some(type_expr_) = type_expr {
-            if *type_expr_.tree != JudgmentKind::Type {
-                panic!("pi type needs a type as expr");
-            }
+        if expr.has_type() && *expr.type_of().tree != JudgmentKind::Type {
+            panic!("pi type needs a type as expr");
         }
 
         Judgment {
@@ -318,13 +324,6 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
         }
     }
 
-    // pub fn bound_var(int: u32, var_type: Judgment<T, S>, metadata: Option<S>) -> Judgment<T, S> {
-    //     Judgment {
-    //         tree: Box::new(JudgmentKind::BoundVar(int, var_type)),
-    //         metadata: metadata.unwrap_or_default(),
-    //     }
-    // }
-
     pub fn free(index: VarUuid, var_type: Judgment<T, S>, metadata: Option<S>) -> Judgment<T, S> {
         Judgment {
             tree: Box::new(JudgmentKind::FreeVar(index, var_type)),
@@ -343,9 +342,9 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
         Judgment::prim(prim1.clone(), prim1.maybe_prim_type().unwrap(), metadata)
     }
     pub fn app(func: Judgment<T, S>, elem: Judgment<T, S>, metadata: Option<S>) -> Judgment<T, S> {
-        let func_type = func.clone().type_of().unwrap().nbe();
+        let func_type = func.clone().type_of().nbe();
         if let JudgmentKind::Pi(func_arg_type, _) = *func_type.tree {
-            let elem_type = elem.clone().type_of().unwrap().nbe();
+            let elem_type = elem.clone().type_of().nbe();
 
             if func_arg_type != elem_type {
                 panic!(
@@ -621,7 +620,7 @@ mod test {
 
         let unit_type: Judgment<(), ()> = term!(Pi |T : U| T -> T);
         let id: Judgment<(), ()> = term!(Lam | T: U, t: T | t);
-        assert_eq!(id.type_of(), Some(unit_type));
+        assert_eq!(id.type_of(), unit_type);
 
         // let pr1: Judgment<(), ()> = term!(Lam | T: U, t1: T, t2: T | t1);
         // dbg!(&pr1);

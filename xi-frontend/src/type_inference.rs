@@ -152,7 +152,7 @@ impl<'a, 'b> Context<'a, 'b> {
             Judg_mentKind::App(old_func, old_arg) => self.subcontext(|ctx| {
                 let func = ctx.type_infer(old_func)?;
 
-                match *func.type_of().expect("please not none").tree {
+                match *func.type_of().tree {
                     JudgmentKind::Pi(arg_type, _sexpr) => {
                         let arg = ctx.type_check(old_arg, arg_type)?;
 
@@ -172,7 +172,7 @@ impl<'a, 'b> Context<'a, 'b> {
                             ),
                         )?;
 
-                        ctx.add_constraint(epsilon, arg.type_of().expect("failure"))?;
+                        ctx.add_constraint(epsilon, arg.type_of())?;
 
                         Ok(Judgment::app_unchecked(func, arg, None))
                     }
@@ -196,7 +196,7 @@ impl<'a, 'b> Context<'a, 'b> {
                         }
                         None => {
                             let arg = ctx.type_infer(old_arg)?;
-                            let var_type = arg.type_of().unwrap();
+                            let var_type = arg.type_of();
                             (arg, var_type)
                         }
                     };
@@ -229,13 +229,13 @@ impl<'a, 'b> Context<'a, 'b> {
                 let arg = ctx.type_infer(old_arg)?;
 
                 ctx.add_constraint(io_alpha, term!([Prim(IOMonad)][TypeVar(alpha)]))?;
-                ctx.add_constraint(io_alpha, arg.type_of().unwrap())?;
+                ctx.add_constraint(io_alpha, arg.type_of())?;
 
                 ctx.add_constraint(
                     alpha_to_io_beta,
                     term!([TypeVar(alpha)] -> [Prim(UiPrim::IOMonad)] [TypeVar(beta)]),
                 )?;
-                ctx.add_constraint(alpha_to_io_beta, func.type_of().unwrap())?;
+                ctx.add_constraint(alpha_to_io_beta, func.type_of())?;
 
                 Ok(Judgment::app_unchecked_vec(
                     Judgment::prim_wo_prim_type(Prim(IOBind), None),
@@ -254,7 +254,7 @@ impl<'a, 'b> Context<'a, 'b> {
 
                 let expr = ctx.type_infer(old_expr)?;
 
-                let expr_type = expr.type_of().unwrap();
+                let expr_type = expr.type_of();
 
                 Ok(Judgment::app_unchecked_vec(
                     Judgment::prim_wo_prim_type(Prim(IOPure), None),
@@ -303,7 +303,7 @@ impl<'a, 'b> Context<'a, 'b> {
 
                 let inferred_expr = ctx.type_infer(expr.clone())?;
 
-                ctx.add_constraint(type_var, inferred_expr.type_of().unwrap())?;
+                ctx.add_constraint(type_var, inferred_expr.type_of())?;
                 ctx.add_constraint(type_var, expected.clone())?;
                 Ok(inferred_expr)
             }),
@@ -717,7 +717,7 @@ pub fn type_infer_mod_ule_item(
         name: mod_ule_item.clone().var.name,
         type_: match type_ {
             Some(type_) => type_,
-            None => judgment.type_of().unwrap(),
+            None => judgment.type_of(),
         },
         impl_: judgment,
     };

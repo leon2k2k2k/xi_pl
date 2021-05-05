@@ -9,9 +9,11 @@ use xi_uuid::VarUuid;
 
 pub use crate::resolve::Span;
 
+#[allow(non_camel_case_types)]
 #[derive(Clone)]
 pub struct Judg_ment<T, S>(pub Box<Judg_mentKind<T, S>>, pub S);
 
+#[allow(non_camel_case_types)]
 #[derive(Clone)]
 pub enum Judg_mentKind<T, S> {
     Type,
@@ -30,6 +32,7 @@ pub enum Judg_mentKind<T, S> {
     Pure(Judg_ment<T, S>),
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Clone)]
 pub struct ScopedJudg_ment<T, S>(pub(crate) Judg_ment<T, S>);
 
@@ -457,7 +460,9 @@ impl Context {
                 )
             }
             ExprKind::Number(num) => Judg_ment::prim(UiPrim::NumberElem(num.clone())),
-            ExprKind::Tuple(_exprs) => {unimplemented!("we don't support tuples yet")}
+            ExprKind::Tuple(_exprs) => {
+                unimplemented!("we don't support tuples yet")
+            }
         }
     }
     fn desugar_module_stmt(&self, module_stmt: Stmt) -> Vec<Mod_uleItem> {
@@ -513,7 +518,7 @@ impl Context {
 
                 let mut vec = vec![];
 
-                for (var, exprs) in &variants {
+                for (_var, exprs) in &variants {
                     let mut judg_ment = Judg_ment::freevar(self_var.index);
                     for expr in exprs.iter().rev() {
                         judg_ment = Judg_ment::fun(self.desugar_expr(&expr), judg_ment);
@@ -564,7 +569,7 @@ impl Context {
                 // we get a map [variants.var.name]: pi |binders| expr0 -> expr1 -> ... -> [name] [binders]
                 // = lambda|binders, e0: expr0, e1: expr,... T, variant1, variant2..., | variant_i e0 e1..., where e replace self with
 
-                for (var, mut exprs) in variants.clone() {
+                for (var, exprs) in variants.clone() {
                     // first we do expected_type, if there is a self, it need to be [name][binders]
                     let mut expected_type = name_binders.clone();
                     for expr in exprs.iter().rev() {
@@ -908,6 +913,7 @@ impl<T: Primitive, S: Metadata> std::fmt::Debug for Judg_ment<T, S> {
     }
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Clone, Debug)]
 pub struct Mod_uleItem {
     pub var: Var,
@@ -915,111 +921,3 @@ pub struct Mod_uleItem {
     pub expected_type: Option<Judg_ment<UiPrim, UiMetadata>>,
     pub with_list: BTreeSet<VarUuid>,
 }
-// mod test {
-//     #[test]
-//     fn test_de_sugar() {
-//         pub use super::*;
-//         use crate::rowan_ast::{string_to_syntax};
-//         use crate::type_inference::{ UiMetadata, UiPrim};
-//         fn text_to_judg_ment(text : &str) -> Judg_ment<UiPrim, UiMetadata>{
-//             let syntax_node = string_to_syntax(text);
-//             // dbg!(&syntax_node);
-//             // syntax_node is the rowan tree level
-//             let source_file = parse_source_file(&syntax_node);
-//             // dbg!(&source_file);
-//             // source_file is at the name resolution level
-//             let judg_ment = source_file_to_judg_ment(source_file);
-//             // judg_ment is at the desugar level.
-//             judg_ment
-//         }
-//         // let text = "fn foo |x : Type| -> Type { val x}
-//         // val foo
-//         // ";
-//         // let judg_ment = text_to_judg_ment(text);
-//         // dbg!(judg_ment);
-
-//         let text2 = "fn foo |x| {val x}
-//         val foo (Pi |y: Type| y)";
-//         let judg_ment2 = text_to_judg_ment(text2);
-//         dbg!(judg_ment2);
-
-//         // let text3 = "let in = console_input!
-//         // let y = console_output(in)!
-//         // val unit!";
-//         // let judg_ment3 = text_to_judg_ment(text3);
-//         // dbg!(judg_ment3);
-
-//         // let ffi_text = "ffi \"some_file.js\"{
-//         //     Int : Type,
-//         //     five : Int,
-//         //     six : Int,
-//         //     add : Int -> Int -> Int,
-//         //     int_to_string : Int -> String
-//         // }
-
-//         // let ans = add five six
-//         // let better_ans = add ans six
-//         // let even_better_ans = int_to_string(better_ans)
-
-//         // do console_output(even_better_ans)!
-//         // val unit!";
-
-//         // let judg_ment = frontend(ffi_text);
-//         // dbg!(judg_ment);
-//     }
-// }
-
-trait GetInt {
-    fn get_int(&self) -> u32;
-}
-
-
-
-// fn returns_getint() -> impl GetInt {
-//     "hello".to_string()
-// }
-
-fn x<T: GetInt>(t: T) -> u32 {
-    t.get_int()
-}
-
-// fn hello() -> u32 {
-//     x(returns_getint())
-// }
-
-
-trait GetTwoInt {
-    fn get_int1(&self) -> u32;
-    fn get_int2(&self) -> u32;
-}
-
-impl <T : GetTwoInt> GetInt for T {
-    fn get_int(&self) -> u32 {
-        self.get_int1()
-    }
-}
-
-
-impl <T : GetInt> GetTwoInt for T {
-    fn get_int1(&self) -> u32 {
-        self.get_int( )+ 1
-    }
-
-    fn get_int2(&self) -> u32 {
-        self.get_int( )+ 2
-    }
-}
-
-// fn hello2() -> u32 {
-//     "hello".to_string().get_int()
-// }
-
-// impl GetTwoInt for String {
-//     fn get_int1(&self) -> u32 {
-//         5
-//     }
-
-//     fn get_int2(&self) -> u32 {
-//         6
-//     }
-// }

@@ -479,7 +479,6 @@ impl Context {
                     } else {
                         ExprKind::App(func, elem)
                     }
-
                 } else {
                     panic!("app_expr should be of the form [func] [elem]")
                 }
@@ -571,7 +570,7 @@ impl Context {
                         "*" => Multiply,
                         "/" => Divide,
                         "%" => Modulo,
-                        _ => panic!(format!("the binary operator {} is not defined", op_name)),
+                        _ => panic!("the binary operator {} is not defined", op_name),
                     };
 
                     ExprKind::Binary(
@@ -595,13 +594,12 @@ impl Context {
                     vec.push(self.parse_expr(&child))
                 }
                 ExprKind::Tuple(vec)
-            },
+            }
 
             SyntaxKind::DICT_EXPR => todo!(),
             SyntaxKind::LIST_EXPR => todo!(),
 
-
-            _ => panic!("they are not statements")
+            _ => panic!("they are not statements"),
         };
         Expr(Box::new(expr_kind), node.text_range())
     }

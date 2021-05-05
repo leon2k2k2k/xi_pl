@@ -31,6 +31,7 @@ fn main() {
 
     cc::Build::new()
         .include(&dir)
+        .warnings(false)
         .file(dir.join("parser.c"))
         .compile("tree-sitter-aplite");
 }

@@ -23,7 +23,7 @@ export async function tictactoe(play: any, init_board: any, init_square: any) {
           let pos = BigInt(JSON.parse(body));
 
           let play_result = await (play(board)(pos)(square)());
-          console.log(play_result)
+          console.log(play_result);
           let response;
           if (play_result.message === "invalid") {
             response = JSON.stringify({ message: "invalid" });

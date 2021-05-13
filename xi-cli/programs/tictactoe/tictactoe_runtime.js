@@ -1,4 +1,4 @@
-import { tictactoe } from "./tictactoe.ts";
+import { tictactoe } from "./server.ts";
 
 export const play_result_invalid = { message: "invalid" };
 

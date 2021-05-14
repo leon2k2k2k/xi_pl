@@ -19,6 +19,7 @@ swc_ecma_codegen = "0.48"
 num-bigint = {version = "0.2"}
 url = "2.2"
 
+
 deno = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.9.2" }
 deno_core = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.9.2" }
 deno_runtime = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.9.2" }

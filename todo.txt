@@ -1,90 +1,28 @@
 todo list:
-
-0. Important:
-Fix NBE.
-write a type check function 
-write a function that checks a judgment used the same VarUuid for two different Lams (or Pis). 
-Write a function that checks if a judgment is of the closed form (very free variable VarUuid has been used and type checks?)
-
-
-
-
-
-
 1. Output:
-    a. do some tests: console_input testing, 
-    b. implement fix point, int. String, 
+    a. do some tests: console_input testing,
+    b. implement fix point, int. String,
     c. test fix point via factorial.
 
 2.0 UI features:
     a. Multivariable functions, f(x,y), product type.
     b. Inductive types (enum and structs).
     c. Standard features: if, while, arithmetics (int), strings.
-    d. REPO.
-
-
-
-2. Front_end:
-    a. Streamline the process of adding new default types, for example, console_input.
-    b. Type inference
-    c. Have a working module and package system.
-    d. Streamline the editing process for front_end for adding in new features.
-    e. Error handling and rewrite the grammer.js.
-    
+    d. REPL.
 
 3. Prettify:
     a. define the bracket thing.
     b. change variable name according to metadata.
 
 4. term_macro:
-    a. default T, S. 
+    a. default T, S.
     b. compatible with variable names in metadata.
     c. compatibility with generic metadata.
 
 5. Error_handling:
     a. In the front end we need to at least make sure it will pass through the core.
 
-6. Latex handling:
-    a. $mathcal{F}$ for respect
 
 
-
-
-
-
-test case:
-
-/// print hello world in Aplite:
-
-let str = $hello world"!$
-    str : String
-let _ = console_output(str)
-
-
-/// make a file "hello_world.ap"
-
-fn main -> JsIO() {  /// do we need instead JSIo
-    let str = console_input!
-        str : String
-    let _ = console_output(str)
-        _ : ()
-}
-
-
-console_input: JSIO String
-consone_output: JSIO (String -> ()
-
-let x1 = console_input!
-x1 : String
-
-let x = console_input2 (5)
-x : JSIO a
-
-console_input2 : Int -> JSIO a
-
-
-// x : String
-let x = console_output
-
-
-hello, its me, I am California dreaming about who we used to be. When we were, younger and free. 
+bugs:
+1. multiple ffi

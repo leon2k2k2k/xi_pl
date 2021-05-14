@@ -1,37 +1,20 @@
-let UnitType = {
-    ffi "./some_file.js" {
-        UnitType : Type
-    }
-    val UnitType
+
+ffi "./some_file.js" {
+    UnitType : Type,
+    unit : UnitType,
+    console_output: String -> IO String,
+    console_input: IO String,
+    int_to_string: Int -> String
+
 }
 
-
-    ffi "./some_file.js" {
-        unit : UnitType
+let main = {
+    fn foo |x: Int, y : Int | -> Int {
+        val x + y
     }
 
+    let five = foo 2 3
 
-ffi "./some_file.js"{
-
-// //    Int : Type,
-// //    six : Int,
-// //    five : Int,
-// //    add : Int -> Int -> Int,
-// //    int_to_string : Int -> String,
-     console_output: String -> IO String,
-     console_input: IO String,
-}
-let foo = {
-
-fn foo |x: Int, y : Int | -> Int
-
-
-foo (2,3)
-
-
-let a = "hello"
-
-
-let me = console_output(a)!
-val me!
+    let me = console_output(int_to_string(five))!
+    val me!
 }

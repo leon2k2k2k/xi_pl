@@ -43,7 +43,7 @@ pub enum Error {
 }
 
 #[derive(Clone, Debug)]
-pub struct Stmt(pub StmtKind, pub Span);
+pub struct Stmt(pub StmtKind, pub Option<String>, pub Span);
 
 #[derive(Clone, Debug)]
 pub enum StmtKind {
@@ -108,7 +108,7 @@ pub struct Var {
 #[derive(Clone, Debug)]
 pub struct Binders(pub Vec<(Var, Option<Expr>)>, pub Span);
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum LocalOrGlobal {
     Local,
     Global,
@@ -129,6 +129,12 @@ pub struct NameNotFoundError {
 }
 
 pub type Span = rowan::TextRange;
+
+#[derive(Clone, Debug)]
+enum ExprOrModule {
+    ExprContext,
+    ModuleContext,
+}
 
 #[derive(Clone, Debug)]
 struct Context {
@@ -199,7 +205,7 @@ impl Context {
                 index: var.index,
                 name: var_name,
                 span: node.text_range(),
-                local_or_global: LocalOrGlobal::Local,
+                local_or_global: var.local_or_global,
             }),
             None => {
                 if let Some(index) = self.import_ctx.str_to_index.get(&var_name) {
@@ -219,11 +225,24 @@ impl Context {
         }
     }
 
-    fn parse_stmt(&mut self, node: &SyntaxNode) -> Stmt {
+    fn parse_stmt(&mut self, node: &SyntaxNode, expr_or_mod: ExprOrModule) -> Stmt {
         // dbg!(node);
         let children = nonextra_children(node).collect::<Vec<_>>();
 
         let stmt_kind = match node.kind() {
+            SyntaxKind::DECORATOR_STMT => {
+                if children.len() == 2 {
+                    let decorator_var = children[0].first_token().unwrap().text().into();
+
+                    let mut inside_stmt = self.parse_stmt(&children[1], expr_or_mod);
+                    inside_stmt.1 = Some(decorator_var);
+
+                    // Early return!
+                    return inside_stmt;
+                } else {
+                    panic!("The length of the decorator_stmt should be 2.")
+                }
+            }
             SyntaxKind::LET_STMT => {
                 if children.len() == 3 {
                     let var_type = self.parse_expr(&children[1]);
@@ -325,7 +344,7 @@ impl Context {
                         .text()
                         .into();
                     let dict = &children[1];
-                    let result = self.parse_ffi_dict(&dict);
+                    let result = self.parse_ffi_dict(&dict, expr_or_mod);
 
                     StmtKind::Ffi(file_name, result)
                 } else {
@@ -335,7 +354,7 @@ impl Context {
             SyntaxKind::WITH_STMT => {
                 if children.len() == 2 {
                     let with_var = self.parse_var(&children[0]).expect("expected var");
-                    let inside_stmt = self.parse_stmt(&children[1]);
+                    let inside_stmt = self.parse_stmt(&children[1], expr_or_mod);
                     let new_inside_stmt = match inside_stmt.0 {
                         StmtKind::Let(var_name, var_type, body, with_list) => {
                             let mut new_with_list = with_list.clone();
@@ -420,10 +439,10 @@ impl Context {
             _ => panic!("parse_stmt can only parse an stmt, got {:?}", node.kind()),
         };
 
-        Stmt(stmt_kind, node.text_range())
+        Stmt(stmt_kind, None, node.text_range())
     }
 
-    fn parse_ffi_dict(&mut self, node: &SyntaxNode) -> Vec<(Var, Expr)> {
+    fn parse_ffi_dict(&mut self, node: &SyntaxNode, expr_or_mod: ExprOrModule) -> Vec<(Var, Expr)> {
         let children = nonextra_children(node).collect::<Vec<_>>();
         assert!(node.kind() == SyntaxKind::DICT_EXPR);
         let mut components = vec![];
@@ -433,7 +452,20 @@ impl Context {
             if grandchildren.len() == 2 {
                 let ffi_type = self.parse_expr(&grandchildren[1]);
 
-                let ffi_var = self.create_var(&grandchildren[0]);
+                let ffi_var = match expr_or_mod {
+                    ExprOrModule::ExprContext => self.create_var(&grandchildren[0]),
+                    ExprOrModule::ModuleContext => {
+                        let var = Var {
+                            index: VarUuid::new(),
+                            name: grandchildren[0].first_token().unwrap().text().into(),
+                            span: grandchildren[0].text_range(),
+                            local_or_global: LocalOrGlobal::Global,
+                        };
+                        let ffi_name = grandchildren[0].first_token().unwrap().text().into();
+                        self.local_ctx.insert(ffi_name, var.clone());
+                        var
+                    }
+                };
 
                 components.push((ffi_var, ffi_type));
             } else {
@@ -514,7 +546,7 @@ impl Context {
                 let mut stmt = vec![];
                 let mut new_ctx = self.clone();
                 for child in children {
-                    stmt.push(new_ctx.parse_stmt(&child))
+                    stmt.push(new_ctx.parse_stmt(&child, ExprOrModule::ExprContext))
                 }
                 ExprKind::Stmt(stmt)
             }
@@ -646,7 +678,7 @@ pub fn parse_module_stmt(
     node: &SyntaxNode,
 ) -> (Stmt, BTreeMap<VarUuid, ResolvePrim>) {
     let (mut ctx, resolve_var) = Context::get_ctx(module);
-    let stmt = ctx.parse_stmt(node);
+    let stmt = ctx.parse_stmt(node, ExprOrModule::ModuleContext);
 
     (stmt, resolve_var)
 }

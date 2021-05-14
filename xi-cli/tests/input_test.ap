@@ -1,23 +1,20 @@
+
 let main = {
 
-ffi "./some_file.js"{
-    UnitType : Type,
-    unit : UnitType,
-//    Int : Type,
-//    six : Int,
-//    five : Int,
-//    add : Int -> Int -> Int,
-//    int_to_string : Int -> String,
-    console_output: String -> IO UnitType,
-    console_input: IO String,
-}
+    ffi "./some_file.js"{
+        UnitType : Type,
+        unit : UnitType,
+        console_output: String -> IO UnitType,
+        console_input: IO String,
+    }
 
-let a = "hello"
 
-let in = console_input!
+    let a = "hello"
 
-let me = console_output(a)!
-let me = console_output(in)!
+    let in = console_input!
 
-val unit!
+    let me = console_output(a)!
+    let me = console_output(in)!
+
+    val unit!
 }

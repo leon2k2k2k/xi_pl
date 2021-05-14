@@ -108,6 +108,7 @@ impl ModuleItem {
 #[derive(Clone, Debug)]
 pub struct DefineItem {
     pub name: String,
+    pub backend: Option<String>,
     pub type_: Judgment<UiPrim, UiMetadata>,
     pub impl_: Judgment<UiPrim, UiMetadata>,
     // pub publicity

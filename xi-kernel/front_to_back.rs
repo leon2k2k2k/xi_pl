@@ -1,12 +1,42 @@
-use std::rc::Rc;
+use std::{collections::BTreeMap, rc::Rc};
 
-use xi_backend::runtime::RUNTIME_FILE;
-use xi_backend::{js_prim::JsPrim, output::JsMetadata};
+use xi_backend::{
+    js_prim::{JsDefineItem, JsModule},
+    runtime::RUNTIME_FILE,
+};
+use xi_backend::{
+    js_prim::{JsModuleItem, JsPrim},
+    output::JsMetadata,
+};
 use xi_core::judgment::{Judgment, Primitive};
-use xi_frontend::type_inference::{UiMetadata, UiPrim};
+use xi_frontend::{
+    type_inference::{UiMetadata, UiPrim},
+    Module, ModuleItem,
+};
 use xi_uuid::VarUuid;
+// takes a module and get back a JsModule, which is exactly what is needed to produce a Js file.
+pub fn front_to_back(module: Module) -> JsModule {
+    let mut js_module_items = BTreeMap::new();
+    for (var_index, module_item) in module.module_items {
+        let js_module_item = match module_item {
+            ModuleItem::Define(define_item) => JsModuleItem::Define(JsDefineItem {
+                name: define_item.name,
+                backend: define_item.backend,
+                type_: ui_to_js_judgment(define_item.type_),
+                impl_: ui_to_js_judgment(define_item.impl_),
+            }),
+            ModuleItem::Import(_) => panic!("don't support compiling module items"),
+        };
+        js_module_items.insert(var_index, js_module_item);
+    }
 
-pub fn front_to_back(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim, JsMetadata> {
+    JsModule {
+        str_to_index: module.str_to_index,
+        module_items: js_module_items,
+    }
+}
+
+pub fn ui_to_js_judgment(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim, JsMetadata> {
     // In the backend, make some primitive function to FFIs.
     fn make_ffi(
         name: &str,
@@ -83,8 +113,8 @@ pub fn front_to_back(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim, Js
                     define_prim(prim_type),
                     None,
                 ),
-                UiPrim::Global(_index) => {
-                    panic!("global variable not expected")
+                UiPrim::Global(index) => {
+                    Judgment::prim(JsPrim::Var(index), define_prim(prim_type), None)
                 }
             }
         },

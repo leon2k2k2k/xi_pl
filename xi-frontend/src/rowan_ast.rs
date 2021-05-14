@@ -19,6 +19,7 @@ pub enum SyntaxKind {
     MUT,
     IDENT,
 
+    DECORATOR_STMT,
     LET_STMT,
     DO_STMT,
     VAL_STMT,

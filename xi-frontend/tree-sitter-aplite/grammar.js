@@ -1,9 +1,9 @@
 // we need to rewrite grammar to make it better with error handling, and allow multi-line comment.
 
 function separated(expr, seperator) {
-  const no_trailing_sep = seq(expr, repeat(seq(seperator, expr)));
+  const noTrailingSep = seq(expr, repeat(seq(seperator, expr)));
 
-  return seq(no_trailing_sep, optional(seperator));
+  return seq(noTrailingSep, optional(seperator));
 }
 
 const PRECEDENCE = {
@@ -35,18 +35,19 @@ module.exports = grammar({
   rules: {
     source_file: ($) => repeat($._stmt),
 
-    line_comment: ($) =>
+    line_comment: (_$) =>
       token(seq(
         "//",
         /.*/,
       )),
 
-    whitespace: ($) => / +/g,
+    whitespace: (_$) => / +/g,
 
-    newline: ($) => /\r\n|\n|\r/,
+    newline: (_$) => /\r\n|\n|\r/,
 
     _stmt: ($) =>
       choice(
+        $.decorator_stmt,
         $.let_stmt,
         $.do_stmt,
         $.val_stmt,
@@ -58,6 +59,8 @@ module.exports = grammar({
         $.enum_stmt,
         $.struct_stmt,
       ),
+
+    decorator_stmt: ($) => seq("@", $.ident, $._stmt),
 
     let_stmt: ($) =>
       seq("let", $.ident, optional(seq(":", $._expr)), "=", $._expr),
@@ -113,7 +116,7 @@ module.exports = grammar({
 
     struct_component: ($) => seq($.ident, ":", $._expr),
 
-    ident: ($) => /\p{XID_Start}\p{XID_Continue}*/u,
+    ident: (_$) => /\p{XID_Start}\p{XID_Continue}*/u,
 
     _expr: ($) =>
       choice(
@@ -199,9 +202,10 @@ module.exports = grammar({
     // a Binder is | <one or more of var_name : Expr> |
     binders: ($) => seq("|", separated($.binder_component, ","), "|"),
 
-    binder_component: ($) => seq(optional($.mut), $.ident, optional(seq(":", $._expr))),
+    binder_component: ($) =>
+      seq(optional($.mut), $.ident, optional(seq(":", $._expr))),
 
-    mut : ($) => "&mut",
+    mut: ($) => "&mut",
 
     dict_expr: ($) => seq("{", separated($.dict_component, ","), "}"),
 

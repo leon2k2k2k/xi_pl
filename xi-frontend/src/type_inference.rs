@@ -715,6 +715,7 @@ pub fn type_infer_mod_ule_item(
 
     let define_item = DefineItem {
         name: mod_ule_item.clone().var.name,
+        backend: mod_ule_item.clone().backend,
         type_: match type_ {
             Some(type_) => type_,
             None => judgment.type_of(),

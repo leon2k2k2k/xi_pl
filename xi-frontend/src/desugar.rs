@@ -475,6 +475,7 @@ impl Context {
                     var: var,
                     impl_: impl_,
                     expected_type: expected_type,
+                    backend: module_stmt.1,
                     with_list: with_list,
                 }]
             }
@@ -494,15 +495,16 @@ impl Context {
                     };
                     let rest_kind: StmtKind =
                         StmtKind::Val(Expr(Box::new(ExprKind::Var(var)), new_span()));
-                    let rest = Stmt(rest_kind, new_span());
+                    let rest = Stmt(rest_kind, module_stmt.1.clone(), new_span());
                     let ffi_stmt_kind =
                         StmtKind::Ffi(file_name.clone(), vec![(ffi_var.clone(), ffi_type)]);
-                    let ffi_stmt = Stmt(ffi_stmt_kind, new_span());
+                    let ffi_stmt = Stmt(ffi_stmt_kind, module_stmt.1.clone(), new_span());
                     let stmts = vec![ffi_stmt, rest];
                     let mod_ule_item = Mod_uleItem {
                         var: ffi_var,
                         impl_: self.desugar_stmt_vec(&stmts),
                         expected_type: None,
+                        backend: module_stmt.1.clone(),
                         with_list: BTreeSet::new(),
                     };
                     mod_ule_items.push(mod_ule_item)
@@ -546,6 +548,7 @@ impl Context {
                     var: var_binder.clone(),
                     impl_: result,
                     expected_type: None,
+                    backend: module_stmt.1.clone(),
                     with_list: BTreeSet::new(),
                 };
 
@@ -649,6 +652,7 @@ impl Context {
                         var: var,
                         impl_: impl_,
                         expected_type: Some(expected_type),
+                        backend: module_stmt.1.clone(),
                         with_list: with_var.clone(),
                     };
                     mod_ule_items.push(mod_ule_item);
@@ -686,6 +690,7 @@ impl Context {
                     var: var,
                     impl_: impl_,
                     expected_type: Some(expected_type),
+                    backend: module_stmt.1,
                     with_list: with_var.clone(),
                 };
                 mod_ule_items.push(mod_ule_item);
@@ -717,6 +722,7 @@ impl Context {
                     var: var_binder.clone(),
                     impl_: result,
                     expected_type: None,
+                    backend: module_stmt.1.clone(),
                     with_list: BTreeSet::new(),
                 };
 
@@ -778,6 +784,7 @@ impl Context {
                         var: field_var.clone(),
                         impl_: proj_i,
                         expected_type: Some(expected_type),
+                        backend: module_stmt.1.clone(),
                         with_list: with_var.clone(),
                     };
                     mod_ule_items.push(mod_ule_item)
@@ -843,6 +850,7 @@ impl Context {
                     var: var,
                     impl_: impl_,
                     expected_type: Some(expected_type),
+                    backend: module_stmt.1,
                     with_list: with_var.clone(),
                 };
 
@@ -919,5 +927,6 @@ pub struct Mod_uleItem {
     pub var: Var,
     pub impl_: Judg_ment<UiPrim, UiMetadata>,
     pub expected_type: Option<Judg_ment<UiPrim, UiMetadata>>,
+    pub backend: Option<String>,
     pub with_list: BTreeSet<VarUuid>,
 }

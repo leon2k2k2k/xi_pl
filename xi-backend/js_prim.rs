@@ -77,7 +77,7 @@ pub enum JsModuleItem {
 }
 
 impl JsModuleItem {
-    fn type_(&self) -> Judgment<JsPrim, JsMetadata> {
+    pub fn type_(&self) -> Judgment<JsPrim, JsMetadata> {
         match self {
             JsModuleItem::Define(define_item) => define_item.type_.clone(),
             // JsModuleItem::Import(import_item) => import_item.type_.clone(),

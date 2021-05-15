@@ -1,3 +1,11 @@
+now-todo:
+1. changed grammer.js to allow declaration of server-client etc.
+2. set up the servers in the js backend that talk to each other. Leon is getting to that now.
+    First given a page, set up a server that allow other to pass values in and apply function there.
+3. 
+
+
+
 todo list:
 1. Output:
     a. do some tests: console_input testing,
@@ -25,4 +33,10 @@ todo list:
 
 
 bugs:
-1. multiple ffi
+1. multiple ffi // I think this is fixed now.
+
+
+
+
+
+

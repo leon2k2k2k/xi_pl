@@ -4063,6 +4063,7 @@ dependencies = [
  "xi-frontend",
  "xi-kernel",
  "xi-proc-macro",
+ "xi-server-backend",
 ]
 
 [[package]]
@@ -4104,6 +4105,24 @@ dependencies = [
  "proc-macro2 1.0.26",
  "quote 1.0.9",
  "syn 1.0.65",
+ "xi-uuid",
+]
+
+[[package]]
+name = "xi-server-backend"
+version = "0.1.0"
+dependencies = [
+ "deno",
+ "deno_core",
+ "deno_runtime",
+ "num-bigint",
+ "swc_common",
+ "swc_ecma_ast 0.40.0",
+ "swc_ecma_codegen 0.48.0",
+ "url",
+ "xi-backend",
+ "xi-core",
+ "xi-proc-macro",
  "xi-uuid",
 ]
 

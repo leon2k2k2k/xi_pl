@@ -1,10 +1,7 @@
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    rc::Rc,
-};
+use std::{collections::BTreeMap, rc::Rc};
 use swc_common::{FilePathMapping, SourceMap, DUMMY_SP};
 use swc_ecma_ast::{
-    ArrowExpr, AwaitExpr, BigInt, BindingIdent, BlockStmtOrExpr, CallExpr, Decl, ExportDecl, Expr,
+    ArrowExpr, BigInt, BindingIdent, BlockStmtOrExpr, CallExpr, Decl, ExportDecl, Expr,
     ExprOrSpread, ExprOrSuper, ExprStmt, Ident, ImportDecl, ImportNamedSpecifier, ImportSpecifier,
     Lit, MemberExpr, Module, ModuleDecl, ModuleItem, ParenExpr, Pat, Stmt, Str, VarDecl,
     VarDeclKind, VarDeclarator,
@@ -125,8 +122,7 @@ pub fn module_to_swc_module(module: JsModule, main_id: VarUuid) -> Module {
     }
 }
 
-pub fn module_to_js_string(module: JsModule, main_id: VarUuid) -> String {
-    let module = module_to_swc_module(module, main_id);
+pub fn swc_module_to_string(module: Module) -> String {
     let mut output_buf = vec![];
     {
         let cm = Rc::new(SourceMap::new(FilePathMapping::new(vec![])));
@@ -143,87 +139,10 @@ pub fn module_to_js_string(module: JsModule, main_id: VarUuid) -> String {
     std::str::from_utf8(output_buf.as_slice()).unwrap().into()
 }
 
-// // this takes a judgment and get back a string.
-// pub fn to_js_program(judgment: Judgment<JsPrim, JsMetadata>) -> String {
-//     let mut ffi_functions = vec![];
-
-//     let main_js = to_js(&judgment, BTreeMap::new(), &mut ffi_functions);
-
-//     let main_js2 = Expr::Await(AwaitExpr {
-//         span: DUMMY_SP,
-//         arg: Box::new(to_js_app(main_js, vec![])),
-//     });
-
-//     let stmt = Stmt::Expr(ExprStmt {
-//         span: DUMMY_SP,
-//         expr: Box::new(main_js2),
-//     });
-
-//     // dbg!(&stmt);
-//     let mut ffi_imports = vec![];
-//     for (index, (file_name, function_name)) in ffi_functions.iter().enumerate() {
-//         let module_import = ModuleDecl::Import(ImportDecl {
-//             span: DUMMY_SP,
-//             specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
-//                 span: DUMMY_SP,
-//                 local: to_js_ident2(format!("ffi{}", index)),
-//                 imported: Some(to_js_ident2(function_name.clone())),
-//             })],
-//             src: Str {
-//                 span: DUMMY_SP,
-//                 value: (**file_name).into(),
-//                 has_escape: false,
-//                 kind: swc_ecma_ast::StrKind::Synthesized,
-//             },
-//             type_only: false,
-//             asserts: None,
-//         });
-//         ffi_imports.push(module_import);
-//     }
-//     // let module_import = ModuleDecl::Import(ImportDecl {
-//     //     span: DUMMY_SP,
-//     //     specifiers: vec![ImportSpecifier::Namespace(ImportStarAsSpecifier {
-//     //         span: DUMMY_SP,
-//     //         local: to_js_ident2("runtime".into()),
-//     //     })],
-//     //     src: Str {
-//     //         span: DUMMY_SP,
-//     //         value: "./$deno$runtime.ts".into(),
-//     //         has_escape: false,
-//     //         kind: swc_ecma_ast::StrKind::Synthesized,
-//     //     },
-//     //     type_only: false,
-//     //     asserts: None,
-//     // });
-
-//     let mut module_body: Vec<ModuleItem> = ffi_imports
-//         .iter()
-//         .map(|module| ModuleItem::ModuleDecl(module.clone()))
-//         .collect();
-//     // module_body.push(ModuleItem::ModuleDecl(module_import));
-//     module_body.push(ModuleItem::Stmt(stmt));
-
-//     let module: Module = Module {
-//         span: DUMMY_SP,
-//         body: module_body,
-//         shebang: None,
-//     };
-
-//     let mut output_buf = vec![];
-//     {
-//         let cm = Rc::new(SourceMap::new(FilePathMapping::new(vec![])));
-//         let mut emitter = Emitter {
-//             cfg: Config { minify: false },
-//             cm: Rc::clone(&cm),
-//             comments: None,
-//             wr: Box::new(JsWriter::new(Rc::clone(&cm), "\n", &mut output_buf, None)),
-//         };
-
-//         emitter.emit_module(&module).unwrap();
-//     }
-
-//     std::str::from_utf8(output_buf.as_slice()).unwrap().into()
-// }
+pub fn module_to_js_string(module: JsModule, main_id: VarUuid) -> String {
+    let module = module_to_swc_module(module, main_id);
+    swc_module_to_string(module)
+}
 
 pub fn make_var_name(index: VarUuid) -> Ident {
     to_js_ident2(format!("var_{}", index.index()))
@@ -338,7 +257,7 @@ fn to_js_ident1(var_name: Ident) -> Expr {
     Expr::Ident(var_name)
 }
 
-fn to_js_app(func: Expr, args: Vec<Expr>) -> Expr {
+pub fn to_js_app(func: Expr, args: Vec<Expr>) -> Expr {
     let app = CallExpr {
         span: DUMMY_SP,
         callee: ExprOrSuper::Expr(Box::new(func)),
@@ -388,6 +307,6 @@ fn to_js_str_pi() -> Expr {
     to_js_str("Pi".into())
 }
 
-fn run_io(expr: Expr) -> Expr {
+pub fn run_io(expr: Expr) -> Expr {
     to_js_app(expr, vec![])
 }

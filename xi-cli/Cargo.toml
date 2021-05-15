@@ -16,6 +16,7 @@ xi-backend = { path = "../xi-backend" , optional = true }
 xi-kernel = { path = "../xi-kernel", optional = true }
 xi-proc-macro = { path = "../xi-proc-macro" }
 xi-core = { path = "../xi-core" }
+xi-server-backend = { path = "../xi-server-backend" }
 
 [features]
 deno = ["tokio", "xi-backend", "xi-kernel"]

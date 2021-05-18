@@ -1,9 +1,6 @@
 use std::{collections::BTreeMap, rc::Rc};
 
-use xi_backend::{
-    js_prim::{JsDefineItem, JsModule},
-    runtime::RUNTIME_FILE,
-};
+use xi_backend::js_prim::{JsDefineItem, JsModule};
 use xi_backend::{
     js_prim::{JsModuleItem, JsPrim},
     output::JsMetadata,
@@ -13,6 +10,7 @@ use xi_frontend::{
     type_inference::{UiMetadata, UiPrim},
     Module, ModuleItem,
 };
+use xi_runtime::runtime::RUNTIME_FILE;
 use xi_uuid::VarUuid;
 // takes a module and get back a JsModule, which is exactly what is needed to produce a Js file.
 pub fn front_to_back(module: Module) -> JsModule {

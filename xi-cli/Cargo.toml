@@ -12,11 +12,12 @@ path = "main.rs"
 [dependencies]
 tokio = { version = "1.2", optional = true }
 xi-frontend = { path = "../xi-frontend" }
-xi-backend = { path = "../xi-backend" , optional = true }
-xi-kernel = { path = "../xi-kernel", optional = true }
+xi-backend = { path = "../xi-backend"}
+xi-kernel = { path = "../xi-kernel" }
+xi-runtime = {path = "../xi-runtime", optional = true }
 xi-proc-macro = { path = "../xi-proc-macro" }
 xi-core = { path = "../xi-core" }
 xi-server-backend = { path = "../xi-server-backend" }
 
 [features]
-deno = ["tokio", "xi-backend", "xi-kernel"]
+deno = ["tokio",  "xi-runtime"]

@@ -7,13 +7,13 @@ use swc_ecma_ast::{
 };
 
 use xi_backend::{
-    js_prim::JsModule,
-    output::{string_to_import_specifier, swc_module_to_string, to_js_ident, to_js_num},
+    js_prim::{JsModule, JsPrim},
+    output::{
+        module_item_to_swc_module_item, string_to_import_specifier, swc_module_to_string,
+        to_js_app, to_js_ident, to_js_ident2, to_js_num, to_js_str, JsMetadata,
+    },
 };
-use xi_backend::{
-    js_prim::JsPrim,
-    output::{module_item_to_swc_module_item, to_js_app, to_js_ident2, to_js_str, JsMetadata},
-};
+
 use xi_core::judgment::Judgment;
 use xi_uuid::VarUuid;
 

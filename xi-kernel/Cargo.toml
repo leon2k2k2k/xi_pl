@@ -15,3 +15,4 @@ xi-core = { path = "../xi-core" }
 xi-frontend = { path = "../xi-frontend" }
 xi-proc-macro = { path = "../xi-proc-macro" }
 xi-uuid = { path = "../xi-uuid" }
+xi-runtime = {path = "../xi-runtime" }

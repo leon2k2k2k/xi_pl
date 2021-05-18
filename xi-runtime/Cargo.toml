@@ -1,7 +1,7 @@
 [package]
-name = "xi-backend"
+name = "xi-runtime"
 version = "0.1.0"
-authors = ["leon2k2k2k <liuleon4@gmail.com>", "Frank Dai <frank@fyd.ai>"]
+authors = ["leon2k2k2k <liuleon4@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -18,3 +18,8 @@ swc_common = "0.10"
 swc_ecma_codegen = "0.48"
 num-bigint = {version = "0.2"}
 url = "2.2"
+
+
+deno = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.9.2" }
+deno_core = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.9.2" }
+deno_runtime = { git = "https://gitlab.com/fydai1/deno_fork", branch = "fork-v1.9.2" }

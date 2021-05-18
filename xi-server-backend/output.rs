@@ -1,17 +1,18 @@
 use std::collections::BTreeMap;
 use swc_common::DUMMY_SP;
 use swc_ecma_ast::{
-    ExprStmt, ImportDecl, ImportNamedSpecifier, ImportSpecifier, Module, ModuleDecl, ModuleItem,
-    Stmt, Str,
+    AwaitExpr, BindingIdent, Decl, ExportDecl, Expr, ExprOrSpread, ExprOrSuper, ExprStmt,
+    ImportDecl, ImportNamedSpecifier, ImportSpecifier, MemberExpr, Module, ModuleDecl, ModuleItem,
+    NewExpr, Pat, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
 };
 
-use xi_backend::{js_prim::JsModule, output::to_js_ident};
+use xi_backend::{
+    js_prim::JsModule,
+    output::{string_to_import_specifier, swc_module_to_string, to_js_ident, to_js_num},
+};
 use xi_backend::{
     js_prim::JsPrim,
-    output::{
-        module_item_to_swc_module_item, swc_module_to_string, to_js_app, to_js_ident2, to_js_str,
-        JsMetadata,
-    },
+    output::{module_item_to_swc_module_item, to_js_app, to_js_ident2, to_js_str, JsMetadata},
 };
 use xi_core::judgment::Judgment;
 use xi_uuid::VarUuid;
@@ -24,63 +25,73 @@ pub struct JsPyModules {
 // this output is different as we need to import server and update_server,
 // and run the server in the beginning of the file, and stuff.
 
-pub fn module_to_js_backend_module(module: JsModule) -> Module {
-    let mut body = vec![];
-    // first we want to include the module item :
-    // import { new_server, update_server } from "./new_server.js";
+// on the js side, the js.js file looks liek:
+// import {Server, pi_to_json, json_kind} from "./server.ts";
 
-    let new_server = ImportSpecifier::Named(ImportNamedSpecifier {
+// let server = new Server("js");
+
+// export const var_1 = ....
+// server.serialize(var_1, [json(var_1.type_)])
+
+// export const var_2 = ....
+// server.serialize(var_2, [json(var_2.type_)])
+// ...
+
+// import { server, pi_to_json, json_kind } from "./new_server.js";
+
+pub fn std_import_from_server() -> ModuleItem {
+    let server = string_to_import_specifier("Server".into());
+    let pi_to_json = string_to_import_specifier("pi_to_json".into());
+    let json_kind = string_to_import_specifier("json_kind".into());
+    let thing = string_to_import_specifier("thing".into());
+    ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
         span: DUMMY_SP,
-        local: to_js_ident2("run_server".into()),
-        imported: Some(to_js_ident2("run_server".into())),
-    });
-    let update_server = ImportSpecifier::Named(ImportNamedSpecifier {
-        span: DUMMY_SP,
-        local: to_js_ident2("update_server".into()),
-        imported: Some(to_js_ident2("update_server".into())),
-    });
-    let module_item = ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-        span: DUMMY_SP,
-        specifiers: vec![new_server, update_server],
+        specifiers: vec![server, pi_to_json, json_kind, thing],
         src: Str {
             span: DUMMY_SP,
-            value: "./server.js".into(),
+            value: "./server.ts".into(),
             has_escape: false,
             kind: swc_ecma_ast::StrKind::Synthesized,
         },
         type_only: false,
         asserts: None,
-    }));
+    }))
+}
 
-    body.push(module_item);
+pub fn module_to_js_module(module: JsModule) -> Module {
+    let mut body = vec![];
+    // first we want to include the module item :
+    // import { server, pi_to_json, json_kind } from "./new_server.js";
+
+    body.push(std_import_from_server());
 
     // after importing we immediately run the server:
-    let module_item = ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-        span: DUMMY_SP,
-        expr: Box::new(to_js_app(to_js_ident("run_server".into()), vec![])),
-    }));
+    // let server = new Server("js");
+    // the constructor runs the server.
 
-    body.push(module_item);
-
-    // for everything that we introduced, we also need to call update server on it.
-    // if we have a var name var122, then we need update_server("var122", var122).
-    let mut var_names = vec![];
+    body.push(let_server_code("js".into()));
 
     let mut ffi_functions = BTreeMap::new();
 
+    // the following code should generate this:
+    // export const var_1 = ....
+    // server.serialize(var_1, [json(var_1.type_)])
+
+    // as well as getting tracking all the ffi functions.
+
     for (var_index, module_item) in &module.module_items {
-        let (new_ffi_functions, module_item) =
+        let (new_ffi_functions, swc_module_item) =
             module_item_to_swc_module_item(module_item.clone(), *var_index);
         ffi_functions.extend(new_ffi_functions);
         // we add everything to the var_names now:
         // first the ffi functions, which are ffi{var_index}
-        for (_, index) in ffi_functions.clone() {
-            var_names.push(format!("ffi{}", index.index()));
-        }
-        // now the module_item itself:
-        var_names.push(format!("var_{}", var_index.clone().index()).into());
 
-        body.push(module_item);
+        // export const var_1 = ....
+        body.push(swc_module_item);
+
+        // server.register(var_1, serialized_var_1);
+        let serialized_var_module_item = serialize(var_index, module_item.type_());
+        body.push(serialized_var_module_item)
     }
 
     let mut ffi_imports = vec![];
@@ -103,29 +114,11 @@ pub fn module_to_js_backend_module(module: JsModule) -> Module {
         });
         ffi_imports.push(ModuleItem::ModuleDecl(module_import));
     }
-    // // I don't think we need run_main
-    // let run_main = ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-    //     span: DUMMY_SP,
-    //     expr: Box::new(run_io(Expr::Ident(make_var_name(main_id)))),
-    // }));
 
     let body_with_imports = {
         let mut t = ffi_imports;
         t.extend(body);
-        // t.push(run_main);
         // now I want to apply server_registration to every var_name!
-        // server_registration("var_name", var_name)
-        for var_name in var_names {
-            let expr = to_js_app(
-                to_js_ident("update_server".into()),
-                vec![to_js_str(var_name.clone()), to_js_ident(var_name)],
-            );
-            let module_item = ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr: Box::new(expr),
-            }));
-            t.push(module_item)
-        }
         t
     };
 
@@ -136,50 +129,68 @@ pub fn module_to_js_backend_module(module: JsModule) -> Module {
     }
 }
 
+// given an Aplite module_item, we should be able to generate the serialized version(for python to use) and put it onto the server.
+
 // this is corresponding python file, transporting all the javascript to python.
+// the file goes as:
+// import {Server, pi_to_json, json_kind} from "./server.ts";
+// let server = new Server("py");
+// let js_var_1 = ....
 pub fn module_to_py_module(module: JsModule) -> Module {
-    // I think the only thing I need to know to transport a file over is its types.
-
-    // same as js, we need to run a server and update stuff.
     let mut body = vec![];
-    // importing {run_server, update_server} from "./py_server.js"
-    let new_server = ImportSpecifier::Named(ImportNamedSpecifier {
-        span: DUMMY_SP,
-        local: to_js_ident2("run_server".into()),
-        imported: Some(to_js_ident2("run_server".into())),
-    });
-    let update_server = ImportSpecifier::Named(ImportNamedSpecifier {
-        span: DUMMY_SP,
-        local: to_js_ident2("update_server".into()),
-        imported: Some(to_js_ident2("update_server".into())),
-    });
-    let module_item = ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-        span: DUMMY_SP,
-        specifiers: vec![new_server, update_server],
-        src: Str {
+    // import {Server, pi_to_json, json_kind} from "./server.ts";
+    body.push(std_import_from_server());
+
+    // let server = new Server("py");
+    body.push(let_server_code("py".into()));
+
+    // // I think the only thing I need to know to transport a file over is its types.
+    let mut value = 0;
+
+    for (index, module_item) in module.module_items {
+        // let js_var_[index] = await server.deserialize(thing(value), module_item.type_)
+
+        let server_deserialize = Expr::Member(MemberExpr {
             span: DUMMY_SP,
-            value: "./py_server.js".into(),
-            has_escape: false,
-            kind: swc_ecma_ast::StrKind::Synthesized,
-        },
-        type_only: false,
-        asserts: None,
-    }));
-
-    body.push(module_item);
-    // after importing we immediately run the server:
-    let module_item = ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-        span: DUMMY_SP,
-        expr: Box::new(to_js_app(to_js_ident("run_server".into()), vec![])),
-    }));
-
-    body.push(module_item);
-
-    // now for every single module, item, we want to transport it over:
-    for (var_index, module_item) in &module.module_items {
-        let type_ = module_item.type_();
-        let module_item = js_to_python(*var_index, type_);
-        body.push(module_item)
+            obj: ExprOrSuper::Expr(Box::new(to_js_ident("server".into()))),
+            prop: Box::new(to_js_ident("deserialize".into())),
+            computed: false,
+        });
+        let call_expr = to_js_app(
+            server_deserialize,
+            vec![
+                to_js_app(
+                    to_js_ident("thing".into()),
+                    vec![to_js_num(value.to_string())],
+                ),
+                type_to_json(module_item.type_()),
+            ],
+        );
+        // await server.deserialize(thing(value), module_item.type_)
+        let await_expr = Expr::Await(AwaitExpr {
+            span: DUMMY_SP,
+            arg: Box::new(call_expr),
+        });
+        let var_decl = VarDeclarator {
+            span: DUMMY_SP,
+            name: Pat::Ident(BindingIdent {
+                id: to_js_ident2(format!("js_var_{}", index.index())),
+                type_ann: None,
+            }),
+            init: Some(Box::new(await_expr)),
+            definite: false,
+        };
+        let module_item = ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+            span: DUMMY_SP,
+            decl: Decl::Var(VarDecl {
+                span: DUMMY_SP,
+                kind: VarDeclKind::Let,
+                declare: false,
+                decls: vec![var_decl],
+            }),
+        }));
+        body.push(module_item);
+        value += 1;
     }
 
     Module {
@@ -197,32 +208,6 @@ pub fn module_to_py_module(module: JsModule) -> Module {
 // now we make the body:
 // }
 
-pub fn js_to_python(var_index: VarUuid, type_: Judgment<JsPrim, JsMetadata>) -> ModuleItem {
-    // first we get the list of variables.
-    let mut var_types: Vec<Judgment<JsPrim, JsMetadata>> = vec![];
-    get_vars(type_, &mut var_types);
-    // then we construct the body of the function, which is a blockstmt
-    let mut stmts = vec![];
-    // first thing is the update_server stuff:
-    let var_indexes = var_indexes;
-    for var_index in var_indexes {
-        let var_name = format!("local{}", var_index.index());
-        let expr = to_js_app(
-            to_js_ident("update_server".into()),
-            vec![to_js_str(var_name), to_js_ident(var_name)],
-        );
-        let stmt = Stmt::Expr(ExprStmt {
-            span: DUMMY_SP,
-            expr: Box::new(expr),
-        });
-        stmts.push(stmt);
-    }
-
-    // now we add the body and stuff. I think I can automate it away.
-
-    todo!();
-}
-
 pub fn get_vars(type_: Judgment<JsPrim, JsMetadata>, vars: &mut Vec<Judgment<JsPrim, JsMetadata>>) {
     match *type_.tree {
         xi_core::judgment::JudgmentKind::Pi(var_type, expr) => {
@@ -233,8 +218,108 @@ pub fn get_vars(type_: Judgment<JsPrim, JsMetadata>, vars: &mut Vec<Judgment<JsP
     }
 }
 
-// pub fn js_module_to_string(module: JsModule) -> String {
-//     let module = module_to_swc_module(module);
-//     let string = swc_module_to_string(module);
-//     string
-// }
+pub fn js_module_to_string(module: JsModule) -> String {
+    let module = module_to_js_module(module);
+    swc_module_to_string(module)
+}
+
+pub fn js_module_to_py_string(module: JsModule) -> String {
+    let py_module = module_to_py_module(module);
+    swc_module_to_string(py_module)
+}
+// this function generate the serialized var from the var_index and the Aplite type of the module_item:
+// server.serialize(var_1, [json(var_1.type_)])
+
+pub fn serialize(index: &VarUuid, type_: Judgment<JsPrim, JsMetadata>) -> ModuleItem {
+    // first let's make the json object associated to var_a.type_:
+    let json_var_type_ = type_to_json(type_);
+    let server_serialize = Expr::Member(MemberExpr {
+        span: DUMMY_SP,
+        obj: ExprOrSuper::Expr(Box::new(to_js_ident("server".into()))),
+        prop: Box::new(to_js_ident("serialize".into())),
+        computed: false,
+    });
+
+    let call_expr = to_js_app(
+        server_serialize,
+        vec![
+            to_js_ident(format!("var_{}", index.index())),
+            json_var_type_,
+        ],
+    );
+    ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+        span: DUMMY_SP,
+        expr: Box::new(call_expr),
+    }))
+}
+
+// this function takes an Aplite type and encode it as a JSON object of binary tree of Pi's.
+
+pub fn type_to_json(type_: Judgment<JsPrim, JsMetadata>) -> Expr {
+    match *type_.tree {
+        xi_core::judgment::JudgmentKind::Pi(arg_type, return_type) => {
+            //use pi_to_json:
+            // ahhh what about free vars
+            let args = vec![type_to_json(arg_type), type_to_json(return_type.unbind().1)];
+            to_js_app(to_js_ident("pi_to_json".into()), args)
+        }
+        xi_core::judgment::JudgmentKind::Type => {
+            unreachable!("we shouldn't see this here")
+        }
+        xi_core::judgment::JudgmentKind::Prim(prim, _) => match prim {
+            JsPrim::StringType => json_kind("Str".into()),
+            JsPrim::NumberType => json_kind("Int".into()),
+            JsPrim::StringElem(_) => unreachable!("nope"),
+            JsPrim::NumberElem(_) => unreachable!("nope"),
+            JsPrim::Ffi(_, _) => unreachable!("nope"),
+            JsPrim::Var(_) => unreachable!("nope"),
+        },
+        xi_core::judgment::JudgmentKind::FreeVar(_, _) => {
+            panic!("ahhhh")
+        }
+        xi_core::judgment::JudgmentKind::Lam(_, _) => {
+            unreachable!("we shouldn't see this here")
+        }
+        xi_core::judgment::JudgmentKind::BoundVar(_, _) => {
+            unreachable!("we shouldn't see this here")
+        }
+        xi_core::judgment::JudgmentKind::App(_, _) => {
+            panic!("idk")
+        }
+    }
+}
+
+// takes [str] to {kind: [str]}
+pub fn json_kind(str: String) -> Expr {
+    to_js_app(to_js_ident("json_kind".into()), vec![to_js_str(str)])
+}
+
+pub fn let_server_code(server_name: String) -> ModuleItem {
+    let var_declarator = VarDeclarator {
+        span: DUMMY_SP,
+        name: Pat::Ident(BindingIdent {
+            id: to_js_ident2("server".into()),
+            type_ann: None,
+        }),
+        init: Some(Box::new(Expr::New(NewExpr {
+            span: DUMMY_SP,
+            callee: Box::new(to_js_ident("Server".into())),
+            args: Some(vec![ExprOrSpread {
+                spread: None,
+                expr: Box::new(to_js_str(server_name)),
+            }]),
+            type_args: None,
+        }))),
+        definite: false,
+    };
+
+    ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+        span: DUMMY_SP,
+        decl: Decl::Var(VarDecl {
+            span: DUMMY_SP,
+            kind: VarDeclKind::Let,
+            declare: false,
+            decls: vec![var_declarator],
+        }),
+    }))
+}

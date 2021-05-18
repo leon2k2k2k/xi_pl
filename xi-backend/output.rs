@@ -310,3 +310,11 @@ fn to_js_str_pi() -> Expr {
 pub fn run_io(expr: Expr) -> Expr {
     to_js_app(expr, vec![])
 }
+
+pub fn string_to_import_specifier(name: String) -> ImportSpecifier {
+    ImportSpecifier::Named(ImportNamedSpecifier {
+        span: DUMMY_SP,
+        local: to_js_ident2(name),
+        imported: None,
+    })
+}

@@ -1,0 +1,10 @@
+// let x = 5
+
+// fn plus_3 |x : Int| -> Int {
+//     val x + 3
+// }
+
+
+fn apply_3 |func : Int -> Int| -> Int {
+    val func 3
+}

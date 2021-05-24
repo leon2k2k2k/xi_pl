@@ -1,10 +1,7 @@
 use std::{collections::BTreeMap, rc::Rc};
 
 use xi_backend::js_prim::{JsDefineItem, JsModule};
-use xi_backend::{
-    js_prim::{JsModuleItem, JsPrim},
-    output::JsMetadata,
-};
+use xi_backend::js_prim::{JsModuleItem, JsPrim};
 use xi_core::judgment::{Judgment, Primitive};
 use xi_frontend::{
     type_inference::{UiMetadata, UiPrim},
@@ -34,23 +31,13 @@ pub fn front_to_back(module: Module) -> JsModule {
     }
 }
 
-pub fn ui_to_js_judgment(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim, JsMetadata> {
+pub fn ui_to_js_judgment(front: Judgment<UiPrim>) -> Judgment<JsPrim> {
     // In the backend, make some primitive function to FFIs.
-    fn make_ffi(
-        name: &str,
-        var_type: Judgment<JsPrim, JsMetadata>,
-    ) -> Judgment<JsPrim, JsMetadata> {
+    fn make_ffi(name: &str, var_type: Judgment<JsPrim>) -> Judgment<JsPrim> {
         let runtime = RUNTIME_FILE.into();
         let ffi = JsPrim::Ffi(runtime, name.into());
 
         Judgment::prim(ffi, var_type, None)
-        // Judgment::free(
-        //     VarUuid::new(),
-        //     var_type,
-        //     Some(JsMetadata {
-        //         ffi: Some((runtime, name.into())),
-        //     }),
-        // )
     }
 
     use xi_backend::js_prim::JsPrim::*;
@@ -59,10 +46,8 @@ pub fn ui_to_js_judgment(front: Judgment<UiPrim, UiMetadata>) -> Judgment<JsPrim
 
     let io_monad = make_ffi("IO", term!(U -> U));
 
-    let changed_metadata = front.cast_metadata(Rc::new(|_: UiMetadata| JsMetadata()));
-
-    changed_metadata.define_prim_unchecked(Rc::new(
-        move |s, prim_type, define_prim| -> Judgment<JsPrim, JsMetadata> {
+    front.define_prim_unchecked(Rc::new(
+        move |s, prim_type, define_prim| -> Judgment<JsPrim> {
             match s {
                 UiPrim::IOMonad => io_monad.clone(),
                 UiPrim::IOBind => make_ffi(

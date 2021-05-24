@@ -1,6 +1,6 @@
 use crate::{
     rowan_ast::{nonextra_children, SyntaxKind, SyntaxNode},
-    type_inference::{UiMetadata, UiPrim},
+    type_inference::UiPrim,
 };
 use crate::{type_inference::UiBinaryOp as BinaryOp, Module};
 use rowan::{TextRange, TextSize};
@@ -116,7 +116,7 @@ pub enum LocalOrGlobal {
 #[derive(Clone, Debug)]
 pub struct ImportVar {
     pub index: VarUuid,
-    pub var_type: Judgment<UiPrim, UiMetadata>,
+    pub var_type: Judgment<UiPrim>,
     pub name: String,
     pub span: Span,
     // pub origin

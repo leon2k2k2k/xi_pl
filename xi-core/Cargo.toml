@@ -12,3 +12,4 @@ path = "lib.rs"
 [dependencies]
 xi-uuid = { path = "../xi-uuid" }
 xi-proc-macro = { path = "../xi-proc-macro" }
+text-size = "1.1.0"

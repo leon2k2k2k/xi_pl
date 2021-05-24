@@ -4,7 +4,7 @@ use swc_ecma_ast::Expr;
 use xi_core::judgment::{Judgment, Primitive};
 use xi_uuid::VarUuid;
 
-use crate::output::{make_var_name, to_js_ident, to_js_num, to_js_str, JsMetadata};
+use crate::output::{make_var_name, to_js_ident, to_js_num, to_js_str};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum JsPrim {
@@ -17,9 +17,7 @@ pub enum JsPrim {
 }
 
 impl Primitive for JsPrim {
-    fn maybe_prim_type<S: xi_core::judgment::Metadata>(
-        &self,
-    ) -> Option<xi_core::judgment::Judgment<Self, S>> {
+    fn maybe_prim_type(&self) -> Option<Judgment<Self>> {
         use JsPrim::*;
 
         match self {
@@ -77,7 +75,7 @@ pub enum JsModuleItem {
 }
 
 impl JsModuleItem {
-    pub fn type_(&self) -> Judgment<JsPrim, JsMetadata> {
+    pub fn type_(&self) -> Judgment<JsPrim> {
         match self {
             JsModuleItem::Define(define_item) => define_item.type_.clone(),
             // JsModuleItem::Import(import_item) => import_item.type_.clone(),
@@ -89,8 +87,8 @@ impl JsModuleItem {
 pub struct JsDefineItem {
     pub name: String,
     pub backend: Option<String>,
-    pub type_: Judgment<JsPrim, JsMetadata>,
-    pub impl_: Judgment<JsPrim, JsMetadata>,
+    pub type_: Judgment<JsPrim>,
+    pub impl_: Judgment<JsPrim>,
     // pub publicity
 }
 // #[derive(Clone, Debug)]

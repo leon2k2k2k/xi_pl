@@ -4,7 +4,7 @@ use rowan::SyntaxNode;
 use rowan_ast::{nonextra_children, string_to_syntax, Lang};
 use std::rc::Rc;
 use std::{cell::RefCell, collections::BTreeMap};
-use type_inference::{type_infer_mod_ule_item, UiMetadata, UiPrim};
+use type_inference::{type_infer_mod_ule_item, UiPrim};
 use xi_core::judgment::Judgment;
 use xi_uuid::VarUuid;
 mod desugar;
@@ -65,7 +65,8 @@ impl ModuleAndImports {
         } else {
             let mod_ule_items = desugar_module_stmt(module_stmt, resolve_var);
             for mod_ule_item in mod_ule_items {
-                let (index, module_item) = type_infer_mod_ule_item(&self.module, &mod_ule_item);
+                let (index, module_item) =
+                    type_infer_mod_ule_item(&self.module, &mod_ule_item).unwrap();
                 self.module.add(index, module_item);
             }
         }
@@ -97,7 +98,7 @@ pub enum ModuleItem {
 }
 
 impl ModuleItem {
-    fn type_(&self) -> Judgment<UiPrim, UiMetadata> {
+    fn type_(&self) -> Judgment<UiPrim> {
         match self {
             ModuleItem::Define(define_item) => define_item.type_.clone(),
             ModuleItem::Import(import_item) => import_item.type_.clone(),
@@ -109,21 +110,21 @@ impl ModuleItem {
 pub struct DefineItem {
     pub name: String,
     pub backend: Option<String>,
-    pub type_: Judgment<UiPrim, UiMetadata>,
-    pub impl_: Judgment<UiPrim, UiMetadata>,
+    pub type_: Judgment<UiPrim>,
+    pub impl_: Judgment<UiPrim>,
     // pub publicity
 }
 #[derive(Clone, Debug)]
 
 pub struct ImportItem {
     pub name: String,
-    pub type_: Judgment<UiPrim, UiMetadata>,
+    pub type_: Judgment<UiPrim>,
     pub import_info: (VarUuid, VarUuid), // (file_name, func_index)
 }
 // #[derive(Clone, Debug)]
 // pub struct ImportItem {
 //     pub name : String,
-//     pub type_: Judgment<UiPrim, UiMetadata>,
+//     pub type_: Judgment<UiPrim>,
 //     pub
 
 // }
@@ -150,7 +151,7 @@ pub fn ui_to_module(text: &str) -> ModuleAndImports {
 pub fn compile_module_item(
     module_and_imports: ModuleAndImports,
     func_name: &str,
-) -> Judgment<UiPrim, UiMetadata> {
+) -> Judgment<UiPrim> {
     let index = *module_and_imports
         .module
         .str_to_index
@@ -163,8 +164,8 @@ pub fn compile_module_item(
 pub fn compile_module_item_from_index(
     module_and_imports: ModuleAndImports,
     index: VarUuid,
-    cache: Rc<RefCell<BTreeMap<VarUuid, Judgment<UiPrim, UiMetadata>>>>,
-) -> Judgment<UiPrim, UiMetadata> {
+    cache: Rc<RefCell<BTreeMap<VarUuid, Judgment<UiPrim>>>>,
+) -> Judgment<UiPrim> {
     let maybe_cached_body = cache.clone().borrow().get(&index).cloned();
     if let Some(cached_result) = maybe_cached_body {
         return cached_result;
@@ -176,7 +177,7 @@ pub fn compile_module_item_from_index(
     let result = match module_item {
         ModuleItem::Define(define_item) => {
             let impl_ = define_item.clone().impl_;
-            let run_impl_: Judgment<UiPrim, UiMetadata> = impl_.define_prim_unchecked(Rc::new(
+            let run_impl_: Judgment<UiPrim> = impl_.define_prim_unchecked(Rc::new(
                 move |prim: UiPrim, prim_type, define_prim_unchecked| match prim {
                     UiPrim::Global(index1) => compile_module_item_from_index(
                         module_and_imports.clone(),
@@ -199,7 +200,7 @@ pub fn compile_module_item_from_index(
     result
 }
 
-pub fn get_impl_(module: Module, index: VarUuid) -> Option<Judgment<UiPrim, UiMetadata>> {
+pub fn get_impl_(module: Module, index: VarUuid) -> Option<Judgment<UiPrim>> {
     let module_item = module.module_items.get(&index)?;
     if let ModuleItem::Define(define_item) = module_item {
         Some(define_item.impl_.clone())
@@ -207,41 +208,3 @@ pub fn get_impl_(module: Module, index: VarUuid) -> Option<Judgment<UiPrim, UiMe
         todo!()
     }
 }
-
-//     // #[test]
-//     // fn test_ffi() {
-//     //     use super::frontend;
-//     //     // let ffi_text = "ffi \"some_file.js\"{
-//     //     //     Int : Type,
-//     //     //     five : Int,
-//     //     //     six : Int,
-//     //     //     add : Int -> Int -> Int,
-//     //     //     int_to_string : Int -> String
-//     //     // }
-
-//     //     // let ans = add five six
-//     //     // let better_ans = add ans six
-//     //     // let even_better_ans = int_to_string(better_ans)
-
-//     //     // do console_output(even_better_ans)!
-//     //     // val unit!";
-//     //     let ffi_text = "ffi \"some_file.js\" {
-//     //         concat_hello: String -> String
-//     //        }
-
-//     //        let ans = concat_hello (\"world\")
-//     //        do console_output(ans)!
-//     //        val unit!";
-//     //     let judgment = frontend(ffi_text);
-//     //     dbg!(judgment).unwrap();
-//     // }
-
-//     // #[test]
-//     // fn test_add() {
-//     //     let text = "
-
-//     //     val 3 + 5";
-
-//     //     frontend(text);
-//     // }
-// }

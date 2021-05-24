@@ -7,20 +7,13 @@ use swc_ecma_ast::{
     VarDeclKind, VarDeclarator,
 };
 use swc_ecma_codegen::{text_writer::JsWriter, Config, Emitter};
-use xi_core::judgment::{Judgment, JudgmentKind, Metadata};
+use xi_core::judgment::{Judgment, JudgmentKind};
 use xi_uuid::VarUuid;
 
 use crate::js_prim::{JsModule, JsModuleItem, JsPrim};
 
-#[derive(Clone, PartialEq, Eq, Default, Debug)]
-pub struct JsMetadata();
-
-impl Metadata for JsMetadata {}
-
-// a judgment should go to a expr
-// I NEED TO WORRY ABOUT IMPORT
 pub fn judgment_to_swc_expr(
-    judgment: Judgment<JsPrim, JsMetadata>,
+    judgment: Judgment<JsPrim>,
 ) -> (BTreeMap<(String, String), VarUuid>, Expr) {
     let mut ffi_functions = BTreeMap::new();
 
@@ -149,7 +142,7 @@ pub fn make_var_name(index: VarUuid) -> Ident {
 }
 
 fn to_js(
-    judgment: &Judgment<JsPrim, JsMetadata>,
+    judgment: &Judgment<JsPrim>,
     ctx: BTreeMap<VarUuid, Ident>,
     ffi: &mut BTreeMap<(String, String), VarUuid>,
 ) -> Expr {

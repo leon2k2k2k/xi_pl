@@ -1,49 +1,45 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::resolve::ResolvePrim;
 use crate::resolve::{self, Binders, Expr, ExprKind, Stmt, StmtKind};
 use crate::type_inference::UiPrim;
-use crate::{resolve::ResolvePrim, type_inference::UiMetadata};
 use resolve::{new_span, LocalOrGlobal, StringTokenKind, Var};
-use xi_core::judgment::{Metadata, Primitive};
+use xi_core::judgment::Primitive;
 use xi_uuid::VarUuid;
 
 pub use crate::resolve::Span;
 
 #[allow(non_camel_case_types)]
 #[derive(Clone)]
-pub struct Judg_ment<T, S>(pub Box<Judg_mentKind<T, S>>, pub S);
+pub struct Judg_ment<T>(pub Box<Judg_mentKind<T>>, pub u32);
 
 #[allow(non_camel_case_types)]
 #[derive(Clone)]
-pub enum Judg_mentKind<T, S> {
+pub enum Judg_mentKind<T> {
     Type,
     Prim(T),
     FreeVar(VarUuid),
     BoundVar(u32),
-    Pi(Option<Judg_ment<T, S>>, ScopedJudg_ment<T, S>),
-    Lam(Option<Judg_ment<T, S>>, ScopedJudg_ment<T, S>),
-    App(Judg_ment<T, S>, Judg_ment<T, S>),
-    Let(
-        Judg_ment<T, S>,
-        Option<Judg_ment<T, S>>,
-        ScopedJudg_ment<T, S>,
-    ),
-    Bind(Judg_ment<T, S>, Judg_ment<T, S>),
-    Pure(Judg_ment<T, S>),
+    Pi(Option<Judg_ment<T>>, ScopedJudg_ment<T>),
+    Lam(Option<Judg_ment<T>>, ScopedJudg_ment<T>),
+    App(Judg_ment<T>, Judg_ment<T>),
+    Let(Judg_ment<T>, Option<Judg_ment<T>>, ScopedJudg_ment<T>),
+    Bind(Judg_ment<T>, Judg_ment<T>),
+    Pure(Judg_ment<T>),
 }
 
 #[allow(non_camel_case_types)]
 #[derive(Clone)]
-pub struct ScopedJudg_ment<T, S>(pub(crate) Judg_ment<T, S>);
+pub struct ScopedJudg_ment<T>(pub(crate) Judg_ment<T>);
 
-impl<T: Primitive, S: Metadata> ScopedJudg_ment<T, S> {
-    pub fn unbind(self) -> (VarUuid, Judg_ment<T, S>) {
+impl<T: Primitive> ScopedJudg_ment<T> {
+    pub fn unbind(self) -> (VarUuid, Judg_ment<T>) {
         let index = VarUuid::new();
-        fn unbind_rec<T: Primitive, S: Metadata>(
-            judgment: Judg_ment<T, S>,
+        fn unbind_rec<T: Primitive>(
+            judgment: Judg_ment<T>,
             index: VarUuid,
             depth: u32,
-        ) -> Judg_ment<T, S> {
+        ) -> Judg_ment<T> {
             let judgmentkind = match *judgment.0 {
                 Judg_mentKind::Type => Judg_mentKind::Type,
                 Judg_mentKind::Prim(prim) => Judg_mentKind::Prim(prim),
@@ -83,13 +79,13 @@ impl<T: Primitive, S: Metadata> ScopedJudg_ment<T, S> {
         (index, unbind_rec(self.0, index, 0))
     }
 
-    pub fn instantiate(self, sub: &Judg_ment<T, S>) -> Judg_ment<T, S> {
+    pub fn instantiate(self, sub: &Judg_ment<T>) -> Judg_ment<T> {
         let (index, judgment) = self.unbind();
-        fn instantiate_rec<T: Primitive, S: Metadata>(
-            judgment: Judg_ment<T, S>,
+        fn instantiate_rec<T: Primitive>(
+            judgment: Judg_ment<T>,
             index: VarUuid,
-            sub: &Judg_ment<T, S>,
-        ) -> Judg_ment<T, S> {
+            sub: &Judg_ment<T>,
+        ) -> Judg_ment<T> {
             let judgmentkind = match *judgment.0 {
                 Judg_mentKind::Type => Judg_mentKind::Type,
                 Judg_mentKind::Prim(prim) => Judg_mentKind::Prim(prim),
@@ -144,13 +140,13 @@ impl<T: Primitive, S: Metadata> ScopedJudg_ment<T, S> {
     }
 }
 
-impl<T: Primitive, S: Metadata> Judg_ment<T, S> {
-    pub fn bind(self, index: VarUuid) -> ScopedJudg_ment<T, S> {
-        fn bind_rec<T: Primitive, S: Metadata>(
-            judgment: Judg_ment<T, S>,
+impl<T: Primitive> Judg_ment<T> {
+    pub fn bind(self, index: VarUuid) -> ScopedJudg_ment<T> {
+        fn bind_rec<T: Primitive>(
+            judgment: Judg_ment<T>,
             index: VarUuid,
             depth: u32,
-        ) -> Judg_ment<T, S> {
+        ) -> Judg_ment<T> {
             let judgmentkind = match *judgment.0 {
                 Judg_mentKind::Type => Judg_mentKind::Type,
                 Judg_mentKind::Prim(prim) => Judg_mentKind::Prim(prim),
@@ -189,67 +185,55 @@ impl<T: Primitive, S: Metadata> Judg_ment<T, S> {
     }
 }
 
-impl Judg_ment<UiPrim, UiMetadata> {
-    fn u() -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Type), UiMetadata {})
+impl Judg_ment<UiPrim> {
+    fn u() -> Judg_ment<UiPrim> {
+        Judg_ment(Box::new(Judg_mentKind::Type), 0)
     }
 
-    fn prim(prim: UiPrim) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Prim(prim)), UiMetadata {})
+    fn prim(prim: UiPrim) -> Judg_ment<UiPrim> {
+        Judg_ment(Box::new(Judg_mentKind::Prim(prim)), 0)
     }
 
-    fn freevar(var: VarUuid) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::FreeVar(var)), UiMetadata {})
+    fn freevar(var: VarUuid) -> Judg_ment<UiPrim> {
+        Judg_ment(Box::new(Judg_mentKind::FreeVar(var)), 0)
     }
 
-    fn app(
-        func: Judg_ment<UiPrim, UiMetadata>,
-        arg: Judg_ment<UiPrim, UiMetadata>,
-    ) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::App(func, arg)), UiMetadata {})
+    fn app(func: Judg_ment<UiPrim>, arg: Judg_ment<UiPrim>) -> Judg_ment<UiPrim> {
+        Judg_ment(Box::new(Judg_mentKind::App(func, arg)), 0)
     }
 
-    fn bind_(
-        ma: Judg_ment<UiPrim, UiMetadata>,
-        a_to_mb: Judg_ment<UiPrim, UiMetadata>,
-    ) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Bind(ma, a_to_mb)), UiMetadata {})
+    fn bind_(ma: Judg_ment<UiPrim>, a_to_mb: Judg_ment<UiPrim>) -> Judg_ment<UiPrim> {
+        Judg_ment(Box::new(Judg_mentKind::Bind(ma, a_to_mb)), 0)
     }
 
-    fn pure(a: Judg_ment<UiPrim, UiMetadata>) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Pure(a)), UiMetadata {})
+    fn pure(a: Judg_ment<UiPrim>) -> Judg_ment<UiPrim> {
+        Judg_ment(Box::new(Judg_mentKind::Pure(a)), 0)
     }
 
     pub fn lam(
-        var_type: Option<Judg_ment<UiPrim, UiMetadata>>,
-        sexpr: ScopedJudg_ment<UiPrim, UiMetadata>,
-    ) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Lam(var_type, sexpr)), UiMetadata {})
+        var_type: Option<Judg_ment<UiPrim>>,
+        sexpr: ScopedJudg_ment<UiPrim>,
+    ) -> Judg_ment<UiPrim> {
+        Judg_ment(Box::new(Judg_mentKind::Lam(var_type, sexpr)), 0)
     }
 
-    fn fun(
-        arg_type: Judg_ment<UiPrim, UiMetadata>,
-        ret_type: Judg_ment<UiPrim, UiMetadata>,
-    ) -> Judg_ment<UiPrim, UiMetadata> {
+    fn fun(arg_type: Judg_ment<UiPrim>, ret_type: Judg_ment<UiPrim>) -> Judg_ment<UiPrim> {
         Judg_ment::pi(Some(arg_type), ret_type.bind(VarUuid::new()))
     }
 
     fn pi(
-        var_type: Option<Judg_ment<UiPrim, UiMetadata>>,
-        sexpr: ScopedJudg_ment<UiPrim, UiMetadata>,
-    ) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(Box::new(Judg_mentKind::Pi(var_type, sexpr)), UiMetadata {})
+        var_type: Option<Judg_ment<UiPrim>>,
+        sexpr: ScopedJudg_ment<UiPrim>,
+    ) -> Judg_ment<UiPrim> {
+        Judg_ment(Box::new(Judg_mentKind::Pi(var_type, sexpr)), 0)
     }
 
     fn let_(
-        arg: Judg_ment<UiPrim, UiMetadata>,
-        var_type: Option<Judg_ment<UiPrim, UiMetadata>>,
-        rest: ScopedJudg_ment<UiPrim, UiMetadata>,
-    ) -> Judg_ment<UiPrim, UiMetadata> {
-        Judg_ment(
-            Box::new(Judg_mentKind::Let(arg, var_type, rest)),
-            UiMetadata {},
-        )
+        arg: Judg_ment<UiPrim>,
+        var_type: Option<Judg_ment<UiPrim>>,
+        rest: ScopedJudg_ment<UiPrim>,
+    ) -> Judg_ment<UiPrim> {
+        Judg_ment(Box::new(Judg_mentKind::Let(arg, var_type, rest)), 0)
     }
 }
 
@@ -258,11 +242,7 @@ struct Context {
 }
 
 impl Context {
-    fn binders_to_pi(
-        &self,
-        binders: Binders,
-        init: Judg_ment<UiPrim, UiMetadata>,
-    ) -> Judg_ment<UiPrim, UiMetadata> {
+    fn binders_to_pi(&self, binders: Binders, init: Judg_ment<UiPrim>) -> Judg_ment<UiPrim> {
         let mut result = init;
         let var_list = &binders.0;
         for (var, var_type) in var_list.iter().rev() {
@@ -274,11 +254,7 @@ impl Context {
         result
     }
 
-    fn binders_to_lam(
-        &self,
-        binders: Binders,
-        init: Judg_ment<UiPrim, UiMetadata>,
-    ) -> Judg_ment<UiPrim, UiMetadata> {
+    fn binders_to_lam(&self, binders: Binders, init: Judg_ment<UiPrim>) -> Judg_ment<UiPrim> {
         let mut result = init;
         let var_list = &binders.0;
         for (var, var_type) in var_list.iter().rev() {
@@ -290,7 +266,7 @@ impl Context {
         result
     }
     // this desugars the body of a stmt_expr
-    fn desugar_stmt_vec(&self, stmts: &[Stmt]) -> Judg_ment<UiPrim, UiMetadata> {
+    fn desugar_stmt_vec(&self, stmts: &[Stmt]) -> Judg_ment<UiPrim> {
         if stmts.is_empty() {
             panic!("expected a val or something");
         }
@@ -373,7 +349,7 @@ impl Context {
 
     // }
 
-    fn desugar_var(&self, var: &resolve::Var) -> Judg_ment<UiPrim, UiMetadata> {
+    fn desugar_var(&self, var: &resolve::Var) -> Judg_ment<UiPrim> {
         match self.prim_map.get(&var.index) {
             Some(prim) => {
                 let prim = match prim {
@@ -385,14 +361,14 @@ impl Context {
             }
             None => match var.local_or_global {
                 resolve::LocalOrGlobal::Local => {
-                    Judg_ment(Box::new(Judg_mentKind::FreeVar(var.index)), UiMetadata {})
+                    Judg_ment(Box::new(Judg_mentKind::FreeVar(var.index)), 0)
                 }
                 resolve::LocalOrGlobal::Global => Judg_ment::prim(UiPrim::Global(var.index)),
             },
         }
     }
 
-    fn desugar_expr(&self, expr: &Expr) -> Judg_ment<UiPrim, UiMetadata> {
+    fn desugar_expr(&self, expr: &Expr) -> Judg_ment<UiPrim> {
         match &*expr.0 {
             ExprKind::Var(var) => self.desugar_var(var),
             ExprKind::Type => Judg_ment::u(),
@@ -874,7 +850,7 @@ pub fn desugar_module_stmt(
     ctx.desugar_module_stmt(module_stmt)
 }
 
-impl<T: Primitive, S: Metadata> std::fmt::Debug for Judg_ment<T, S> {
+impl<T: Primitive> std::fmt::Debug for Judg_ment<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &*self.0 {
             Judg_mentKind::Type => f.write_str("Type")?,
@@ -925,8 +901,8 @@ impl<T: Primitive, S: Metadata> std::fmt::Debug for Judg_ment<T, S> {
 #[derive(Clone, Debug)]
 pub struct Mod_uleItem {
     pub var: Var,
-    pub impl_: Judg_ment<UiPrim, UiMetadata>,
-    pub expected_type: Option<Judg_ment<UiPrim, UiMetadata>>,
+    pub impl_: Judg_ment<UiPrim>,
+    pub expected_type: Option<Judg_ment<UiPrim>>,
     pub backend: Option<String>,
     pub with_list: BTreeSet<VarUuid>,
 }

@@ -10,7 +10,7 @@ use xi_backend::{
     js_prim::{JsModule, JsPrim},
     output::{
         module_item_to_swc_module_item, string_to_import_specifier, swc_module_to_string,
-        to_js_app, to_js_ident, to_js_ident2, to_js_num, to_js_str, JsMetadata,
+        to_js_app, to_js_ident, to_js_ident2, to_js_num, to_js_str,
     },
 };
 
@@ -208,7 +208,7 @@ pub fn module_to_py_module(module: JsModule) -> Module {
 // now we make the body:
 // }
 
-pub fn get_vars(type_: Judgment<JsPrim, JsMetadata>, vars: &mut Vec<Judgment<JsPrim, JsMetadata>>) {
+pub fn get_vars(type_: Judgment<JsPrim>, vars: &mut Vec<Judgment<JsPrim>>) {
     match *type_.tree {
         xi_core::judgment::JudgmentKind::Pi(var_type, expr) => {
             vars.push(var_type);
@@ -230,7 +230,7 @@ pub fn js_module_to_py_string(module: JsModule) -> String {
 // this function generate the serialized var from the var_index and the Aplite type of the module_item:
 // server.serialize(var_1, [json(var_1.type_)])
 
-pub fn serialize(index: &VarUuid, type_: Judgment<JsPrim, JsMetadata>) -> ModuleItem {
+pub fn serialize(index: &VarUuid, type_: Judgment<JsPrim>) -> ModuleItem {
     // first let's make the json object associated to var_a.type_:
     let json_var_type_ = type_to_json(type_);
     let server_serialize = Expr::Member(MemberExpr {
@@ -255,7 +255,7 @@ pub fn serialize(index: &VarUuid, type_: Judgment<JsPrim, JsMetadata>) -> Module
 
 // this function takes an Aplite type and encode it as a JSON object of binary tree of Pi's.
 
-pub fn type_to_json(type_: Judgment<JsPrim, JsMetadata>) -> Expr {
+pub fn type_to_json(type_: Judgment<JsPrim>) -> Expr {
     match *type_.tree {
         xi_core::judgment::JudgmentKind::Pi(arg_type, return_type) => {
             //use pi_to_json:

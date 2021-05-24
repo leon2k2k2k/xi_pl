@@ -9,40 +9,70 @@
 use std::{collections::BTreeMap, rc::Rc};
 
 use crate::nbe::SJudgment;
+use text_size::TextRange;
 use xi_uuid::VarUuid;
-// #[derive(Clone, Debug)]
-// enum TypeCheckError {
-//     location: Span,
-
-// }
 
 #[derive(Clone)]
-pub struct Judgment<T, S> {
-    pub metadata: S,
-    pub tree: Box<JudgmentKind<T, S>>,
+pub struct Judgment<T> {
+    pub metadata: Metadata,
+    pub tree: Box<JudgmentKind<T>>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
-pub enum JudgmentKind<T, S> {
+pub enum JudgmentKind<T> {
     Type,
-    Prim(T, Judgment<T, S>),
-    FreeVar(VarUuid, Judgment<T, S>),
-    Pi(Judgment<T, S>, ScopedJudgment<T, S>),
-    Lam(Judgment<T, S>, ScopedJudgment<T, S>),
-    BoundVar(u32, Judgment<T, S>),
-    App(Judgment<T, S>, Judgment<T, S>),
+    Prim(T, Judgment<T>),
+    FreeVar(VarUuid, Judgment<T>),
+    Pi(Judgment<T>, ScopedJudgment<T>),
+    Lam(Judgment<T>, ScopedJudgment<T>),
+    BoundVar(u32, Judgment<T>),
+    App(Judgment<T>, Judgment<T>),
 }
 #[derive(Clone, PartialEq, Eq)]
-pub struct ScopedJudgment<T, S>(pub(crate) Judgment<T, S>);
+pub struct ScopedJudgment<T>(pub(crate) Judgment<T>);
 
-impl<T: Primitive, S: Metadata> ScopedJudgment<T, S> {
-    pub fn unbind(self) -> (VarUuid, Judgment<T, S>) {
+pub trait Primitive: Clone + PartialEq + Eq + 'static + std::fmt::Debug
+where
+    Self: Sized,
+{
+    fn maybe_prim_type(&self) -> Option<Judgment<Self>>;
+}
+
+pub trait MetadataTrait: 'static + std::fmt::Debug {
+    fn span(&self) -> Option<TextRange>;
+    fn var_name(&self) -> Option<String>;
+}
+
+#[derive(Clone, Debug)]
+pub struct Metadata(Rc<dyn MetadataTrait>);
+
+#[derive(Clone, Debug)]
+pub struct Empty();
+
+impl MetadataTrait for Empty {
+    fn span(&self) -> Option<TextRange> {
+        None
+    }
+
+    fn var_name(&self) -> Option<String> {
+        None
+    }
+}
+
+impl Default for Metadata {
+    fn default() -> Self {
+        Metadata(Rc::new(Empty()))
+    }
+}
+
+impl<T: Primitive> ScopedJudgment<T> {
+    pub fn unbind(self) -> (VarUuid, Judgment<T>) {
         let index = VarUuid::new();
-        fn unbind_rec<T: Primitive, S: Metadata>(
-            judgment: Judgment<T, S>,
+        fn unbind_rec<T: Primitive>(
+            judgment: Judgment<T>,
             index: VarUuid,
             depth: u32,
-        ) -> Judgment<T, S> {
+        ) -> Judgment<T> {
             let judgmentkind = match *judgment.tree {
                 JudgmentKind::Type => JudgmentKind::Type,
                 JudgmentKind::Prim(prim, prim_type) => {
@@ -79,13 +109,13 @@ impl<T: Primitive, S: Metadata> ScopedJudgment<T, S> {
         (index, unbind_rec(self.0, index, 0))
     }
 
-    pub fn instantiate(self, sub: &Judgment<T, S>) -> Judgment<T, S> {
+    pub fn instantiate(self, sub: &Judgment<T>) -> Judgment<T> {
         let (index, judgment) = self.unbind();
-        fn instantiate_rec<T: Primitive, S: Metadata>(
-            judgment: Judgment<T, S>,
+        fn instantiate_rec<T: Primitive>(
+            judgment: Judgment<T>,
             index: VarUuid,
-            sub: &Judgment<T, S>,
-        ) -> Judgment<T, S> {
+            sub: &Judgment<T>,
+        ) -> Judgment<T> {
             let judgmentkind = match *judgment.tree {
                 JudgmentKind::Type => JudgmentKind::Type,
                 JudgmentKind::Prim(prim, prim_type) => {
@@ -127,12 +157,12 @@ impl<T: Primitive, S: Metadata> ScopedJudgment<T, S> {
         instantiate_rec(judgment, index, sub)
     }
 
-    pub fn replace_free_var(self, index: VarUuid) -> Judgment<T, S> {
-        pub fn replace_free_var_rec<T: Primitive, S: Metadata>(
-            expr: Judgment<T, S>,
+    pub fn replace_free_var(self, index: VarUuid) -> Judgment<T> {
+        pub fn replace_free_var_rec<T: Primitive>(
+            expr: Judgment<T>,
             old_index: VarUuid,
             new_index: VarUuid,
-        ) -> Judgment<T, S> {
+        ) -> Judgment<T> {
             let judgmentkind = match *expr.tree {
                 JudgmentKind::Type => JudgmentKind::Type,
                 JudgmentKind::Prim(prim, prim_type) => {
@@ -180,13 +210,13 @@ impl<T: Primitive, S: Metadata> ScopedJudgment<T, S> {
     }
 }
 
-impl<T: Primitive, S: Metadata> Judgment<T, S> {
-    pub fn bind(self, index: VarUuid) -> ScopedJudgment<T, S> {
-        fn bind_rec<T: Primitive, S: Metadata>(
-            judgment: Judgment<T, S>,
+impl<T: Primitive> Judgment<T> {
+    pub fn bind(self, index: VarUuid) -> ScopedJudgment<T> {
+        fn bind_rec<T: Primitive>(
+            judgment: Judgment<T>,
             index: VarUuid,
             depth: u32,
-        ) -> Judgment<T, S> {
+        ) -> Judgment<T> {
             let judgmentkind = match *judgment.tree {
                 JudgmentKind::Type => JudgmentKind::Type,
                 JudgmentKind::Prim(prim, prim_type) => {
@@ -222,29 +252,21 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
         ScopedJudgment(bind_rec(self, index, 0))
     }
 
-    pub fn to_scoped(self) -> ScopedJudgment<T, S> {
+    pub fn to_scoped(self) -> ScopedJudgment<T> {
         let var = VarUuid::new();
         self.bind(var)
     }
 }
 
-impl<T: PartialEq, S: PartialEq> PartialEq for Judgment<T, S> {
-    fn eq(&self, other: &Judgment<T, S>) -> bool {
+impl<T: PartialEq> PartialEq for Judgment<T> {
+    fn eq(&self, other: &Judgment<T>) -> bool {
         self.tree == other.tree
     }
 }
 
-impl<T: PartialEq, S: PartialEq> Eq for Judgment<T, S> {}
+impl<T: PartialEq> Eq for Judgment<T> {}
 
-pub trait Primitive: Clone + PartialEq + Eq + 'static + std::fmt::Debug
-where
-    Self: Sized,
-{
-    fn maybe_prim_type<S: Metadata>(&self) -> Option<Judgment<Self, S>>;
-}
-pub trait Metadata: Clone + PartialEq + Eq + 'static + std::fmt::Debug + Default {}
-
-impl<T: Primitive, S: Metadata> Judgment<T, S> {
+impl<T: Primitive> Judgment<T> {
     pub fn has_type(&self) -> bool {
         match *self.tree.clone() {
             JudgmentKind::Type => false,
@@ -261,7 +283,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     }
     /// Takes a judgment and returns its the judgment representing its type
     /// Panics if it has no type
-    pub fn type_of(&self) -> Judgment<T, S> {
+    pub fn type_of(&self) -> Judgment<T> {
         match *self.tree.clone() {
             JudgmentKind::Type => unreachable!("expression has no type"),
             JudgmentKind::Pi(_var_type, sexpr) => {
@@ -271,7 +293,11 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             JudgmentKind::Lam(var_type, sexpr) => {
                 let (index, expr) = sexpr.unbind();
 
-                Judgment::pi(var_type.clone(), expr.type_of().nbe().bind(index), None)
+                Judgment::pi(
+                    var_type.clone(),
+                    expr.type_of().nbe().bind(index),
+                    Some(self.metadata.clone()),
+                )
             }
             JudgmentKind::BoundVar(_, _) => unreachable!("Bound Var"),
             JudgmentKind::App(func, elem) => {
@@ -289,7 +315,7 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     }
 
     /// U:None constructor
-    pub fn u(metadata: Option<S>) -> Judgment<T, S> {
+    pub fn u(metadata: Option<Metadata>) -> Judgment<T> {
         Judgment {
             tree: Box::new(JudgmentKind::Type),
             metadata: metadata.unwrap_or_default(),
@@ -297,10 +323,10 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     }
     /// Pi constructor
     pub fn pi(
-        var_type: Judgment<T, S>,
-        sexpr: ScopedJudgment<T, S>,
-        metadata: Option<S>,
-    ) -> Judgment<T, S> {
+        var_type: Judgment<T>,
+        sexpr: ScopedJudgment<T>,
+        metadata: Option<Metadata>,
+    ) -> Judgment<T> {
         let (index, expr) = sexpr.unbind();
 
         if expr.has_type() && *expr.type_of().tree != JudgmentKind::Type {
@@ -314,34 +340,34 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     }
     /// Lambda constructor
     pub fn lam(
-        var_type: Judgment<T, S>,
-        sexpr: ScopedJudgment<T, S>,
-        metadata: Option<S>,
-    ) -> Judgment<T, S> {
+        var_type: Judgment<T>,
+        sexpr: ScopedJudgment<T>,
+        metadata: Option<Metadata>,
+    ) -> Judgment<T> {
         Judgment {
             tree: Box::new(JudgmentKind::Lam(var_type, sexpr)),
             metadata: metadata.unwrap_or_default(),
         }
     }
 
-    pub fn free(index: VarUuid, var_type: Judgment<T, S>, metadata: Option<S>) -> Judgment<T, S> {
+    pub fn free(index: VarUuid, var_type: Judgment<T>, metadata: Option<Metadata>) -> Judgment<T> {
         Judgment {
             tree: Box::new(JudgmentKind::FreeVar(index, var_type)),
             metadata: metadata.unwrap_or_default(),
         }
     }
 
-    pub fn prim(prim: T, prim_type: Judgment<T, S>, metadata: Option<S>) -> Judgment<T, S> {
+    pub fn prim(prim: T, prim_type: Judgment<T>, metadata: Option<Metadata>) -> Judgment<T> {
         Judgment {
             tree: Box::new(JudgmentKind::Prim(prim, prim_type)),
             metadata: metadata.unwrap_or_default(),
         }
     }
 
-    pub fn prim_wo_prim_type(prim1: T, metadata: Option<S>) -> Judgment<T, S> {
+    pub fn prim_wo_prim_type(prim1: T, metadata: Option<Metadata>) -> Judgment<T> {
         Judgment::prim(prim1.clone(), prim1.maybe_prim_type().unwrap(), metadata)
     }
-    pub fn app(func: Judgment<T, S>, elem: Judgment<T, S>, metadata: Option<S>) -> Judgment<T, S> {
+    pub fn app(func: Judgment<T>, elem: Judgment<T>, metadata: Option<Metadata>) -> Judgment<T> {
         let func_type = func.clone().type_of().nbe();
         if let JudgmentKind::Pi(func_arg_type, _) = *func_type.tree {
             let elem_type = elem.clone().type_of().nbe();
@@ -367,10 +393,10 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     /// Replace the outermost bound variable in expr with elem.
 
     pub fn app_unchecked(
-        func: Judgment<T, S>,
-        arg: Judgment<T, S>,
-        metadata: Option<S>,
-    ) -> Judgment<T, S> {
+        func: Judgment<T>,
+        arg: Judgment<T>,
+        metadata: Option<Metadata>,
+    ) -> Judgment<T> {
         if let JudgmentKind::Pi(_, _) = *func.tree {
             panic!();
         }
@@ -381,10 +407,10 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     }
 
     pub fn app_unchecked_vec(
-        func: Judgment<T, S>,
-        args: Vec<Judgment<T, S>>,
-        metadata: Option<S>,
-    ) -> Judgment<T, S> {
+        func: Judgment<T>,
+        args: Vec<Judgment<T>>,
+        metadata: Option<u32>,
+    ) -> Judgment<T> {
         let mut args = args;
         if args.len() == 0 {
             panic!("empty arg")
@@ -400,10 +426,10 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
         }
     }
     pub fn pi_unchecked(
-        var_type: Judgment<T, S>,
-        expr: ScopedJudgment<T, S>,
-        metadata: Option<S>,
-    ) -> Judgment<T, S> {
+        var_type: Judgment<T>,
+        expr: ScopedJudgment<T>,
+        metadata: Option<Metadata>,
+    ) -> Judgment<T> {
         Judgment {
             tree: Box::new(JudgmentKind::Pi(var_type, expr)),
             metadata: metadata.unwrap_or_default(),
@@ -411,24 +437,19 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     }
 
     /// Normalization to beta-reduced, eta-long form. beta-reduced means that app(lam(var_type,expr), elem) is beta-reduced to expr[BoundVar(?)\elem].
-    pub fn nbe(self) -> Judgment<T, S> {
+    pub fn nbe(self) -> Judgment<T> {
         SJudgment::semantics_to_syntax(SJudgment::syntax_to_semantics(self, BTreeMap::new()))
     }
 
     pub fn define_prim<U: Primitive>(
         &self,
         prim_meaning: Rc<
-            dyn Fn(
-                T,
-                Judgment<T, S>,
-                Rc<dyn Fn(Judgment<T, S>) -> Judgment<U, S>>,
-            ) -> Judgment<U, S>,
+            dyn Fn(T, Judgment<T>, Rc<dyn Fn(Judgment<T>) -> Judgment<U>>) -> Judgment<U>,
         >,
-    ) -> Judgment<U, S> {
+    ) -> Judgment<U> {
         let prim_meaning_clone = prim_meaning.clone();
-        let prim_fn = Rc::new(move |judgment: Judgment<T, S>| {
-            judgment.define_prim(prim_meaning_clone.clone())
-        });
+        let prim_fn =
+            Rc::new(move |judgment: Judgment<T>| judgment.define_prim(prim_meaning_clone.clone()));
 
         let metadata = Some(self.metadata.clone());
         match *self.tree.clone() {
@@ -469,17 +490,12 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
     pub fn define_prim_unchecked<U: Primitive>(
         &self,
         prim_meaning: Rc<
-            dyn Fn(
-                T,
-                Judgment<T, S>,
-                Rc<dyn Fn(Judgment<T, S>) -> Judgment<U, S>>,
-            ) -> Judgment<U, S>,
+            dyn Fn(T, Judgment<T>, Rc<dyn Fn(Judgment<T>) -> Judgment<U>>) -> Judgment<U>,
         >,
-    ) -> Judgment<U, S> {
+    ) -> Judgment<U> {
         let prim_meaning_clone = prim_meaning.clone();
-        let prim_fn = Rc::new(move |judgment: Judgment<T, S>| {
-            judgment.define_prim(prim_meaning_clone.clone())
-        });
+        let prim_fn =
+            Rc::new(move |judgment: Judgment<T>| judgment.define_prim(prim_meaning_clone.clone()));
 
         let metadata = Some(self.metadata.clone());
         match *self.tree.clone() {
@@ -518,69 +534,6 @@ impl<T: Primitive, S: Metadata> Judgment<T, S> {
             ),
         }
     }
-    pub fn cast_metadata<N: Metadata>(self, metadata_func: Rc<dyn Fn(S) -> N>) -> Judgment<T, N> {
-        let metadata = metadata_func(self.metadata);
-        let result: JudgmentKind<T, N> = match *self.tree {
-            JudgmentKind::Type => JudgmentKind::Type,
-            JudgmentKind::Prim(prim, prim_type) => {
-                JudgmentKind::Prim(prim, prim_type.cast_metadata(metadata_func))
-            }
-            JudgmentKind::FreeVar(index, var_type) => {
-                JudgmentKind::FreeVar(index, var_type.cast_metadata(metadata_func))
-            }
-            JudgmentKind::Pi(var_type, sexpr) => {
-                let (index, expr) = sexpr.unbind();
-                JudgmentKind::Pi(
-                    var_type.cast_metadata(metadata_func.clone()),
-                    expr.cast_metadata(metadata_func).bind(index),
-                )
-            }
-            JudgmentKind::Lam(var_type, sexpr) => {
-                let (index, expr) = sexpr.unbind();
-                JudgmentKind::Lam(
-                    var_type.cast_metadata(metadata_func.clone()),
-                    expr.cast_metadata(metadata_func).bind(index),
-                )
-            }
-            JudgmentKind::BoundVar(_, _) => {
-                unreachable!()
-            }
-            JudgmentKind::App(func, arg) => JudgmentKind::App(
-                func.cast_metadata(metadata_func.clone()),
-                arg.cast_metadata(metadata_func.clone()),
-            ),
-        };
-        Judgment {
-            tree: Box::new(result),
-            metadata: metadata,
-        }
-    }
-
-    // pub fn contains_free_var(expr: &Judgment<T, S>, var: VarUuid) -> bool {
-    //     match &*expr.tree {
-    //         JudgmentKind::Type => false,
-    //         JudgmentKind::Prim(_, prim_type) => Judgment::contains_free_var(prim_type, var),
-    //         JudgmentKind::FreeVar(var_index, var_type) => {
-    //             if *var_index == var {
-    //                 return true;
-    //             } else {
-    //                 return Judgment::contains_free_var(&*var_type, var);
-    //             }
-    //         }
-    //         JudgmentKind::Pi(var_type, expr) => {
-    //             Judgment::contains_free_var(&*var_type, var)
-    //                 || Judgment::contains_free_var(&*expr, var)
-    //         }
-    //         JudgmentKind::Lam(var_type, expr) => {
-    //             Judgment::contains_free_var(&*var_type, var)
-    //                 || Judgment::contains_free_var(&*expr, var)
-    //         }
-    //         JudgmentKind::BoundVar(_, var_type) => Judgment::contains_free_var(&*var_type, var),
-    //         JudgmentKind::App(func, arg) => {
-    //             Judgment::contains_free_var(&*func, var) || Judgment::contains_free_var(&*arg, var)
-    //         }
-    //     }
-    // }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -592,7 +545,7 @@ pub enum NatPrim {
 }
 impl Primitive for NatPrim {
     // Potentially the prim type is not given by the primitive itself, like in the case of ffi.
-    fn maybe_prim_type<S: Metadata>(&self) -> Option<Judgment<Self, S>> {
+    fn maybe_prim_type(&self) -> Option<Judgment<Self>> {
         use xi_proc_macro::term;
         Some(match self {
             NatPrim::NatType => term!(U),
@@ -604,12 +557,20 @@ impl Primitive for NatPrim {
 }
 
 impl Primitive for () {
-    fn maybe_prim_type<S: Metadata>(&self) -> Option<Judgment<Self, S>> {
+    fn maybe_prim_type(&self) -> Option<Judgment<Self>> {
         Some(Judgment::u(None))
     }
 }
 
-impl Metadata for () {}
+impl MetadataTrait for () {
+    fn span(&self) -> Option<TextRange> {
+        None
+    }
+
+    fn var_name(&self) -> Option<String> {
+        None
+    }
+}
 
 mod test {
     #[test]
@@ -618,9 +579,10 @@ mod test {
         use xi_proc_macro::term;
         use xi_uuid::VarUuid;
 
-        let unit_type: Judgment<(), ()> = term!(Pi |T : U| T -> T);
-        let id: Judgment<(), ()> = term!(Lam | T: U, t: T | t);
+        let unit_type: Judgment<()> = term!(Pi |T : U| T -> T);
+        let id: Judgment<()> = term!(Lam | T: U, t: T | t);
         assert_eq!(id.type_of(), unit_type);
+        // let x: u32 = 5;
 
         // let pr1: Judgment<(), ()> = term!(Lam | T: U, t1: T, t2: T | t1);
         // dbg!(&pr1);
@@ -652,7 +614,7 @@ mod test {
         use super::*;
         use xi_proc_macro::term;
         use xi_uuid::VarUuid;
-        let ((_a, _b), t): (_, Judgment<(), ()>) = term!(|fv9 : U, fv12 : Pi |bv0: U -> U| bv0 fv9 -> bv0 (Pi |bv2: U| bv2 -> bv2)| fv12 (Lam |bv0: U| bv0 -> fv9) (Lam |bv0 : fv9| bv0));
+        let ((_a, _b), t): (_, Judgment<()>) = term!(|fv9 : U, fv12 : Pi |bv0: U -> U| bv0 fv9 -> bv0 (Pi |bv2: U| bv2 -> bv2)| fv12 (Lam |bv0: U| bv0 -> fv9) (Lam |bv0 : fv9| bv0));
         dbg!(t.type_of());
     }
 }

@@ -11,7 +11,7 @@ use crate::{
 };
 // use crate::resolve::ResolvePrim;
 // use rowan::TextRange;
-use xi_core::judgment::{Judgment, JudgmentKind, Metadata, Primitive};
+use xi_core::judgment::{Judgment, JudgmentKind, Primitive};
 use xi_uuid::VarUuid;
 
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
@@ -25,7 +25,7 @@ impl TypeVar {
 }
 
 impl Primitive for TypeVar {
-    fn maybe_prim_type<S: Metadata>(&self) -> Option<Judgment<Self, S>> {
+    fn maybe_prim_type(&self) -> Option<Judgment<Self>> {
         Some(Judgment::u(None))
     }
 }
@@ -34,15 +34,15 @@ impl Primitive for TypeVar {
 pub struct Context<'a, 'b> {
     var_map: BTreeMap<VarUuid, TypeVar>,
     resps: Vec<TypeVar>,
-    constraints: &'a mut BTreeMap<TypeVar, Judgment<TypeVarPrim, UiMetadata>>,
+    constraints: &'a mut BTreeMap<TypeVar, Judgment<TypeVarPrim>>,
     module: &'b Module,
 }
 
 impl<'a, 'b> Context<'a, 'b> {
     fn subcontext(
         &mut self,
-        func: impl FnOnce(&mut Context) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError>,
-    ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
+        func: impl FnOnce(&mut Context) -> Result<Judgment<TypeVarPrim>, TypeError>,
+    ) -> Result<Judgment<TypeVarPrim>, TypeError> {
         let mut subcontext = Context {
             var_map: self.var_map.clone(),
             resps: vec![],
@@ -76,12 +76,12 @@ impl<'a, 'b> Context<'a, 'b> {
 
     fn type_infer(
         &mut self,
-        judg_ment: Judg_ment<UiPrim, UiMetadata>,
-    ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
+        judg_ment: Judg_ment<UiPrim>,
+    ) -> Result<Judgment<TypeVarPrim>, TypeError> {
         match *judg_ment.0 {
             Judg_mentKind::Type => Ok(Judgment::u(None)),
             Judg_mentKind::Prim(prim) => self.subcontext(|ctx| {
-                Ok(match prim.maybe_prim_type::<UiMetadata>() {
+                Ok(match prim.maybe_prim_type() {
                     Some(_prim_type) => {
                         Judgment::prim_wo_prim_type(TypeVarPrim::Prim(prim.clone()), None)
                     }
@@ -267,9 +267,9 @@ impl<'a, 'b> Context<'a, 'b> {
 
     fn type_check(
         &mut self,
-        expr: Judg_ment<UiPrim, UiMetadata>,
-        expected: Judgment<TypeVarPrim, UiMetadata>,
-    ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
+        expr: Judg_ment<UiPrim>,
+        expected: Judgment<TypeVarPrim>,
+    ) -> Result<Judgment<TypeVarPrim>, TypeError> {
         let expected = expected.nbe();
         match (*expr.0.clone(), *expected.tree.clone()) {
             (
@@ -314,7 +314,7 @@ impl<'a, 'b> Context<'a, 'b> {
     fn add_constraint(
         &mut self,
         type_var: TypeVar,
-        replacement: Judgment<TypeVarPrim, UiMetadata>,
+        replacement: Judgment<TypeVarPrim>,
     ) -> Result<(), TypeError> {
         let result = match self.constraints.get(&type_var) {
             Some(result) => {
@@ -328,7 +328,7 @@ impl<'a, 'b> Context<'a, 'b> {
         Ok(())
     }
 
-    fn lookup_type_var(&self, type_var: &TypeVar) -> Judgment<TypeVarPrim, UiMetadata> {
+    fn lookup_type_var(&self, type_var: &TypeVar) -> Judgment<TypeVarPrim> {
         match self.constraints.get(type_var) {
             Some(inferred_type) => inferred_type.clone(),
             None => Judgment::prim(TypeVarPrim::TypeVar(*type_var), Judgment::u(None), None),
@@ -338,9 +338,9 @@ impl<'a, 'b> Context<'a, 'b> {
     // This is the unify function in Hindley-Milner systems.
     fn unify(
         &mut self,
-        lhs: &Judgment<TypeVarPrim, UiMetadata>,
-        rhs: &Judgment<TypeVarPrim, UiMetadata>,
-    ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
+        lhs: &Judgment<TypeVarPrim>,
+        rhs: &Judgment<TypeVarPrim>,
+    ) -> Result<Judgment<TypeVarPrim>, TypeError> {
         let lhs = lhs.clone().nbe();
         let rhs = rhs.clone().nbe();
 
@@ -437,23 +437,24 @@ impl<'a, 'b> Context<'a, 'b> {
                 None,
             ))?;
 
-            let sub_fn = Rc::new(
-                move |prim,
-                      prim_type,
-                      define_prim: Rc<
-                    dyn Fn(Judgment<TypeVarPrim, UiMetadata>) -> Judgment<TypeVarPrim, UiMetadata>,
-                >| {
-                    if let TypeVarPrim::TypeVar(type_var) = prim {
-                        if type_var == resp {
-                            resolved_type.clone()
+            let sub_fn =
+                Rc::new(
+                    move |prim,
+                          prim_type,
+                          define_prim: Rc<
+                        dyn Fn(Judgment<TypeVarPrim>) -> Judgment<TypeVarPrim>,
+                    >| {
+                        if let TypeVarPrim::TypeVar(type_var) = prim {
+                            if type_var == resp {
+                                resolved_type.clone()
+                            } else {
+                                Judgment::prim(prim, define_prim(prim_type), None)
+                            }
                         } else {
                             Judgment::prim(prim, define_prim(prim_type), None)
                         }
-                    } else {
-                        Judgment::prim(prim, define_prim(prim_type), None)
-                    }
-                },
-            );
+                    },
+                );
 
             self.constraints.remove(&resp);
 
@@ -467,13 +468,13 @@ impl<'a, 'b> Context<'a, 'b> {
     // function formaly known as final_lookup.
     pub fn substitute(
         &mut self,
-        judgment: &Judgment<TypeVarPrim, UiMetadata>,
-    ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
+        judgment: &Judgment<TypeVarPrim>,
+    ) -> Result<Judgment<TypeVarPrim>, TypeError> {
         fn substitute_rec(
             ctx: &mut Context,
-            judgment: &Judgment<TypeVarPrim, UiMetadata>,
+            judgment: &Judgment<TypeVarPrim>,
             seen: &BTreeSet<TypeVar>,
-        ) -> Result<Judgment<TypeVarPrim, UiMetadata>, TypeError> {
+        ) -> Result<Judgment<TypeVarPrim>, TypeError> {
             let metadata = judgment.metadata.clone();
             let result = match &*judgment.tree {
                 JudgmentKind::Type => Judgment::u(Some(metadata)),
@@ -535,8 +536,8 @@ impl<'a, 'b> Context<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-pub struct TypeError {
-    string: String,
+pub enum TypeError {
+    UnifyFailed(Judgment<UiPrim>),
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -572,7 +573,7 @@ pub enum UiBinaryOp {
 }
 
 impl Primitive for UiPrim {
-    fn maybe_prim_type<S: Metadata>(&self) -> Option<Judgment<Self, S>> {
+    fn maybe_prim_type(&self) -> Option<Judgment<Self>> {
         use xi_proc_macro::term;
         use UiPrim::*;
         match self {
@@ -616,7 +617,7 @@ pub enum TypeVarPrim {
 }
 
 impl Primitive for TypeVarPrim {
-    fn maybe_prim_type<S: Metadata>(&self) -> Option<Judgment<Self, S>> {
+    fn maybe_prim_type(&self) -> Option<Judgment<Self>> {
         let ans = match self {
             TypeVarPrim::TypeVar(_type_var) => Judgment::u(None),
             TypeVarPrim::Prim(type_var) => match type_var.maybe_prim_type() {
@@ -632,9 +633,7 @@ impl Primitive for TypeVarPrim {
     }
 }
 
-fn ui_prim_to_type_var_prim(
-    expr: Judgment<UiPrim, UiMetadata>,
-) -> Judgment<TypeVarPrim, UiMetadata> {
+fn ui_prim_to_type_var_prim(expr: Judgment<UiPrim>) -> Judgment<TypeVarPrim> {
     expr.define_prim(Rc::new(|t, prim_type, define_prim| {
         Judgment::prim(TypeVarPrim::Prim(t), define_prim(prim_type), None)
     }))
@@ -651,7 +650,7 @@ pub struct UiMetadata {
 pub fn type_infer_mod_ule_item(
     module: &Module,
     mod_ule_item: &Mod_uleItem,
-) -> (VarUuid, ModuleItem) {
+) -> Result<(VarUuid, ModuleItem), String> {
     let mut ctx = Context {
         var_map: BTreeMap::new(),
         resps: vec![],
@@ -705,7 +704,7 @@ pub fn type_infer_mod_ule_item(
         None => None,
     };
 
-    let judgment: Judgment<UiPrim, UiMetadata> =
+    let judgment: Judgment<UiPrim> =
         type_var_judgment.define_prim(Rc::new(|type_var_prim, prim_type, define_prim| {
             match type_var_prim {
                 TypeVarPrim::TypeVar(_) => unreachable!("resps should be empty"),
@@ -722,7 +721,5 @@ pub fn type_infer_mod_ule_item(
         },
         impl_: judgment,
     };
-    (mod_ule_item.var.index, ModuleItem::Define(define_item))
+    Ok((mod_ule_item.var.index, ModuleItem::Define(define_item)))
 }
-
-impl Metadata for UiMetadata {}

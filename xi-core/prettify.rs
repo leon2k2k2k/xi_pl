@@ -17,8 +17,8 @@ pub enum JudgmentTree<T> {
     Metadata(Box<JudgmentTree<T>>, String),
 }
 
-fn is_outermost_bound_var_used<T, S>(expr: Judgment<T, S>) -> bool {
-    fn is_bound_var_used<T, S>(expr: Judgment<T, S>, depth: u32) -> bool {
+fn is_outermost_bound_var_used<T>(expr: Judgment<T>) -> bool {
+    fn is_bound_var_used<T>(expr: Judgment<T>, depth: u32) -> bool {
         match *expr.tree {
             JudgmentKind::Type => false,
             JudgmentKind::Prim(_, _) => false,
@@ -38,9 +38,9 @@ fn is_outermost_bound_var_used<T, S>(expr: Judgment<T, S>) -> bool {
     is_bound_var_used(expr, 0)
 }
 
-pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> JudgmentTree<T> {
+pub fn judgment_to_tree<T: Primitive>(judgment: Judgment<T>) -> JudgmentTree<T> {
     use JudgmentTree::*;
-    let judgment_tree = match *judgment.tree.clone() {
+    match *judgment.tree.clone() {
         JudgmentKind::Type => JudgmentTree::Type,
         JudgmentKind::Prim(prim, prim_type) => {
             JudgmentTree::Prim(prim, Box::new(judgment_to_tree(prim_type)))
@@ -91,11 +91,6 @@ pub fn judgment_to_tree<T: Primitive, S: Metadata>(judgment: Judgment<T, S>) -> 
                 App(vec![func_tree, elem_tree])
             }
         }
-    };
-    if judgment.metadata == S::default() {
-        judgment_tree
-    } else {
-        JudgmentTree::Metadata(Box::new(judgment_tree), format!("{:?}", judgment.metadata))
     }
 }
 
@@ -116,7 +111,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
     ) -> String {
         let body_str = match judg_tree {
             JudgmentTree::Type => "U".into(),
-            JudgmentTree::Prim(prim, prim_type) => match prim.maybe_prim_type::<()>() {
+            JudgmentTree::Prim(prim, prim_type) => match prim.maybe_prim_type() {
                 None => format!(
                     "({:?} : {})",
                     prim,
@@ -248,7 +243,7 @@ pub fn tree_to_string<T: Primitive>(judg_tree: &JudgmentTree<T>) -> String {
     }
 }
 
-impl<T: Primitive, S: Metadata> std::fmt::Debug for Judgment<T, S> {
+impl<T: Primitive> std::fmt::Debug for Judgment<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&tree_to_string(&judgment_to_tree(self.clone())))?;
         Ok(())
@@ -260,28 +255,28 @@ mod test {
         use super::*;
         use xi_proc_macro::term;
 
-        let test0: Judgment<(), ()> = term!(Pi | A: U | A);
+        let test0: Judgment<()> = term!(Pi | A: U | A);
         assert_eq!(tree_to_string(&judgment_to_tree(test0)), "Pi |v0 : U| v0");
 
-        let test1: Judgment<(), ()> = term!(Pi |A : U, B : U, C : U| A -> B -> C);
+        let test1: Judgment<()> = term!(Pi |A : U, B : U, C : U| A -> B -> C);
         assert_eq!(
             tree_to_string(&judgment_to_tree(test1)),
             "Pi |v0 : U, v1 : U, v2 : U| v0 -> v1 -> v2"
         );
 
-        let test2: Judgment<(), ()> = term!(Pi |T : U| T -> (T -> T) -> T);
+        let test2: Judgment<()> = term!(Pi |T : U| T -> (T -> T) -> T);
         assert_eq!(
             tree_to_string(&judgment_to_tree(test2)),
             "Pi |v0 : U| v0 -> (v0 -> v0) -> v0"
         );
 
-        let test3: Judgment<(), ()> = term!(Pi |T : U, P : U -> U| (Pi |S : U| S) -> P T -> P T);
+        let test3: Judgment<()> = term!(Pi |T : U, P : U -> U| (Pi |S : U| S) -> P T -> P T);
         assert_eq!(
             tree_to_string(&judgment_to_tree(test3)),
             "Pi |v0 : U, v1 : U -> U| (Pi |v2 : U| v2) -> v1 v0 -> v1 v0"
         );
 
-        let test4: Judgment<(), ()> = term!(Lam | T: U, t: T | t);
+        let test4: Judgment<()> = term!(Lam | T: U, t: T | t);
         assert_eq!(
             tree_to_string(&judgment_to_tree(test4)),
             "Lam |v0 : U, v1 : v0| v1"

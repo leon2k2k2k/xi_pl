@@ -4,7 +4,7 @@ use xi_backend::js_prim::{JsDefineItem, JsModule};
 use xi_backend::js_prim::{JsModuleItem, JsPrim};
 use xi_core::judgment::{Judgment, Primitive};
 use xi_frontend::{
-    type_inference::{UiMetadata, UiPrim},
+    type_inference::{UiPrim},
     Module, ModuleItem,
 };
 use xi_runtime::runtime::RUNTIME_FILE;

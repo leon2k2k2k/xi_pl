@@ -81,6 +81,12 @@ impl JsModuleItem {
             // JsModuleItem::Import(import_item) => import_item.type_.clone(),
         }
     }
+
+    pub fn transport_info(&self) -> TransportInfo {
+        match self {
+            JsModuleItem::Define(define_item) => define_item.transport_info.clone(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

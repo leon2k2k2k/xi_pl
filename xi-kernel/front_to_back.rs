@@ -1,12 +1,9 @@
 use std::{collections::BTreeMap, rc::Rc};
 
-use xi_backend::js_prim::{JsDefineItem, JsModule};
+use xi_backend::js_prim::{JsDefineItem, JsModule, TransportInfo};
 use xi_backend::js_prim::{JsModuleItem, JsPrim};
 use xi_core::judgment::{Judgment, Primitive};
-use xi_frontend::{
-    type_inference::{UiPrim},
-    Module, ModuleItem,
-};
+use xi_frontend::{type_inference::UiPrim, Module, ModuleItem};
 use xi_runtime::runtime::RUNTIME_FILE;
 use xi_uuid::VarUuid;
 // takes a module and get back a JsModule, which is exactly what is needed to produce a Js file.
@@ -16,7 +13,7 @@ pub fn front_to_back(module: Module) -> JsModule {
         let js_module_item = match module_item {
             ModuleItem::Define(define_item) => JsModuleItem::Define(JsDefineItem {
                 name: define_item.name,
-                backend: define_item.backend,
+                transport_info: transport_info_front_to_back(define_item.backend),
                 type_: ui_to_js_judgment(define_item.type_),
                 impl_: ui_to_js_judgment(define_item.impl_),
             }),
@@ -28,6 +25,15 @@ pub fn front_to_back(module: Module) -> JsModule {
     JsModule {
         str_to_index: module.str_to_index,
         module_items: js_module_items,
+    }
+}
+
+pub fn transport_info_front_to_back(
+    transport_info: xi_frontend::resolve::TransportInfo,
+) -> xi_backend::js_prim::TransportInfo {
+    TransportInfo {
+        origin: transport_info.origin,
+        transport: transport_info.transport,
     }
 }
 

@@ -1,5 +1,5 @@
 use desugar::desugar_module_stmt;
-use resolve::{parse_module_stmt, StmtKind};
+use resolve::{parse_module_stmt, StmtKind, TransportInfo};
 use rowan::SyntaxNode;
 use rowan_ast::{nonextra_children, string_to_syntax, Lang};
 use std::rc::Rc;
@@ -7,9 +7,9 @@ use std::{cell::RefCell, collections::BTreeMap};
 use type_inference::{type_infer_mod_ule_item, UiPrim};
 use xi_core::judgment::Judgment;
 use xi_uuid::VarUuid;
-mod desugar;
-mod resolve;
-mod rowan_ast;
+pub mod desugar;
+pub mod resolve;
+pub mod rowan_ast;
 pub mod type_inference;
 #[derive(Clone, Debug)]
 
@@ -109,7 +109,7 @@ impl ModuleItem {
 #[derive(Clone, Debug)]
 pub struct DefineItem {
     pub name: String,
-    pub backend: Option<String>,
+    pub backend: TransportInfo,
     pub type_: Judgment<UiPrim>,
     pub impl_: Judgment<UiPrim>,
     // pub publicity

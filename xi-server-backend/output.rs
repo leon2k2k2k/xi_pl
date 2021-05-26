@@ -22,6 +22,24 @@ pub struct JsPyModules {
     py: Module,
 }
 
+// let's try to write the modules again.
+
+pub fn module_to_swc_js_module(module: JsModule) -> Module {
+    // first the standard server kind of stuff:
+    // import {Server, pi_to_json, json_kind} from "./server.ts";
+
+    // let server = new Server("js");
+
+    // then for every moduleitem, we look at its transport info,
+    // if its origin is js, then we write it down the normal way,
+    // and serialize it and stuff. If its transport is js, then we call the server to
+    // deserialize it.
+
+    // the same is absolutely the same for python.
+
+    todo!()
+}
+
 // this output is different as we need to import server and update_server,
 // and run the server in the beginning of the file, and stuff.
 

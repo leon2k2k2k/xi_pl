@@ -86,11 +86,41 @@ impl JsModuleItem {
 #[derive(Clone, Debug)]
 pub struct JsDefineItem {
     pub name: String,
-    pub backend: Option<String>,
+    pub transport_info: TransportInfo,
     pub type_: Judgment<JsPrim>,
     pub impl_: Judgment<JsPrim>,
     // pub publicity
 }
+
+#[derive(Clone, Debug)]
+pub struct TransportInfo {
+    pub origin: Option<String>,
+    pub transport: Option<String>,
+}
+
+impl TransportInfo {
+    pub fn none() -> TransportInfo {
+        TransportInfo {
+            origin: None,
+            transport: None,
+        }
+    }
+
+    pub fn only_origin(origin: String) -> TransportInfo {
+        TransportInfo {
+            origin: Some(origin),
+            transport: None,
+        }
+    }
+
+    pub fn origin_and_transport(origin: String, tranport: String) -> TransportInfo {
+        TransportInfo {
+            origin: Some(origin),
+            transport: Some(tranport),
+        }
+    }
+}
+
 // #[derive(Clone, Debug)]
 
 // pub struct ImportItem {

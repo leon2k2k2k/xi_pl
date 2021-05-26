@@ -43,7 +43,36 @@ pub enum Error {
 }
 
 #[derive(Clone, Debug)]
-pub struct Stmt(pub StmtKind, pub Option<String>, pub Span);
+pub struct Stmt(pub StmtKind, pub TransportInfo, pub Span);
+
+#[derive(Clone, Debug)]
+pub struct TransportInfo {
+    pub origin: Option<String>,
+    pub transport: Option<String>,
+}
+
+impl TransportInfo {
+    pub fn none() -> TransportInfo {
+        TransportInfo {
+            origin: None,
+            transport: None,
+        }
+    }
+
+    pub fn only_origin(origin: String) -> TransportInfo {
+        TransportInfo {
+            origin: Some(origin),
+            transport: None,
+        }
+    }
+
+    pub fn origin_and_transport(origin: String, tranport: String) -> TransportInfo {
+        TransportInfo {
+            origin: Some(origin),
+            transport: Some(tranport),
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub enum StmtKind {
@@ -232,15 +261,28 @@ impl Context {
         let stmt_kind = match node.kind() {
             SyntaxKind::DECORATOR_STMT => {
                 if children.len() == 2 {
-                    let decorator_var = children[0].first_token().unwrap().text().into();
-
+                    // @ js let ...
+                    let origin = children[0].first_token().unwrap().text().into();
+                    let tranport_info = TransportInfo::only_origin(origin);
                     let mut inside_stmt = self.parse_stmt(&children[1], expr_or_mod);
-                    inside_stmt.1 = Some(decorator_var);
+                    inside_stmt.1 = tranport_info;
 
                     // Early return!
                     return inside_stmt;
+                } else if children.len() == 3 {
+                    // @ js transport py let ...
+                    let origin = children[0].first_token().unwrap().text().into();
+                    let transport = children[1].first_token().unwrap().text().into();
+                    let transport_info = TransportInfo::origin_and_transport(origin, transport);
+                    let mut inside_stmt = self.parse_stmt(&children[2], expr_or_mod);
+                    inside_stmt.1 = transport_info;
+
+                    return inside_stmt;
                 } else {
-                    panic!("The length of the decorator_stmt should be 2.")
+                    panic!(
+                        "The length of the decorator_stmt should be 2 or 3. {}",
+                        node
+                    )
                 }
             }
             SyntaxKind::LET_STMT => {
@@ -439,7 +481,7 @@ impl Context {
             _ => panic!("parse_stmt can only parse an stmt, got {:?}", node.kind()),
         };
 
-        Stmt(stmt_kind, None, node.text_range())
+        Stmt(stmt_kind, TransportInfo::none(), node.text_range())
     }
 
     fn parse_ffi_dict(&mut self, node: &SyntaxNode, expr_or_mod: ExprOrModule) -> Vec<(Var, Expr)> {

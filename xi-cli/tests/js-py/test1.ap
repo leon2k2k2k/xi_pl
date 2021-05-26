@@ -1,0 +1,5 @@
+// let it up so this will work:
+
+@js trasnport pyfn add5 |x : Int| -> Int {val x + 5}
+
+@py let ans = add5 (10)

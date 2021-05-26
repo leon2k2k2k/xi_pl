@@ -1,1 +1,6 @@
-frontend let x= f((a,b))
+@ js transport py fn add5 | x: Int| -> Int {
+    val x + 5
+}
+
+
+// @py let ten = add5 (5)

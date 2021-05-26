@@ -323,3 +323,11 @@ pub fn let_server_code(server_name: String) -> ModuleItem {
         }),
     }))
 }
+
+// this backend takes an Aplite file and gets a Python and Js module:
+fn module_to_js_py_modules(module: JsModule) -> JsPyModules {
+    JsPyModules {
+        js_backend: module_to_js_module(module.clone()),
+        py: module_to_py_module(module),
+    }
+}

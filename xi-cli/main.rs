@@ -64,7 +64,9 @@ fn main() {
     let file_contents = std::fs::read_to_string(input[1].clone()).unwrap();
 
     let module_and_imports = ui_to_module(&file_contents);
+
     let module = module_and_imports.module;
+    dbg!(&module);
     let jsmodule = front_to_back(module);
     let js = js_module_to_string(jsmodule.clone());
     println!("{}", js);

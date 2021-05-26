@@ -60,7 +60,7 @@ module.exports = grammar({
         $.struct_stmt,
       ),
 
-    decorator_stmt: ($) => seq("@", $.ident, $._stmt),
+    decorator_stmt: ($) => seq("@", $.ident, optional(seq("transport", $.ident)), $._stmt),
 
     let_stmt: ($) =>
       seq("let", $.ident, optional(seq(":", $._expr)), "=", $._expr),

@@ -9,8 +9,9 @@ use swc_ecma_ast::{
 use xi_backend::{
     js_prim::{JsModule, JsPrim},
     output::{
-        module_item_to_swc_module_item, string_to_import_specifier, swc_module_to_string,
-        to_js_app, to_js_ident, to_js_ident2, to_js_num, to_js_str,
+        make_var_name, module_item_to_swc_module_item, run_io, string_to_import_specifier,
+        swc_module_to_string, to_js_app, to_js_await, to_js_ident, to_js_ident2, to_js_num,
+        to_js_str,
     },
 };
 
@@ -24,7 +25,11 @@ pub struct JsPyModules {
 
 // let's try to write the modules again.
 
-pub fn module_to_swc_module(module: JsModule, server_name: String) -> Module {
+pub fn module_to_swc_module(
+    module: JsModule,
+    main_id: Option<VarUuid>,
+    server_name: String,
+) -> Module {
     // first the standard server kind of stuff:
     // import {Server, pi_to_json, json_kind} from "./server.ts";
 
@@ -51,7 +56,9 @@ pub fn module_to_swc_module(module: JsModule, server_name: String) -> Module {
     // if their origin == server_name, then module_item_to... it, and serialize it,
     // else if trasnport == server_name, then deseraliaze it.
     // else just ignore it.
+    dbg!(&module.module_items);
     for (var_index, module_item) in &module.module_items {
+        dbg!(&var_index);
         if Some(server_name.clone()) == module_item.transport_info().origin {
             let (new_ffi_functions, swc_module_item) =
                 module_item_to_swc_module_item(module_item.clone(), *var_index);
@@ -61,19 +68,22 @@ pub fn module_to_swc_module(module: JsModule, server_name: String) -> Module {
 
             // export const var_1 = ....
             body.push(swc_module_item);
-
+            // do below only if it has a transport
             // server.register(var_1, serialized_var_1);
-            let serialized_var_module_item = register_var(var_index, module_item.type_());
-            body.push(serialized_var_module_item);
+
+            if let Some(server_name) = module_item.transport_info().transport {
+                let serialized_var_module_item = register_top_level(var_index, module_item.type_());
+                body.push(serialized_var_module_item);
+            }
         } else if Some(server_name.clone()) == module_item.transport_info().transport {
-            let deregister_var = Expr::Member(MemberExpr {
+            let deregister_top_level = Expr::Member(MemberExpr {
                 span: DUMMY_SP,
                 obj: ExprOrSuper::Expr(Box::new(to_js_ident("server"))),
-                prop: Box::new(to_js_ident("deregister_var")),
+                prop: Box::new(to_js_ident("deregister_top_level")),
                 computed: false,
             });
             let call_expr = to_js_app_wo_await(
-                deregister_var,
+                deregister_top_level,
                 vec![
                     to_js_str(format!("var_{}", var_index.index())),
                     type_to_json(module_item.type_()),
@@ -130,9 +140,17 @@ pub fn module_to_swc_module(module: JsModule, server_name: String) -> Module {
     let body_with_imports = {
         let mut t = ffi_imports;
         t.extend(body);
+        if let Some(main_id) = main_id {
+            let run_main = ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(run_io(Expr::Ident(make_var_name(main_id)))),
+            }));
+            t.push(run_main)
+        }
         // now I want to apply server_registration to every var_name!
         t
     };
+
     Module {
         span: DUMMY_SP,
         body: body_with_imports,
@@ -186,30 +204,35 @@ pub fn get_vars(type_: Judgment<JsPrim>, vars: &mut Vec<Judgment<JsPrim>>) {
 }
 
 pub fn js_module_to_string(module: JsModule) -> String {
-    let module = module_to_swc_module(module, "js".into());
+    let module = module_to_swc_module(module, None, "js".into());
     swc_module_to_string(module)
 }
 
 pub fn js_module_to_py_string(module: JsModule) -> String {
-    let py_module = module_to_swc_module(module, "py".into());
+    let py_module = module_to_swc_module(module, None, "py".into());
     swc_module_to_string(py_module)
 }
 
-pub fn register_var(index: &VarUuid, type_: Judgment<JsPrim>) -> ModuleItem {
+pub fn js_module_to_py_string_with_run(module: JsModule, main_id: VarUuid) -> String {
+    let py_main_module = module_to_swc_module(module, Some(main_id), "py".into());
+    swc_module_to_string(py_main_module)
+}
+
+pub fn register_top_level(index: &VarUuid, type_: Judgment<JsPrim>) -> ModuleItem {
     // first let's make the json object associated to var_a.type_:
     // server.register_var()
     let json_var_type_ = type_to_json(type_);
-    let server_register_var = Expr::Member(MemberExpr {
+    let server_register_top_level = Expr::Member(MemberExpr {
         span: DUMMY_SP,
         obj: ExprOrSuper::Expr(Box::new(to_js_ident("server"))),
-        prop: Box::new(to_js_ident("register_var")),
+        prop: Box::new(to_js_ident("register_top_level")),
         computed: false,
     });
 
     let call_expr = to_js_app_wo_await(
-        server_register_var,
+        server_register_top_level,
         vec![
-            to_js_ident(format!("var_{}", index.index())),
+            to_js_await(to_js_ident(format!("var_{}", index.index()))),
             to_js_str(format!("var_{}", index.index())),
             json_var_type_,
         ],
@@ -309,7 +332,7 @@ pub fn let_server_code(server_name: String) -> ModuleItem {
 // this backend takes an Aplite file and gets a Python and Js module:
 fn module_to_js_py_modules(module: JsModule) -> JsPyModules {
     JsPyModules {
-        js_backend: module_to_swc_module(module.clone(), "js".into()),
-        py: module_to_swc_module(module, "py".into()),
+        js_backend: module_to_swc_module(module.clone(), None, "js".into()),
+        py: module_to_swc_module(module, None, "py".into()),
     }
 }

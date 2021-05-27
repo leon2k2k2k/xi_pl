@@ -31,13 +31,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use xi_frontend::ui_to_module;
     use xi_kernel::front_to_back::front_to_back;
     use xi_runtime::runtime;
-    use xi_server_backend::output::{js_module_to_py_string, js_module_to_string};
+    use xi_server_backend::output::{
+        js_module_to_py_string, js_module_to_py_string_with_run, js_module_to_string,
+    };
     let input = std::env::args().collect::<Vec<_>>();
     let file_contents = std::fs::read_to_string(input[1].clone())?;
 
     let module_and_imports = ui_to_module(&file_contents);
     let module = module_and_imports.module;
     let jsmodule = front_to_back(module);
+    dbg!(&jsmodule);
 
     let js_or_py = input[2].clone();
     if js_or_py == "js" {
@@ -45,7 +48,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{}", js);
         runtime::run_js_from_string(js).await?;
     } else {
-        let py = js_module_to_py_string(jsmodule);
+        let func_name = input[3].clone();
+        let index = *jsmodule
+            .str_to_index
+            .get(&func_name)
+            .expect("func not found");
+        let py = js_module_to_py_string_with_run(jsmodule, index);
         println!("{}", py);
         runtime::run_js_from_string(py).await?;
     }

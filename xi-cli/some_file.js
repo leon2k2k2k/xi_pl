@@ -56,13 +56,6 @@ export const console_output = Promise.resolve(async (out_str) =>
   }
 );
 
-export async function panic(out_str) {
-  return () => {
-    console_output(out_str)();
-    throw "exception";
-  };
-}
-
 export const panic = Promise.resolve(async (out_str) =>
   async () => {
     await (await (await console_output)(out_str))();
@@ -75,5 +68,5 @@ export const YCombinator_please_accept_us = Promise.resolve(async (fn) =>
   async () =>
     (async (x) => x(x))(
       async (maker) => async (...args) => fn(maker(maker))(...args),
-    );
+    )
 )

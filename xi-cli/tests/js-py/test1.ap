@@ -1,3 +1,26 @@
 // let it up so this will work:
 
-@js transport py fn add5 |x : Int| -> Int {val x + 5}
+@js transport py let five = 5
+
+@js transport py fn add3 |x : Int| -> Int {val 3 + x }
+
+@js transport py fn apply234234 |f : Int -> Int| -> Int {val f 234234}
+
+@py let ten = apply234234 add3
+
+@py let seven = add3(4)
+
+@py let main = {
+
+    ffi "./some_file.js"{
+        UnitType : Type,
+        unit : UnitType,
+        int_to_string: Int -> String,
+        console_output: String -> IO UnitType,
+        console_input: IO String,
+    }
+
+
+    let me = console_output(int_to_string(ten))!
+    val unit!
+}

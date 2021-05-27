@@ -63,6 +63,10 @@ export const panic = Promise.resolve(async (out_str) =>
   }
 );
 
+export const concat = Promise.resolve(async (a) =>
+  async (b) => Promise.resolve(a + b)
+);
+
 // probably doesn't work
 export const YCombinator_please_accept_us = Promise.resolve(async (fn) =>
   async () =>

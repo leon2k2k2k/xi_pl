@@ -20,4 +20,5 @@ xi-core = { path = "../xi-core" }
 xi-server-backend = { path = "../xi-server-backend" }
 
 [features]
-deno = ["tokio",  "xi-runtime"]
+deno-with-server = ["tokio",  "xi-runtime"]
+deno-no-server = ["tokio", "xi-runtime"]

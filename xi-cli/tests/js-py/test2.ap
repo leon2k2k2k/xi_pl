@@ -1,0 +1,22 @@
+@js transport py ffi "./some_file.js" {
+    concat: String -> String -> String
+}
+
+@js transport py let string = "hello"
+
+@py let hello_world = concat (string, " world")
+
+@py let main = {
+
+    ffi "./some_file.js"{
+        UnitType : Type,
+        unit : UnitType,
+        int_to_string: Int -> String,
+        console_output: String -> IO UnitType,
+        console_input: IO String,
+    }
+
+
+    let me = console_output(hello_world)!
+    val unit!
+}

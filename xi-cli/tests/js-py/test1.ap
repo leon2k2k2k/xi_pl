@@ -4,7 +4,8 @@
 
 @js transport py fn add3 |x : Int| -> Int {val 3 + x }
 
-@js transport py fn apply234234 |f : Int -> Int| -> Int {val f 234234}
+@js transport py fn apply234234 |f : Int -> Int| -> Int
+  {val f 234234}
 
 @py let ten = apply234234 add3
 

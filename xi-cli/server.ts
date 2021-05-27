@@ -38,6 +38,8 @@ export class Server {
   serialize(value: any, type: any) {
     if (type.kind == "Int") {
       return this.register_new(value);
+    } else if (type.kind === "Str") {
+      return this.register_new(value);
     } else {
       let arg_type = type.kind.left;
       let return_type = type.kind.right;
@@ -85,6 +87,11 @@ export class Server {
         js_ident: value,
       });
       return BigInt(await this.post(request));
+    } else if (type.kind === "Str") {
+      let request = JSON.stringify({
+        js_ident: value,
+      });
+      return (await this.post(request));
     } else {
       let arg_type = type.kind.left;
       let return_type = type.kind.right;

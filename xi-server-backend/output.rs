@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use swc_common::DUMMY_SP;
 use swc_ecma_ast::{
-    AwaitExpr, BindingIdent, Decl, ExportDecl, Expr, ExprOrSpread, ExprOrSuper, ExprStmt,
+    AwaitExpr, BindingIdent, CallExpr, Decl, ExportDecl, Expr, ExprOrSpread, ExprOrSuper, ExprStmt,
     ImportDecl, ImportNamedSpecifier, ImportSpecifier, MemberExpr, Module, ModuleDecl, ModuleItem,
     NewExpr, Pat, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
 };
@@ -42,7 +42,7 @@ pub fn module_to_swc_module(module: JsModule, server_name: String) -> Module {
     // first we add in the import server stuff code:
     body.push(std_import_from_server());
     // then run server.
-    body.push(let_server_code("js".into()));
+    body.push(let_server_code(server_name.clone()));
 
     // keep track of all the ffi functions.
     let mut ffi_functions = BTreeMap::new();
@@ -63,22 +63,19 @@ pub fn module_to_swc_module(module: JsModule, server_name: String) -> Module {
             body.push(swc_module_item);
 
             // server.register(var_1, serialized_var_1);
-            let serialized_var_module_item = serialize(var_index, module_item.type_());
+            let serialized_var_module_item = register_var(var_index, module_item.type_());
             body.push(serialized_var_module_item);
         } else if Some(server_name.clone()) == module_item.transport_info().transport {
-            let server_deserialize = Expr::Member(MemberExpr {
+            let deregister_var = Expr::Member(MemberExpr {
                 span: DUMMY_SP,
-                obj: ExprOrSuper::Expr(Box::new(to_js_ident("server".into()))),
-                prop: Box::new(to_js_ident("deserialize".into())),
+                obj: ExprOrSuper::Expr(Box::new(to_js_ident("server"))),
+                prop: Box::new(to_js_ident("deregister_var")),
                 computed: false,
             });
-            let call_expr = to_js_app(
-                server_deserialize,
+            let call_expr = to_js_app_wo_await(
+                deregister_var,
                 vec![
-                    to_js_app(
-                        to_js_ident("thing".into()),
-                        vec![to_js_num(var_index.index().to_string())],
-                    ),
+                    to_js_str(format!("var_{}", var_index.index())),
                     type_to_json(module_item.type_()),
                 ],
             );
@@ -90,7 +87,7 @@ pub fn module_to_swc_module(module: JsModule, server_name: String) -> Module {
             let var_decl = VarDeclarator {
                 span: DUMMY_SP,
                 name: Pat::Ident(BindingIdent {
-                    id: to_js_ident2(format!("js_var_{}", var_index.index())),
+                    id: to_js_ident2(format!("var_{}", var_index.index())),
                     type_ann: None,
                 }),
                 init: Some(Box::new(await_expr)),
@@ -152,10 +149,10 @@ pub fn module_to_swc_module(module: JsModule, server_name: String) -> Module {
 // let server = new Server("js");
 
 // export const var_1 = ....
-// server.serialize(var_1, [json(var_1.type_)])
+// server.register_var(var_1, [json(var_1.type_)])
 
 // export const var_2 = ....
-// server.serialize(var_2, [json(var_2.type_)])
+// server.deregistar_var(var_2, [json(var_2.type_)])
 // ...
 
 // import { server, pi_to_json, json_kind } from "./new_server.js";
@@ -164,10 +161,9 @@ pub fn std_import_from_server() -> ModuleItem {
     let server = string_to_import_specifier("Server".into());
     let pi_to_json = string_to_import_specifier("pi_to_json".into());
     let json_kind = string_to_import_specifier("json_kind".into());
-    let thing = string_to_import_specifier("thing".into());
     ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
         span: DUMMY_SP,
-        specifiers: vec![server, pi_to_json, json_kind, thing],
+        specifiers: vec![server, pi_to_json, json_kind],
         src: Str {
             span: DUMMY_SP,
             value: "./server.ts".into(),
@@ -198,23 +194,23 @@ pub fn js_module_to_py_string(module: JsModule) -> String {
     let py_module = module_to_swc_module(module, "py".into());
     swc_module_to_string(py_module)
 }
-// this function generate the serialized var from the var_index and the Aplite type of the module_item:
-// server.serialize(var_1, [json(var_1.type_)])
 
-pub fn serialize(index: &VarUuid, type_: Judgment<JsPrim>) -> ModuleItem {
+pub fn register_var(index: &VarUuid, type_: Judgment<JsPrim>) -> ModuleItem {
     // first let's make the json object associated to var_a.type_:
+    // server.register_var()
     let json_var_type_ = type_to_json(type_);
-    let server_serialize = Expr::Member(MemberExpr {
+    let server_register_var = Expr::Member(MemberExpr {
         span: DUMMY_SP,
-        obj: ExprOrSuper::Expr(Box::new(to_js_ident("server".into()))),
-        prop: Box::new(to_js_ident("serialize".into())),
+        obj: ExprOrSuper::Expr(Box::new(to_js_ident("server"))),
+        prop: Box::new(to_js_ident("register_var")),
         computed: false,
     });
 
-    let call_expr = to_js_app(
-        server_serialize,
+    let call_expr = to_js_app_wo_await(
+        server_register_var,
         vec![
             to_js_ident(format!("var_{}", index.index())),
+            to_js_str(format!("var_{}", index.index())),
             json_var_type_,
         ],
     );
@@ -222,6 +218,21 @@ pub fn serialize(index: &VarUuid, type_: Judgment<JsPrim>) -> ModuleItem {
         span: DUMMY_SP,
         expr: Box::new(call_expr),
     }))
+}
+
+fn to_js_app_wo_await(func: Expr, args: Vec<Expr>) -> Expr {
+    Expr::Call(CallExpr {
+        span: DUMMY_SP,
+        callee: ExprOrSuper::Expr(Box::new(func)),
+        args: args
+            .iter()
+            .map(|arg| ExprOrSpread {
+                spread: None,
+                expr: Box::new(arg.clone()),
+            })
+            .collect(),
+        type_args: None,
+    })
 }
 
 // this function takes an Aplite type and encode it as a JSON object of binary tree of Pi's.
@@ -232,7 +243,7 @@ pub fn type_to_json(type_: Judgment<JsPrim>) -> Expr {
             //use pi_to_json:
             // ahhh what about free vars
             let args = vec![type_to_json(arg_type), type_to_json(return_type.unbind().1)];
-            to_js_app(to_js_ident("pi_to_json".into()), args)
+            to_js_app_wo_await(to_js_ident("pi_to_json"), args)
         }
         xi_core::judgment::JudgmentKind::Type => {
             unreachable!("we shouldn't see this here")
@@ -262,19 +273,19 @@ pub fn type_to_json(type_: Judgment<JsPrim>) -> Expr {
 
 // takes [str] to {kind: [str]}
 pub fn json_kind(str: String) -> Expr {
-    to_js_app(to_js_ident("json_kind".into()), vec![to_js_str(str)])
+    to_js_app_wo_await(to_js_ident("json_kind"), vec![to_js_str(str)])
 }
 
 pub fn let_server_code(server_name: String) -> ModuleItem {
     let var_declarator = VarDeclarator {
         span: DUMMY_SP,
         name: Pat::Ident(BindingIdent {
-            id: to_js_ident2("server".into()),
+            id: to_js_ident2("server"),
             type_ann: None,
         }),
         init: Some(Box::new(Expr::New(NewExpr {
             span: DUMMY_SP,
-            callee: Box::new(to_js_ident("Server".into())),
+            callee: Box::new(to_js_ident("Server")),
             args: Some(vec![ExprOrSpread {
                 spread: None,
                 expr: Box::new(to_js_str(server_name)),

@@ -1,9 +1,12 @@
 now-todo:
 1. changed grammer.js to allow declaration of server-client etc.
-2. set up the servers in the js backend that talk to each other. Leon is getting to that now.
-    First given a page, set up a server that allow other to pass values in and apply function there.
-3.  Move runtime.rs into its own module xi-runtime, then remove Deno dependency from xi-backend, change
-    xi-clie to print out js string if no --deno flag, and don't use Deno.
+2. change the frontend so that it actually parses to a module.
+3. change the backend so it gives a js and py file.
+4. set up the server so that it actually runs.
+
+Now distant goal:
+Get tictactoe should up in this way.
+
 
 
 

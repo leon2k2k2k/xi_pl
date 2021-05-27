@@ -1,10 +1,16 @@
-@js transport py ffi "./some_file.js" {
+@js tpub ffi "./some_file.js" {
     concat: String -> String -> String
 }
 
-@js transport py let string = "hello"
+@js table let string = "hello"
+
+@py transport js {
+    string,
+    concat,
+}
 
 @py let hello_world = concat (string, " world")
+
 
 @py let main = {
 

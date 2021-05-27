@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, rc::Rc};
 use swc_common::{FilePathMapping, SourceMap, DUMMY_SP};
 use swc_ecma_ast::{
-    ArrowExpr, BigInt, BindingIdent, BlockStmtOrExpr, CallExpr, Decl, ExportDecl, Expr,
+    ArrowExpr, AwaitExpr, BigInt, BindingIdent, BlockStmtOrExpr, CallExpr, Decl, ExportDecl, Expr,
     ExprOrSpread, ExprOrSuper, ExprStmt, Ident, ImportDecl, ImportNamedSpecifier, ImportSpecifier,
     Lit, MemberExpr, Module, ModuleDecl, ModuleItem, ParenExpr, Pat, Stmt, Str, VarDecl,
     VarDeclKind, VarDeclarator,
@@ -18,11 +18,6 @@ pub fn judgment_to_swc_expr(
     let mut ffi_functions = BTreeMap::new();
 
     let main_js = to_js(&judgment, BTreeMap::new(), &mut ffi_functions);
-
-    // let main_js2 = Expr::Await(AwaitExpr {
-    //     span: DUMMY_SP,
-    //     arg: Box::new(to_js_app(main_js, vec![])),
-    // });
 
     (ffi_functions, main_js)
 }
@@ -147,11 +142,11 @@ fn to_js(
     ffi: &mut BTreeMap<(String, String), VarUuid>,
 ) -> Expr {
     match &*judgment.tree {
-        JudgmentKind::Type => to_js_str_u(),
+        JudgmentKind::Type => to_js_str("Type"),
         JudgmentKind::Prim(t, _prim_type) => JsPrim::to_js_prim(&t, ffi),
         JudgmentKind::FreeVar(var_index, _var_type) => {
             match ctx.get(var_index) {
-                Some(ident) => to_js_ident1(ident.clone()),
+                Some(ident) => promise_resolve(to_js_ident1(ident.clone())),
                 None => {
                     unreachable!("this means that we have a loose free variable")
                 }
@@ -160,7 +155,7 @@ fn to_js(
             // ffi.push((*var_index, metadata));
             // to_js_ident(format!("ffi{}", var_index.index()))
         }
-        JudgmentKind::Pi(_, _) => to_js_str_pi(),
+        JudgmentKind::Pi(_, _) => to_js_str("pi"),
         JudgmentKind::Lam(_var_type, sexpr) => {
             let (index, expr) = sexpr.clone().unbind();
             let var_name = make_var_name(index);
@@ -209,7 +204,7 @@ fn to_js_lam(body: BlockStmtOrExpr, var_names: Vec<Ident>) -> Expr {
         span: DUMMY_SP,
         params: pats,
         body: body,
-        is_async: false,
+        is_async: true,
         is_generator: false,
         type_params: None,
         return_type: None,
@@ -217,31 +212,35 @@ fn to_js_lam(body: BlockStmtOrExpr, var_names: Vec<Ident>) -> Expr {
 
     let arrow_expr = Expr::Arrow(lam);
 
-    // Now we add a parenthesis around it.
-    let paren_expr = ParenExpr {
-        span: DUMMY_SP,
-        expr: Box::new(arrow_expr),
-    };
-
-    Expr::Paren(paren_expr)
+    promise_resolve(arrow_expr)
 }
 
-pub fn to_js_ident(name: String) -> Expr {
+pub fn to_js_ident(name: impl Into<String>) -> Expr {
     to_js_ident1(to_js_ident2(name))
 }
-pub fn to_js_ident2(name: String) -> Ident {
+
+pub fn to_js_ident2(name: impl Into<String>) -> Ident {
     Ident {
         span: DUMMY_SP,
-        sym: name.into(),
+        sym: name.into().into(),
         optional: false,
     }
+}
+
+pub fn to_js_member(obj: Expr, prop: Expr) -> Expr {
+    Expr::Member(MemberExpr {
+        span: DUMMY_SP,
+        obj: ExprOrSuper::Expr(Box::new(obj)),
+        prop: Box::new(prop),
+        computed: false,
+    })
 }
 
 pub fn runtime_ident(name: &str) -> Expr {
     Expr::Member(MemberExpr {
         span: DUMMY_SP,
-        obj: ExprOrSuper::Expr(Box::new(to_js_ident("runtime".into()))),
-        prop: Box::new(to_js_ident(name.into())),
+        obj: ExprOrSuper::Expr(Box::new(to_js_ident("runtime"))),
+        prop: Box::new(to_js_ident(name)),
         computed: false,
     })
 }
@@ -253,16 +252,12 @@ fn to_js_ident1(var_name: Ident) -> Expr {
 pub fn to_js_app(func: Expr, args: Vec<Expr>) -> Expr {
     let app = CallExpr {
         span: DUMMY_SP,
-        callee: ExprOrSuper::Expr(Box::new(func)),
-        // args: vec![ExprOrSpread {
-        //     spread: None,
-        //     expr: Box::new(arg),
-        // }],
+        callee: ExprOrSuper::Expr(Box::new(parenthesize(to_js_await(func)))),
         args: args
             .iter()
             .map(|arg| ExprOrSpread {
                 spread: None,
-                expr: Box::new(arg.clone()),
+                expr: Box::new(to_js_await(arg.clone())),
             })
             .collect(),
 
@@ -272,11 +267,39 @@ pub fn to_js_app(func: Expr, args: Vec<Expr>) -> Expr {
     Expr::Call(app)
 }
 
+pub fn to_js_await(expr: Expr) -> Expr {
+    // Transforms await (Promise.resolve(x)) => x
+    if let Expr::Call(CallExpr {
+        callee: ExprOrSuper::Expr(call_expr),
+        args: awaited_expr,
+        ..
+    }) = &expr
+    {
+        if **call_expr == (to_js_member(to_js_ident("Promise"), to_js_ident("resolve"))) {
+            return *awaited_expr[0].expr.clone();
+        }
+    }
+
+    Expr::Await(AwaitExpr {
+        span: DUMMY_SP,
+        arg: Box::new(expr),
+    })
+}
+
+pub fn parenthesize(expr: Expr) -> Expr {
+    let paren_expr = ParenExpr {
+        span: DUMMY_SP,
+        expr: Box::new(expr),
+    };
+
+    Expr::Paren(paren_expr)
+}
+
 ///Take a rust string and returns a javascript string object
-pub fn to_js_str(string: String) -> Expr {
+pub fn to_js_str(string: impl Into<String>) -> Expr {
     let str = Str {
         span: DUMMY_SP,
-        value: string.into(),
+        value: string.into().into(),
         has_escape: false,
         kind: swc_ecma_ast::StrKind::Synthesized,
     };
@@ -292,12 +315,19 @@ pub fn to_js_num(num: String) -> Expr {
     Expr::Lit(Lit::BigInt(bigint))
 }
 
-fn to_js_str_u() -> Expr {
-    to_js_str("U".into())
-}
-
-fn to_js_str_pi() -> Expr {
-    to_js_str("Pi".into())
+pub fn promise_resolve(expr: Expr) -> Expr {
+    Expr::Call(CallExpr {
+        span: DUMMY_SP,
+        callee: ExprOrSuper::Expr(Box::new(to_js_member(
+            to_js_ident("Promise"),
+            to_js_ident("resolve"),
+        ))),
+        args: vec![ExprOrSpread {
+            spread: None,
+            expr: Box::new(expr),
+        }],
+        type_args: None,
+    })
 }
 
 pub fn run_io(expr: Expr) -> Expr {

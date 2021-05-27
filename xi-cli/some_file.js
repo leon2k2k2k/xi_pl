@@ -3,45 +3,43 @@ export const UnitType = "UnitType";
 export const String2 = "String2";
 export const unit = "unit";
 
-export const five = 5;
+export const five = Promise.resolve(5);
 
-export const six = 6;
+export const six = Promise.resolve(6);
 
-export function add(a) {
-  return (b) => a + b;
-}
+export const add = Promise.resolve(async (a) =>
+  async (b) => Promise.resolve(a + b)
+);
 
-function io_pure2(val) {
-  return async () => val;
-}
+export const io_pure = Promise.resolve(async (_) =>
+  async (val) => async () => val
+);
 
-export function io_pure(_) {
-  return io_pure2;
-}
-
-export function equals(a) {
-  return (b) => {
+export const equals = Promise.resolve(async (a) =>
+  async (b) => {
     if (a === b) {
-      return ((var_80056) => ((var_80057) => ((var_80058) => var_80057)));
+      return Promise.resolve(
+        (async (T) => (async (t) => (async (f) => t))),
+      );
     } else {
-      return ((var_80056) => ((var_80057) => ((var_80058) => var_80058)));
+      return Promise.resolve(
+        (async (T) => (async (t) => (async (f) => t))),
+      );
     }
-  };
-}
+  }
+);
 
-export function int_to_string(a) {
-  return a.toString();
-}
+export const int_to_string = Promise.resolve(async (a) =>
+  Promise.resolve(a.toString())
+);
 
-export function concat_hello(a) {
-  return a + "hello";
-}
+export const concat_hello = async (a) => Promise.resolve(a + "hello");
 
-export async function console_input() {
+export const console_input = Promise.resolve(async () => {
   const input = [];
   const buf = new Uint8Array(1);
   while (buf[0] != 0x0a /* \n */) {
-    const num_read = Deno.readSync(Deno.stdin.rid, buf);
+    const num_read = await Deno.read(Deno.stdin.rid, buf);
     if (num_read != 1) {
       throw "Failed to read from stdin";
     }
@@ -49,14 +47,14 @@ export async function console_input() {
   }
   input.pop();
   return new TextDecoder().decode(new Uint8Array(input));
-}
+});
 
-export function console_output(out_str) {
-  return async () => {
-    Deno.writeAllSync(Deno.stdout, new TextEncoder().encode(out_str));
-    Deno.writeAllSync(Deno.stdout, new Uint8Array([0x0a])); // newline
-  };
-}
+export const console_output = Promise.resolve(async (out_str) =>
+  async () => {
+    await Deno.writeAll(Deno.stdout, new TextEncoder().encode(out_str));
+    await Deno.writeAll(Deno.stdout, new Uint8Array([0x0a])); // newline
+  }
+);
 
 export async function panic(out_str) {
   return () => {
@@ -65,9 +63,17 @@ export async function panic(out_str) {
   };
 }
 
-export function YCombinator_please_accept_us(fn) {
-  return async () =>
-    ((x) => x(x))(
-      (maker) => (...args) => fn(maker(maker))(...args),
+export const panic = Promise.resolve(async (out_str) =>
+  async () => {
+    await (await (await console_output)(out_str))();
+    throw "exception";
+  }
+);
+
+// probably doesn't work
+export const YCombinator_please_accept_us = Promise.resolve(async (fn) =>
+  async () =>
+    (async (x) => x(x))(
+      async (maker) => async (...args) => fn(maker(maker))(...args),
     );
-}
+)

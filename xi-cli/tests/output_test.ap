@@ -7,7 +7,10 @@ ffi "./some_file.js"{
     console_input: IO String,
 }
 
-let str = "hello world"
-do console_output(str)!
-val unit!
-
+let main = {
+    let str = "hello world"
+    do console_output(str)!
+    let x = 5 + 6
+    do console_output(int_to_string(x))!
+    val unit!
+}

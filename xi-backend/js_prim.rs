@@ -4,7 +4,13 @@ use swc_ecma_ast::Expr;
 use xi_core::judgment::{Judgment, Primitive};
 use xi_uuid::VarUuid;
 
+<<<<<<< HEAD
 use crate::output::{make_var_name, to_js_ident, to_js_num, to_js_str};
+=======
+use crate::output::{
+    make_var_name, promise_resolve, to_js_ident, to_js_num, to_js_str, JsMetadata,
+};
+>>>>>>> fcc6faa (Make everything async)
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum JsPrim {
@@ -34,10 +40,10 @@ impl Primitive for JsPrim {
 impl JsPrim {
     pub fn to_js_prim(&self, ffi: &mut BTreeMap<(String, String), VarUuid>) -> Expr {
         match self {
-            JsPrim::StringType => to_js_ident("String".into()),
-            JsPrim::NumberType => to_js_ident("Number".into()),
-            JsPrim::StringElem(str) => to_js_str(str.clone()),
-            JsPrim::NumberElem(num) => to_js_num(num.clone()),
+            JsPrim::StringType => promise_resolve(to_js_ident("String")),
+            JsPrim::NumberType => promise_resolve(to_js_ident("Number")),
+            JsPrim::StringElem(str) => promise_resolve(to_js_str(str.clone())),
+            JsPrim::NumberElem(num) => promise_resolve(to_js_num(num.clone())),
             JsPrim::Ffi(filename, ffi_name) => {
                 let var = match ffi.get(&(filename.clone(), ffi_name.clone())) {
                     Some(var) => *var,

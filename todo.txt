@@ -1,12 +1,8 @@
 now-todo:
-1. changed grammer.js to allow declaration of server-client etc.
-2. change the frontend so that it actually parses to a module.
-3. change the backend so it gives a js and py file.
-4. set up the server so that it actually runs.
-
+1. now try to set up a server in python, and basically translate js's code to python.
+ I think I can use Flask as my server. 
 Now distant goal:
 Get tictactoe should up in this way.
-
 
 
 

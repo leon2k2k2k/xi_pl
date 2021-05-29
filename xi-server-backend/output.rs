@@ -6,13 +6,12 @@ use swc_ecma_ast::{
     NewExpr, Pat, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
 };
 
-use xi_backend::{
-    js_prim::{JsModule, JsPrim},
-    output::{
+use xi_backends::js_backend::{
+    js_output::{
         make_var_name, module_item_to_swc_module_item, run_io, string_to_import_specifier,
-        swc_module_to_string, to_js_app, to_js_await, to_js_ident, to_js_ident2, to_js_num,
-        to_js_str,
+        swc_module_to_string, to_js_await, to_js_ident, to_js_ident2, to_js_str,
     },
+    js_prim::{JsModule, JsPrim},
 };
 
 use xi_core::judgment::Judgment;

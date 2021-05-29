@@ -4037,7 +4037,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "xi-backend"
+name = "xi-backends"
 version = "0.1.0"
 dependencies = [
  "num-bigint",
@@ -4055,12 +4055,12 @@ name = "xi-cli"
 version = "0.1.0"
 dependencies = [
  "tokio",
- "xi-backend",
+ "xi-backends",
  "xi-core",
  "xi-frontend",
  "xi-kernel",
  "xi-proc-macro",
- "xi-runtime",
+ "xi-runtimes",
  "xi-server-backend",
 ]
 
@@ -4090,11 +4090,11 @@ dependencies = [
 name = "xi-kernel"
 version = "0.1.0"
 dependencies = [
- "xi-backend",
+ "xi-backends",
  "xi-core",
  "xi-frontend",
  "xi-proc-macro",
- "xi-runtime",
+ "xi-runtimes",
  "xi-uuid",
 ]
 
@@ -4109,7 +4109,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "xi-runtime"
+name = "xi-runtimes"
 version = "0.1.0"
 dependencies = [
  "deno",
@@ -4137,7 +4137,7 @@ dependencies = [
  "swc_ecma_ast 0.40.0",
  "swc_ecma_codegen 0.48.0",
  "url",
- "xi-backend",
+ "xi-backends",
  "xi-core",
  "xi-proc-macro",
  "xi-uuid",

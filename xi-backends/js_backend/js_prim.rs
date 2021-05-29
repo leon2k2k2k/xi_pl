@@ -4,7 +4,9 @@ use swc_ecma_ast::Expr;
 use xi_core::judgment::{Judgment, Primitive};
 use xi_uuid::VarUuid;
 
-use crate::output::{make_var_name, promise_resolve, to_js_ident, to_js_num, to_js_str};
+use crate::js_backend::js_output::{
+    make_var_name, promise_resolve, to_js_ident, to_js_num, to_js_str,
+};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum JsPrim {

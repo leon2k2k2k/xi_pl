@@ -1,5 +1,5 @@
 [package]
-name = "xi-backend"
+name = "xi-backends"
 version = "0.1.0"
 authors = ["leon2k2k2k <liuleon4@gmail.com>", "Frank Dai <frank@fyd.ai>"]
 edition = "2018"

@@ -10,9 +10,9 @@ edition = "2018"
 path = "lib.rs"
 
 [dependencies]
-xi-backend = { path = "../xi-backend" }
+xi-backends = { path = "../xi-backends" }
 xi-core = { path = "../xi-core" }
 xi-frontend = { path = "../xi-frontend" }
 xi-proc-macro = { path = "../xi-proc-macro" }
 xi-uuid = { path = "../xi-uuid" }
-xi-runtime = {path = "../xi-runtime" }
+xi-runtimes = {path = "../xi-runtimes" }

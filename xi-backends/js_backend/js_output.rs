@@ -10,7 +10,7 @@ use swc_ecma_codegen::{text_writer::JsWriter, Config, Emitter};
 use xi_core::judgment::{Judgment, JudgmentKind};
 use xi_uuid::VarUuid;
 
-use crate::js_prim::{JsModule, JsModuleItem, JsPrim};
+use crate::js_backend::js_prim::{JsModule, JsModuleItem, JsPrim};
 
 pub fn judgment_to_swc_expr(
     judgment: Judgment<JsPrim>,

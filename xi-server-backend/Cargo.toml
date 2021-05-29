@@ -14,7 +14,7 @@ path = "lib.rs"
 xi-proc-macro = { path = "../xi-proc-macro" }
 xi-uuid = { path = "../xi-uuid" }
 xi-core = { path = "../xi-core" }
-xi-backend = { path = "../xi-backend"}
+xi-backends = { path = "../xi-backends"}
 swc_ecma_ast = "0.40"
 swc_common = "0.10"
 swc_ecma_codegen = "0.48"

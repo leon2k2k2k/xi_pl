@@ -1,5 +1,5 @@
 [package]
-name = "xi-runtime"
+name = "xi-runtimes"
 version = "0.1.0"
 authors = ["leon2k2k2k <liuleon4@gmail.com>"]
 edition = "2018"

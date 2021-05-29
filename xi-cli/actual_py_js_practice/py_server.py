@@ -136,7 +136,10 @@ class Server:
                         result_ident = str(
                             self.registrations[dict['js_ident']])
                         print(f"I am sending backo {result_ident}")
-                        return result_ident
+                        if 'value' in dict:
+                            return ((await result_ident)(dict['value']))
+                        else:
+                            return result_ident
                     else:
                         raise "ident not found"
 

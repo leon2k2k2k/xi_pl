@@ -1,0 +1,14 @@
+let's try to get js function working on the python side.
+
+
+from flask_server import json_kind, pi_to_json, Server
+import asyncio
+
+server = Server("5000", "8080")
+
+
+async def main():
+    var_3 = await server.deregister_top_level("var_3", json_kind("Int"))
+    return var_3
+
+asyncio.run(main())

@@ -12,7 +12,7 @@ for await (const conn of server) {
     // Each request sent over the HTTP connection will be yielded as an async
     // iterator from the HTTP connection.
     for await (const requestEvent of httpConn) {
-      let response;
+      let response = JSON.stringify(5);
 
       if (requestEvent.request.method === "POST") {
         let str = await requestEvent.request.text();

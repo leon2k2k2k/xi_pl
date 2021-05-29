@@ -6,15 +6,18 @@ let request_body = JSON.stringify({
   value: 2,
 });
 
-// let url = "http://localhost:5000";
-// let resp = await fetch(url, {
-//   method: "POST",
-//   body: request_body,
-// });
+let url = "http://localhost:5000";
+let resp = await fetch(url, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: request_body,
+});
 
-let resp = await fetch("http://localhost:5000/2/3");
-let text = await resp;
-console.log("CLIENT: received " + text + " from post");
+// let resp = await fetch("http://localhost:5000/2/3");
+// let text = await resp;
+// console.log("CLIENT: received " + text + " from post");
 
 // async post(value: string) {
 //     console.log("CLIENT: posting with " + value);

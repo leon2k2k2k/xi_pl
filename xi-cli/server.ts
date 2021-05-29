@@ -19,11 +19,11 @@ export class Server {
   constructor(type: string) {
     this.type = type;
     if (type === "py") {
-      this.port = 8081;
+      this.port = 5000;
       this.other_port = 8080;
     } else if (type === "js") {
       this.port = 8080;
-      this.other_port = 8081;
+      this.other_port = 5000;
     } else {
       throw "Invalid server type";
     }
@@ -112,6 +112,9 @@ export class Server {
     let url = `http://localhost:${this.other_port}`;
     let resp = await fetch(url, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: value,
     });
     let text = await (await resp).text();

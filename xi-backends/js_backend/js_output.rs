@@ -236,15 +236,6 @@ pub fn to_js_member(obj: Expr, prop: Expr) -> Expr {
     })
 }
 
-pub fn runtime_ident(name: &str) -> Expr {
-    Expr::Member(MemberExpr {
-        span: DUMMY_SP,
-        obj: ExprOrSuper::Expr(Box::new(to_js_ident("runtime"))),
-        prop: Box::new(to_js_ident(name)),
-        computed: false,
-    })
-}
-
 fn to_js_ident1(var_name: Ident) -> Expr {
     Expr::Ident(var_name)
 }

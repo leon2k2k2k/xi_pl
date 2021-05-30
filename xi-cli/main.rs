@@ -64,9 +64,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 // we are going to compile this all the way down to javascript
 #[cfg(all(not(feature = "deno-with-server"), not(feature = "deno-no-server")))]
 fn main() {
+    use xi_backends::py_backend::py_output::module_to_py_string;
     use xi_frontend::ui_to_module;
     use xi_kernel::front_to_back::front_to_back;
-    use xi_server_backend::output::{js_module_to_py_string, js_module_to_string};
 
     let input = std::env::args().collect::<Vec<_>>();
     let file_contents = std::fs::read_to_string(input[1].clone()).unwrap();
@@ -74,10 +74,15 @@ fn main() {
     let module_and_imports = ui_to_module(&file_contents);
 
     let module = module_and_imports.module;
-    dbg!(&module);
     let jsmodule = front_to_back(module);
-    let js = js_module_to_string(jsmodule.clone());
-    println!("{}", js);
-    let py = js_module_to_py_string(jsmodule);
+
+    let func_name = input[2].clone();
+
+    let index = *jsmodule
+        .str_to_index
+        .get(&func_name)
+        .expect("func not found");
+
+    let py = module_to_py_string(jsmodule, index);
     println!("{}", py);
 }

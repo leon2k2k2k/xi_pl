@@ -128,11 +128,3 @@ impl TransportInfo {
         }
     }
 }
-
-// #[derive(Clone, Debug)]
-
-// pub struct ImportItem {
-//     pub name: String,
-//     pub type_: Judgment<UiPrim, UiMetadata>,
-//     pub import_info: (VarUuid, VarUuid), // (file_name, func_index)
-// }

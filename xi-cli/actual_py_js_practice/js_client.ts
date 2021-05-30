@@ -1,32 +1,14 @@
-// this is to test if the py_server and handle http requests from js:
+import { json_kind, pi_to_json, Server } from "../server.ts";
 
-let value = 5;
-let request_body = JSON.stringify({
-  js_ident: value,
-  value: 2,
-});
+let server = new Server("js");
 
-let url = "http://localhost:5000";
-let resp = await fetch(url, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: request_body,
-});
+let int_type = json_kind("Int");
 
-// let resp = await fetch("http://localhost:5000/2/3");
-// let text = await resp;
-// console.log("CLIENT: received " + text + " from post");
+let var_0 = Promise.resolve(6n);
 
-// async post(value: string) {
-//     console.log("CLIENT: posting with " + value);
-//     let url = `http://localhost:${this.other_port}`;
-//     let resp = await fetch(url, {
-//       method: "POST",
-//       body: value,
-//     });
-//     let text = await (await resp).text();
-//     console.log("CLIENT: received " + text + " from post");
-//     return text;
-//   }
+// let var_0 = await server.deregister_top_level(
+//   "var_2",
+//   pi_to_json(int_type, int_type),
+// );
+
+// console.log(await (await var_0)(5));

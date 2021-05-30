@@ -12,7 +12,7 @@ int_type = json_kind("Int")
 var_3_type = pi_to_json(str_type, pi_to_json(str_type, str_type))
 
 # this is going to set up the server and run it.
-server = Server("5000", "8080", loop)
+server = Server("8080", "5000", loop)
 
 
 async def promise_resolve(x):
@@ -20,16 +20,13 @@ async def promise_resolve(x):
 
 
 async def main():
+    # # this works! Let's go!
+    # var_0 = await server.deregister_top_level("var_0", int_type)
+    # print(var_0)
 
-    var_0 = promise_resolve(5)
-    server.register_top_level(await var_0, "var_0", json_kind("Int"))
-
-    async def var_1(x):
-        return promise_resolve(x + 3)
-
-    var_2 = promise_resolve(var_1)
-    server.register_top_level(await var_2, "var_2", pi_to_json(int_type, int_type))
-
+    var_1 = await server.deregister_top_level("var_1", pi_to_json(json_kind("Int"), json_kind("Int")))
+    var_294 = await (var_1)(1000)
+    print(var_294)
     # var_4 = await server.deregister_top_level("var_2", pi_to_json(int_type, int_type))
     # print(await (var_4)(5))
 

@@ -1,14 +1,26 @@
-let's try to get js function working on the python side.
+I am almost finished with this. 
+
+Let's write some more test to make sure everything is good:
+
+for each test, I need to add both py/js, reg/dereg. 
+Also everything is async:
+this is written in Aplite
 
 
-from flask_server import json_kind, pi_to_json, Server
-import asyncio
 
-server = Server("5000", "8080")
+test 0:
+let var_0 = 5
 
+result:
+js_to_js: good, ofc.
+py_to_js: works
+js_to_py: works.
+py_to_py: yes!!!.
 
-async def main():
-    var_3 = await server.deregister_top_level("var_3", json_kind("Int"))
-    return var_3
+test 1:
+let var_1 = lambda|x : Int| x + 5
+console_log(var_1 (10))
 
-asyncio.run(main())
+test 2:
+let var_2 = lambda|f : Int -> Int| f(1000)
+console_log(var_2 (var_1))

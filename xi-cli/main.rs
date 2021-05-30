@@ -30,7 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use xi_frontend::compile_module_item;
     use xi_frontend::ui_to_module;
     use xi_kernel::front_to_back::front_to_back;
-    use xi_runtime::runtime;
+    use xi_runtimes::js_runtime::js_runtime;
     use xi_server_backend::output::{
         js_module_to_py_string, js_module_to_py_string_with_run, js_module_to_string,
     };
@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if js_or_py == "js" {
         let js = js_module_to_string(jsmodule.clone());
         println!("{}", js);
-        runtime::run_js_from_string(js).await?;
+        js_runtime::run_js_from_string(js).await?;
     } else {
         let func_name = input[3].clone();
         let index = *jsmodule
@@ -55,7 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("func not found");
         let py = js_module_to_py_string_with_run(jsmodule, index);
         println!("{}", py);
-        runtime::run_js_from_string(py).await?;
+        js_runtime::run_js_from_string(py).await?;
     }
 
     Ok(())

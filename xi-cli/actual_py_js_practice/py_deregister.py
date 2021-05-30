@@ -20,20 +20,27 @@ async def promise_resolve(x):
 
 
 async def main():
-    # # this works! Let's go!
-    # var_0 = await server.deregister_top_level("var_0", int_type)
-    # print(var_0)
+    # this works! Let's go!
+    # var_0 = promise_resolve(await server.deregister_top_level("var_0", int_type))
 
-    var_1 = await server.deregister_top_level("var_1", pi_to_json(json_kind("Int"), json_kind("Int")))
-    var_294 = await (var_1)(1000)
-    print(var_294)
-    # var_4 = await server.deregister_top_level("var_2", pi_to_json(int_type, int_type))
-    # print(await (var_4)(5))
+    # var_1 = promise_resolve(await server.deregister_top_level("var_1", pi_to_json(json_kind("Int"), json_kind("Int"))))
 
-    # var_3 = await server.deregister_top_level("var_3", int_type)
-    # print(var_3)
-    # var_3 = await server.deregister_top_level("var_8", pi_to_json(int_type, int_type))
-    # return (await (var_3)(5))
+    var_2 = promise_resolve(await server.deregister_top_level("var_2", pi_to_json(pi_to_json(json_kind("Int"), json_kind("Int")), json_kind("Int"))))
+
+    # should print 5
+    # print(await var_0)
+
+    # # # 8
+    # var_0 = promise_resolve(await server.deregister_top_level("var_0", int_type))
+    # var_210 = (await var_1)(await var_0)
+    # print(await var_210)
+
+    # 26
+    var_1 = promise_resolve(await server.deregister_top_level("var_1", pi_to_json(json_kind("Int"), json_kind("Int"))))
+
+    var_232 = (await var_2)(await var_1)
+    print(await var_232)
+
 
 loop.run_until_complete(main())
 

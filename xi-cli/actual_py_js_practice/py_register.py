@@ -16,16 +16,49 @@ server = Server("5000", "8080", loop)
 
 
 async def main():
-    # # # works!! let's go!
-    # var_0 = promise_resolve(5)
-    # server.register_top_level(var_0, "var_0", json_kind("Int"))
+    # 5
+    var_0 = promise_resolve(5)
+    server.register_top_level(await var_0, "var_0", json_kind("Int"))
 
+    # plus_3
     async def plus_3(x):
-        return x + 100
-
+        return x + 3
     var_1 = promise_resolve(plus_3)
     server.register_top_level(await var_1, "var_1", pi_to_json(int_type, int_type))
 
+    # apply_23
+    async def apply_23(x):
+        return await x(23)
+    var_2 = promise_resolve(apply_23)
+    server.register_top_level(await var_2, "var_2", pi_to_json(pi_to_json(json_kind("Int"), json_kind("Int")), json_kind("Int")))
+
+    # testssssss: note we can't reuse corountine in  Python
+    # so we just have to redefine it everytime lol.
+
+    # 5
+    var_0 = promise_resolve(5)
+    print(await var_0)
+
+    # 8
+    var_0 = promise_resolve(5)
+
+    async def plus_3(x):
+        return x + 3
+    var_1 = promise_resolve(plus_3)
+
+    var_210 = (await var_1)(await var_0)
+    print(await var_210)
+
+    # # 26
+    async def apply_23(x):
+        return await x(23)
+    var_2 = promise_resolve(apply_23)
+
+    async def plus_3(x):
+        return x + 3
+    var_1 = promise_resolve(plus_3)
+    var_232 = (await var_2)(await var_1)
+    print(await var_232)
 
 loop.run_until_complete(main())
 

@@ -77,12 +77,12 @@ export class Server {
       let request = JSON.stringify({
         js_ident: value,
       });
-      return BigInt(await this.post(request));
+      return Promise.resolve(BigInt(await this.post(request)));
     } else if (type.kind === "Str") {
       let request = JSON.stringify({
         js_ident: value,
       });
-      return (await this.post(request));
+      return Promise.resolve(await this.post(request));
     } else {
       let arg_type = type.kind.left;
       let return_type = type.kind.right;
@@ -93,7 +93,7 @@ export class Server {
           value: serialized_x,
         });
         let return_id = JSON.parse(await this.post(request));
-        return await this.deserialize(return_id, return_type);
+        return Promise.resolve(await this.deserialize(return_id, return_type));
       };
     }
   }

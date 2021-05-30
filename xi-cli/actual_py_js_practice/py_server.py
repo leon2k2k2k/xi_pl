@@ -42,9 +42,9 @@ class Server:
 
     def serialize(self, value, type_):
         if (type_['kind'] == "Int"):
-            return self.register_new(value)
+            return self.register_new(promise_resolve(value))
         elif (type_['kind'] == "Str"):
-            return self.register_new(value)
+            return self.register_new(promise_resolve(value))
         else:
             arg_type = type_['kind']['left']
             return_type = type_['kind']['right']
@@ -144,7 +144,7 @@ class Server:
                         if 'value' in dict:
                             return json.dumps(await (await result_ident)(dict['value']))
                         else:
-                            return json.dumps(result_ident)
+                            return json.dumps(await result_ident)
                     else:
                         raise "ident not found"
 

@@ -10,23 +10,14 @@ export function json_kind(type: any) {
 }
 
 export class Server {
-  type: string;
   port: number;
   other_port: number;
   register_id: number;
   registrations: Map<number, any>;
   var_registrations: Map<string, number>;
-  constructor(type: string) {
-    this.type = type;
-    if (type === "py") {
-      this.port = 5000;
-      this.other_port = 8080;
-    } else if (type === "js") {
-      this.port = 8080;
-      this.other_port = 5000;
-    } else {
-      throw "Invalid server type";
-    }
+  constructor(port: number, other_port: number) {
+    this.port = port;
+    this.other_port = other_port;
 
     this.register_id = 0;
     this.registrations = new Map();
@@ -86,12 +77,12 @@ export class Server {
       let request = JSON.stringify({
         js_ident: value,
       });
-      return BigInt(await this.post(request));
+      return Promise.resolve(BigInt(await this.post(request)));
     } else if (type.kind === "Str") {
       let request = JSON.stringify({
         js_ident: value,
       });
-      return (await this.post(request));
+      return Promise.resolve(await this.post(request));
     } else {
       let arg_type = type.kind.left;
       let return_type = type.kind.right;
@@ -102,7 +93,7 @@ export class Server {
           value: serialized_x,
         });
         let return_id = JSON.parse(await this.post(request));
-        return await this.deserialize(return_id, return_type);
+        return Promise.resolve(await this.deserialize(return_id, return_type));
       };
     }
   }
@@ -152,8 +143,7 @@ export class Server {
                 throw new Error("ident no found");
               }
               if (body.value === undefined) {
-                let big_int = await result_ident;
-                response = big_int;
+                response = await result_ident;
               } else {
                 response = JSON.stringify(
                   await (await result_ident)(body.value),

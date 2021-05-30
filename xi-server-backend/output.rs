@@ -8,8 +8,9 @@ use swc_ecma_ast::{
 
 use xi_backends::js_backend::{
     js_output::{
-        make_var_name, module_item_to_swc_module_item, run_io, string_to_import_specifier,
-        swc_module_to_string, to_js_await, to_js_ident, to_js_ident2, to_js_str,
+        make_var_name, module_item_to_swc_module_item, promise_resolve, run_io,
+        string_to_import_specifier, swc_module_to_string, to_js_await, to_js_ident, to_js_ident2,
+        to_js_str,
     },
     js_prim::{JsModule, JsPrim},
 };
@@ -88,18 +89,19 @@ pub fn module_to_swc_module(
                     type_to_json(module_item.type_()),
                 ],
             );
-            // await server.deserialize(thing(value), module_item.type_)
-            let await_expr = Expr::Await(AwaitExpr {
+            // Promise.resolve(await server.deserialize(thing(value), module_item.type_))
+            let promise_resolve_expr = promise_resolve(Expr::Await(AwaitExpr {
                 span: DUMMY_SP,
                 arg: Box::new(call_expr),
-            });
+            }));
+
             let var_decl = VarDeclarator {
                 span: DUMMY_SP,
                 name: Pat::Ident(BindingIdent {
                     id: to_js_ident2(format!("var_{}", var_index.index())),
                     type_ann: None,
                 }),
-                init: Some(Box::new(await_expr)),
+                init: Some(Box::new(promise_resolve_expr)),
                 definite: false,
             };
             let module_item = ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
@@ -183,7 +185,7 @@ pub fn std_import_from_server() -> ModuleItem {
         specifiers: vec![server, pi_to_json, json_kind],
         src: Str {
             span: DUMMY_SP,
-            value: "./server.ts".into(),
+            value: "./js_server.ts".into(),
             has_escape: false,
             kind: swc_ecma_ast::StrKind::Synthesized,
         },

@@ -19,9 +19,14 @@ def pi_to_json(left, right):
     return {'kind': {'left': left, 'right': right}}
 
 
+async def promise_resolve(x):
+    return x
+
 # let's try to define  a Server object and its attributes:
 # register_id, var_registration is going to be dicts
 # type is going to be a dict
+
+
 class Server:
     def __init__(self, port, other_port, loop):
         # initial values.
@@ -32,22 +37,23 @@ class Server:
         self.var_registrations = {}
 
         # runs the server:
-        loop.create_task(self.new_server())
+        loop.create_task(self.new_server(port))
+        print(f"PY_SERVER running at {port}")
 
     def serialize(self, value, type_):
         if (type_['kind'] == "Int"):
-            return self.register_new(value)
+            return self.register_new(promise_resolve(value))
         elif (type_['kind'] == "Str"):
-            return self.register_new(value)
+            return self.register_new(promise_resolve(value))
         else:
             arg_type = type_['kind']['left']
             return_type = type_['kind']['right']
             # I am missing a bunch of awaits
 
-            def new_func(s):
-                x = self.deserailize(s, arg_type)
-                return self.serialize(value(x), return_type)
-            return self.register_new(new_func)
+            async def new_func(s):
+                x = await self.deserialize(s, arg_type)
+                return self.serialize(await value(x), return_type)
+            return self.register_new(promise_resolve(new_func))
 
     def register_new(self, value: any):
         current_register_id = self.register_id
@@ -56,17 +62,17 @@ class Server:
         self.register_id += 1
         return current_register_id
 
-    def reigster_top_level(self, value, var_name, var_type):
+    def register_top_level(self, value, var_name, var_type):
         register_id = self.serialize(value, var_type)
         print(f"Server: registered top level {var_name} with id {register_id}")
-        self.var_registrations.set(var_name, register_id)
+        self.var_registrations[var_name] = register_id
 
     async def deregister_top_level(self, value, var_type):
         request = {
             'request_type': 'reg_id',
             'var_name': value,
         }
-        register_id = int(await self.post(request))
+        register_id = json.loads(await self.post(request))
         print(type(register_id))
         return await self.deserialize(register_id, var_type)
 
@@ -80,7 +86,7 @@ class Server:
             request = {
                 'js_ident': value
             }
-            return await self.post(request)
+            return (await self.post(request))
         else:
             arg_type = type_['kind']['left']
             return_type = type_['kind']['right']
@@ -96,16 +102,16 @@ class Server:
             return new_func
 
     async def post(self, value):
-        print("CLIENT: posting with " + json.dumps(value))
+        print(f"CLIENT: posting with {value}")
         url = f"http://localhost:{self.other_port}"
         async with aiohttp.ClientSession() as session:
             resp = await session.post(url, json=value)
             async with resp:
-                ans = await resp.text()
+                ans = await (resp).text()
                 print(f"CLIENT: received {ans} from post")
                 return ans
 
-    def new_server(self):
+    def new_server(self, port):
         # here's the code for the server
         app = Quart(__name__)
 
@@ -125,22 +131,21 @@ class Server:
 
             print("////////////////////////////////////////////////////")
             print(f"Py Server receive request with json {dict}")
+
             if 'request_type' in dict:
-                reg_id = self.registrations[dict['var_name']]
+                reg_id = self.var_registrations[dict['var_name']]
                 print(reg_id)
-                return reg_id
+                return json.dumps(reg_id)
                 # do other stuff not worry about it here.
             else:
                 if 'js_ident' in dict:
                     if dict['js_ident'] in self.registrations:
-                        result_ident = str(
-                            self.registrations[dict['js_ident']])
-                        print(f"I am sending backo {result_ident}")
+                        result_ident = self.registrations[dict['js_ident']]
                         if 'value' in dict:
-                            return ((await result_ident)(dict['value']))
+                            return json.dumps(await (await result_ident)(dict['value']))
                         else:
-                            return result_ident
+                            return json.dumps(await result_ident)
                     else:
                         raise "ident not found"
 
-        return app.run_task()
+        return app.run_task(port=port)

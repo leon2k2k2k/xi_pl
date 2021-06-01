@@ -12,6 +12,8 @@ let var_2 = lambda|f : Int -> Int| f(20)
 // plus 
 let var_3 = lambda|x : Int, y : Int| x + y
 
+
+
 test 0:
 // 100
 console_log(var_0)

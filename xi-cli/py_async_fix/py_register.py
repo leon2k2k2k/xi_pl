@@ -22,9 +22,6 @@ async def main():
     var_0 = promise_resolve(100)
     server.register_top_level(var_0, "var_0", json_kind("Int"))
 
-    print((await (var_0)()))
-    server.register_top_level(var_0, "var_0", json_kind("Int"))
-
     # plus_5
 
     async def plus_5(x):
@@ -44,6 +41,19 @@ async def main():
         pi_to_json(pi_to_json(json_kind("Int"), json_kind("Int")), json_kind("Int")),
     )
 
+    # plus
+    async def plus(x):
+        async def plus_help(y):
+            return promise_resolve(x + y)
+
+        return promise_resolve(plus_help)
+
+    var_3 = promise_resolve(plus)
+    server.register_top_level(
+        var_3,
+        "var_3",
+        pi_to_json(json_kind("Int"), pi_to_json(json_kind("Int"), json_kind("Int"))),
+    )
     # tests:
 
     # test0:
@@ -63,6 +73,11 @@ async def main():
     # expects 25
     twenty_five = await (await var_2())(await var_1())
     print(await twenty_five())
+
+    # test3:
+    # expects 99
+    ninty_nine = await (await (await (await var_3())(94))())(5)
+    print(await ninty_nine())
 
 
 loop.run_until_complete(main())

@@ -1,4 +1,4 @@
-from py_server_fix import json_kind, pi_to_json, Server
+from py_server_fix import json_kind, pi_to_json, Server, promise_resolve
 import asyncio
 
 # we need to create a loop for the async stuff
@@ -16,38 +16,48 @@ server = Server("5000", "8080", loop)
 
 
 async def main():
-    def promise_resolve(x):
-        async def helper():
-            return x
-
-        return helper
 
     # # 5
 
     var_0 = promise_resolve(100)
 
     # this is how to recover the int.
-    print(await (var_0)())
-    print(await (var_0)())
+    # print(await (var_0)())
+    print((await (var_0)()))
     server.register_top_level(var_0, "var_0", json_kind("Int"))
 
-    # # plus_3
-    # async def plus_3(x):
-    #     return x + 3
+    # plus_3
+    # the type of var_1 = () -> Promise(Int -> () -> Promise(Int))
+    # var_1 = promise_resolve(lambda x: promise_resolve(x + 3))
 
-    # var_1 = promise_resolve(plus_3)
-    # server.register_top_level(await var_1, "var_1", pi_to_json(int_type, int_type))
+    # I don't think the above is going to work.
+    # this is the type we are looking at.
+    async def plus_3(x):
+        return promise_resolve(x + 3)
+
+    var_1 = promise_resolve(plus_3)
+    # this is how we would do an app:
+    # this await outside is for the fact that plus_3 is an async function.
+    eight = await (await var_1())(5)
+    print(await eight())
+
+    five = await (await var_1())(2)
+    print(await five())
+    server.register_top_level(var_1, "var_1", pi_to_json(int_type, int_type))
 
     # # apply_23
-    # async def apply_23(x):
-    #     return await x(23)
+    async def apply_23(x):
+        return await x(23)
 
+    var_2 = promise_resolve(apply_23)
+    ans_28 = await (await var_2())(await var_1())
+    print(await ans_28())
     # var_2 = promise_resolve(apply_23)
-    # server.register_top_level(
-    #     await var_2,
-    #     "var_2",
-    #     pi_to_json(pi_to_json(json_kind("Int"), json_kind("Int")), json_kind("Int")),
-    # )
+    server.register_top_level(
+        var_2,
+        "var_2",
+        pi_to_json(pi_to_json(json_kind("Int"), json_kind("Int")), json_kind("Int")),
+    )
 
     # # testssssss: note we can't reuse corountine in  Python
     # # so we just have to redefine it everytime lol.

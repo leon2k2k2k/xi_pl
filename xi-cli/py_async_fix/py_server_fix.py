@@ -19,8 +19,11 @@ def pi_to_json(left, right):
     return {"kind": {"left": left, "right": right}}
 
 
-async def promise_resolve(x):
-    return x
+def promise_resolve(x):
+    async def helper():
+        return x
+
+    return helper
 
 
 # let's try to define  a Server object and its attributes:
@@ -54,9 +57,11 @@ class Server:
 
             async def new_func(s):
                 x = await self.deserialize(s, arg_type)
-                return self.serialize(await value(x), return_type)
+                return self.serialize(await (await value())(x), return_type)
 
-            return self.register_new(promise_resolve(new_func))
+            print("alskdjflaksjflaksj")
+            return_value = promise_resolve(new_func)
+            return self.register_new(return_value)
 
     def register_new(self, value: any):
         current_register_id = self.register_id
@@ -91,15 +96,15 @@ class Server:
         else:
             arg_type = type_["kind"]["left"]
             return_type = type_["kind"]["right"]
-
+            # PROBLEM: THIS IS A SYNC FUNCTION AND THAT IS RUINING EVERYTHING!!!
             async def new_func(x):
-                serialized_x = self.serialize(x, arg_type)
+                serialized_x = self.serialize(promise_resolve(x), arg_type)
                 request = {
                     "js_ident": value,
                     "value": serialized_x,
                 }
                 return_id = json.loads(await self.post(request))
-                return await self.deserialize(return_id, return_type)
+                return promise_resolve(await self.deserialize(return_id, return_type))
 
             return new_func
 
@@ -146,9 +151,12 @@ class Server:
                         result_ident = self.registrations[dict["js_ident"]]
                         if "value" in dict:
                             # need to change.
-                            return json.dumps(await (await result_ident)(dict["value"]))
+                            ans = await (await result_ident())(dict["value"])
+                            print("*****************************")
+                            print(type(ans))
+                            return json.dumps(ans)
                         else:
-                            return json.dumps(await (result_ident)())
+                            return json.dumps(await result_ident())
                     else:
                         raise "ident not found"
 

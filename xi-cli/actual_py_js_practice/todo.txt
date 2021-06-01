@@ -9,7 +9,8 @@ let var_0 = 100
 let var_1 = lambda|x : Int| x + 5
 //apply_20
 let var_2 = lambda|f : Int -> Int| f(20)
-
+// plus 
+let var_3 = lambda|x : Int, y : Int| x + y
 
 test 0:
 // 100
@@ -27,8 +28,11 @@ test 2:
 //25
 console_log(var_2 (var_1))
 
+test3:
+// 99
+console_log(plus(95)(4))
 
-js_to_js: 
-py_to_js: 
+js_to_js: works!!!
+py_to_js: works!!!
 js_to_py: works!!!
 py_to_py: works!!!

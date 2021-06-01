@@ -35,6 +35,14 @@ async def main():
         )
     )
 
+    var_3 = promise_resolve(
+        await server.deregister_top_level(
+            "var_3",
+            pi_to_json(
+                json_kind("Int"), pi_to_json(json_kind("Int"), json_kind("Int"))
+            ),
+        )
+    )
     ans_28 = await (await var_2())(await var_1())
     print(await ans_28())
 
@@ -65,6 +73,12 @@ async def main():
     twenty_five = await (await var_2())(await var_1())
     print("#############TEST RESULT#############")
     print(await twenty_five())
+
+    # test3:
+    # expects 99
+
+    ninty_nine = await (await (await (await var_3())(94))())(5)
+    print(await ninty_nine())
 
 
 loop.run_until_complete(main())

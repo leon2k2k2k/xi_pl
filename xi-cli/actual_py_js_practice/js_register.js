@@ -20,6 +20,12 @@ export const var_2 = Promise.resolve(async (var_3)=>(var_3)(20n)
 );
 server.register_top_level(await var_2, "var_2", pi_to_json(pi_to_json(json_kind("Int"), json_kind("Int")), json_kind("Int")));
 
+// plus
+export const var_3= Promise.resolve(async (var_371)=>Promise.resolve(async (var_372)=>(await (await plus)(var_371))(var_372)
+    )
+);
+server.register_top_level(await var_3, "var_3", pi_to_json(json_kind("Int"), pi_to_json(json_kind("Int"), json_kind("Int"))));
+
 
 // tests
 
@@ -36,8 +42,12 @@ console.log(await (await var_1)(10n))
 export const var_210 = (await var_1)(await var_0);
 console.log(await var_210)
 
-
-
-//25
+// test2
+// 25
 export const var_232 = (await var_2)(await var_1);
 console.log(await var_232)
+
+// test3
+// 99
+export const var_329 = (await (await var_3)(95n))(4n);
+console.log(await var_329)

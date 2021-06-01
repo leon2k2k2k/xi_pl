@@ -22,27 +22,33 @@ pub struct Identifier(Value);
 #[derive(Clone, Debug)]
 pub struct Arguments(Value);
 
-pub fn judgment_to_mod(judgment: Judgment<PyPrim>) -> (BTreeMap<(String, String), VarUuid>, Expr) {
+pub fn judgment_to_mod(
+    judgment: Judgment<PyPrim>,
+) -> (BTreeMap<(String, String), VarUuid>, Vec<Stmt>, Expr) {
     let mut ffi_functions = BTreeMap::new();
 
-    let main_py = to_py(&judgment, BTreeMap::new(), &mut ffi_functions);
+    let (func_defs, main_py) = to_py(&judgment, BTreeMap::new(), &mut ffi_functions);
 
-    (ffi_functions, main_py)
+    (ffi_functions, func_defs, main_py)
 }
 
 pub fn module_item_to_stmt(
     module_item: PyModuleItem,
     var_index: VarUuid,
-) -> (BTreeMap<(String, String), VarUuid>, Stmt) {
+) -> (BTreeMap<(String, String), VarUuid>, Vec<Stmt>) {
     match module_item {
         PyModuleItem::Define(define_item) => {
-            let (ffi_functions, expr) = judgment_to_mod(define_item.impl_);
+            let (ffi_functions, func_defs, expr) = judgment_to_mod(define_item.impl_);
 
             let var_name = to_py_ident1(make_var_name(var_index));
 
             let stmt =
                 Stmt(json!({"ast_type": "Assign", "targets": [var_name.0], "value": expr.0}));
-            (ffi_functions, stmt)
+
+            let mut result = func_defs;
+            result.push(stmt);
+
+            (ffi_functions, result)
         }
     }
 }
@@ -52,26 +58,19 @@ pub fn module_to_python_module(module: PyModule, main_id: VarUuid) -> Mod {
     let mut ffi_functions = BTreeMap::new();
 
     for (var_index, module_item) in &module.module_items {
-        let (new_ffi_functions, module_item) = module_item_to_stmt(module_item.clone(), *var_index);
+        let (new_ffi_functions, module_items) =
+            module_item_to_stmt(module_item.clone(), *var_index);
         ffi_functions.extend(new_ffi_functions);
-        body.push(module_item);
+        body.extend(module_items);
     }
 
     let mut ffi_imports = vec![];
-    let promise_resolve = Stmt(json!({
-        "ast_type": "AsyncFunctionDef",
-        "decorator_list": [],
-        "name": "promise_resolve",
-        "args": to_py_arguments(vec![to_py_ident2("x")]).0,
-        "body": [{"ast_type": "Return", "value": to_py_ident("x").0}],
-    }));
 
     let import_asyncio = Stmt(json!({
         "ast_type": "Import",
         "names": [{"ast_type": "alias", "name": to_py_ident2("asyncio").0}]
     }));
 
-    ffi_imports.push(promise_resolve);
     ffi_imports.push(import_asyncio);
 
     for ((file_name, function_name), index) in ffi_functions {
@@ -152,33 +151,51 @@ fn to_py(
     judgment: &Judgment<PyPrim>,
     ctx: BTreeMap<VarUuid, Identifier>,
     ffi: &mut BTreeMap<(String, String), VarUuid>,
-) -> Expr {
+) -> (Vec<Stmt>, Expr) {
     match &*judgment.tree {
-        JudgmentKind::Type => to_py_str("Type"),
-        JudgmentKind::Prim(t, _prim_type) => PyPrim::to_py_prim(&t, ffi),
+        JudgmentKind::Type => (vec![], to_py_str("Type")),
+        JudgmentKind::Prim(t, _prim_type) => (vec![], PyPrim::to_py_prim(&t, ffi)),
         JudgmentKind::FreeVar(var_index, _var_type) => match ctx.get(var_index) {
-            Some(ident) => promise_resolve(to_py_ident1(ident.clone())),
+            Some(ident) => (vec![], promise_resolve(to_py_ident1(ident.clone()))),
             None => {
                 unreachable!("this means that we have a loose free variable")
             }
         },
-        JudgmentKind::Pi(_, _) => to_py_str("pi"),
+        JudgmentKind::Pi(_, _) => (vec![], to_py_str("pi")),
         JudgmentKind::Lam(_var_type, sexpr) => {
             let (index, expr) = sexpr.clone().unbind();
             let var_name = make_var_name(index);
 
-            to_py_lam(
-                to_py(&expr, add_to_ctx(ctx, index, &var_name.clone()), ffi),
-                vec![var_name],
-            )
+            let (sub_func_defs, sub_expr) =
+                to_py(&expr, add_to_ctx(ctx, index, &var_name.clone()), ffi);
+
+            let func_def = Stmt(json!({
+                "ast_type": "AsyncFunctionDef",
+                "decorator_list": [],
+                "name": var_name.0.clone(),
+                "args": to_py_arguments(vec![var_name.clone()]).0,
+                "body": [{"ast_type": "Return", "value": sub_expr.0}],
+            }));
+
+            let mut result_func_defs = sub_func_defs;
+            result_func_defs.push(func_def);
+            (result_func_defs, promise_resolve(to_py_ident1(var_name)))
         }
         JudgmentKind::BoundVar(_, _var_type) => {
             unreachable!("we use unbind so should never see a BoundVar")
         }
-        JudgmentKind::App(func, arg) => to_py_app(
-            to_py(&*func, ctx.clone(), ffi),
-            vec![to_py(&*arg, ctx, ffi)],
-        ),
+        JudgmentKind::App(func, arg) => {
+            let (sub_func_defs_func, sub_expr_func) = to_py(&*func, ctx.clone(), ffi);
+            let (sub_func_defs_arg, sub_expr_arg) = to_py(&*arg, ctx.clone(), ffi);
+
+            let mut result_func_defs = sub_func_defs_func;
+            result_func_defs.extend(sub_func_defs_arg);
+
+            (
+                result_func_defs,
+                to_py_app(sub_expr_func, vec![sub_expr_arg]),
+            )
+        }
     }
 }
 
@@ -199,28 +216,6 @@ fn to_py_arguments(args: Vec<Identifier>) -> Arguments {
         "args": Value::Array(args2),
         "defaults": [],
     }))
-}
-
-fn to_py_lam(body: Expr, var_names: Vec<Identifier>) -> Expr {
-    let arguments = to_py_arguments(var_names);
-
-    // https://stackoverflow.com/a/66330279
-    let underscore_name = to_py_ident2("_");
-    let underscore_string = to_py_str("_");
-    let generator_body = json!({"ast_type": "comprehension", "target": underscore_name.0, "expr": underscore_string.0});
-
-    let generator_expr =
-        Expr(json!({"ast_type": "GeneratorExp", "elt": body.0, "generators": [generator_body]}));
-
-    let anext_expr = to_py_app(
-        to_py_member(generator_expr, to_py_ident("__anext__")),
-        vec![],
-    );
-
-    let lambda_expr =
-        Expr(json!({"ast_type": "Lambda", "args": arguments.0, "body": anext_expr.0}));
-
-    promise_resolve(lambda_expr)
 }
 
 pub fn to_py_ident(name: impl Into<String>) -> Expr {
@@ -272,5 +267,8 @@ pub fn promise_resolve(expr: Expr) -> Expr {
 }
 
 pub fn run_io(expr: Expr) -> Expr {
-    to_py_app(expr, vec![])
+    to_py_app(
+        to_py_member(to_py_ident("asyncio"), to_py_ident("run")),
+        vec![to_py_app(expr, vec![])],
+    )
 }

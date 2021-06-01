@@ -6,7 +6,8 @@ use xi_backends::{
 };
 use xi_core::judgment::{Judgment, Primitive};
 use xi_frontend::{type_inference::UiPrim, Module, ModuleItem};
-use xi_runtimes::js_runtime::js_runtime::RUNTIME_FILE;
+use xi_runtimes::js_runtime::js_runtime::JS_RUNTIME_FILE;
+use xi_runtimes::py_runtime::py_runtime::PY_RUNTIME_FILE;
 // use xi_runtimes::js_runtime::js_runtime::RUNTIME_FILE;
 use xi_uuid::VarUuid;
 // takes a module and get back a PyModule, which is exactly what is needed to produce a Py file.
@@ -71,7 +72,7 @@ pub fn transport_info_front_to_js_back(
 pub fn ui_to_js_judgment(front: Judgment<UiPrim>) -> Judgment<JsPrim> {
     // In the backend, make some primitive function to FFIs.
     fn make_ffi(name: &str, var_type: Judgment<JsPrim>) -> Judgment<JsPrim> {
-        let runtime = RUNTIME_FILE.into();
+        let runtime = JS_RUNTIME_FILE.into();
         let ffi = JsPrim::Ffi(runtime, name.into());
 
         Judgment::prim(ffi, var_type, None)

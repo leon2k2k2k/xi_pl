@@ -1,48 +1,34 @@
+
 todo:
-bug: I think the js we set up has one too many awaits,
-(await is somewhat idempotent.)
-but as await one = one in js, there is not a problem, that's
-not true in python (await 5 doesn't compile in python.)
-Not only that, await (Promise.resolve(Promise.resolve(x))) = x
 
-however python await is not idempotent, and it doesn't 
-cut through promise_resolve.
-
-so I need to first fix that in js
-
-CHANGES:
-in deregister: we need 
-export let var_?? = Promise.resolve(await server.deregister_top_level...)
-
-
-Problem:
-Python you can't reuse a coroutineeee. So need to spin up
-a new one once gets used.
-
+finally fixed up the python server, now I just need to organize the 
+tests in a better way and then test strings and string functions.
+// 100
+let var_0 = 100
+// plus_5
+let var_1 = lambda|x : Int| x + 5
+//apply_20
+let var_2 = lambda|f : Int -> Int| f(20)
 
 
 test 0:
-let var_0 = 5
+// 100
+console_log(var_0)
 
-result:
-js_to_js: good.
-py_to_js: works
-js_to_py: works
-py_to_py: works
 
 test 1:
-let var_1 = lambda|x : Int| x + 5
+// 15
 console_log(var_1 (10))
-js_to_js: good
-py_to_js: works
-js_to_py: works
-py_to_py: works
+// 105
+console_log(var_1 (var_0))
 
 
 test 2:
-let var_2 = lambda|f : Int -> Int| f(1000)
+//25
 console_log(var_2 (var_1))
-js_to_js: good
-py_to_js: works
-js_to_py: works
-py_to_py:works
+
+
+js_to_js: 
+py_to_js: 
+js_to_py: works!!!
+py_to_py: works!!!

@@ -17,78 +17,52 @@ server = Server("5000", "8080", loop)
 
 async def main():
 
-    # # 5
+    # # 100
 
     var_0 = promise_resolve(100)
+    server.register_top_level(var_0, "var_0", json_kind("Int"))
 
-    # this is how to recover the int.
-    # print(await (var_0)())
     print((await (var_0)()))
     server.register_top_level(var_0, "var_0", json_kind("Int"))
 
-    # plus_3
-    # the type of var_1 = () -> Promise(Int -> () -> Promise(Int))
-    # var_1 = promise_resolve(lambda x: promise_resolve(x + 3))
+    # plus_5
 
-    # I don't think the above is going to work.
-    # this is the type we are looking at.
-    async def plus_3(x):
-        return promise_resolve(x + 3)
+    async def plus_5(x):
+        return promise_resolve(x + 5)
 
-    var_1 = promise_resolve(plus_3)
-    # this is how we would do an app:
-    # this await outside is for the fact that plus_3 is an async function.
-    eight = await (await var_1())(5)
-    print(await eight())
-
-    five = await (await var_1())(2)
-    print(await five())
+    var_1 = promise_resolve(plus_5)
     server.register_top_level(var_1, "var_1", pi_to_json(int_type, int_type))
 
-    # # apply_23
-    async def apply_23(x):
-        return await x(23)
+    # apply_20
+    async def apply_20(x):
+        return await x(20)
 
-    var_2 = promise_resolve(apply_23)
-    ans_28 = await (await var_2())(await var_1())
-    print(await ans_28())
-    # var_2 = promise_resolve(apply_23)
+    var_2 = promise_resolve(apply_20)
     server.register_top_level(
         var_2,
         "var_2",
         pi_to_json(pi_to_json(json_kind("Int"), json_kind("Int")), json_kind("Int")),
     )
 
-    # # testssssss: note we can't reuse corountine in  Python
-    # # so we just have to redefine it everytime lol.
+    # tests:
 
-    # # 5
-    # var_0 = promise_resolve(5)
-    # print(await var_0)
+    # test0:
+    # expects 100
+    print(await var_0())
 
-    # # 8
-    # var_0 = promise_resolve(5)
+    # test1:
+    # expects 15
+    fiften = await (await var_1())(10)
+    print(await fiften())
 
-    # async def plus_3(x):
-    #     return x + 3
+    # expectes 105
+    hundred_and_five = await (await var_1())(await var_0())
+    print(await hundred_and_five())
 
-    # var_1 = promise_resolve(plus_3)
-
-    # var_210 = (await var_1)(await var_0)
-    # print(await var_210)
-
-    # # # 26
-    # async def apply_23(x):
-    #     return await x(23)
-
-    # var_2 = promise_resolve(apply_23)
-
-    # async def plus_3(x):
-    #     return x + 3
-
-    # var_1 = promise_resolve(plus_3)
-    # var_232 = (await var_2)(await var_1)
-    # print(await var_232)
+    # test2:
+    # expects 25
+    twenty_five = await (await var_2())(await var_1())
+    print(await twenty_five())
 
 
 loop.run_until_complete(main())

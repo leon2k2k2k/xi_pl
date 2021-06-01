@@ -18,26 +18,13 @@ server = Server("8080", "5000", loop)
 async def main():
 
     # 5
-    # var_0 = promise_resolve(await server.deregister_top_level("var_0", int_type))
-    # print(await (var_0)())
-    # print((await (var_0)()) + 5)
+    var_0 = promise_resolve(await server.deregister_top_level("var_0", int_type))
 
     var_1 = promise_resolve(
         await server.deregister_top_level(
             "var_1", pi_to_json(json_kind("Int"), json_kind("Int"))
         )
     )
-    # copied from the py_register, they should work.
-    # eight = await (await var_1())(5)
-    # print(await eight())
-
-    # five = await (await var_1())(2)
-    # print(await five())
-
-    # five = (await var_1())(await var_0())
-    # print("2304982093840923")
-    # print(type(five))
-    # print(await five())
 
     var_2 = promise_resolve(
         await server.deregister_top_level(
@@ -51,26 +38,33 @@ async def main():
     ans_28 = await (await var_2())(await var_1())
     print(await ans_28())
 
-    async def plus_3(x):
-        return promise_resolve(x + 4)
+    # tests:
 
-    var_1 = promise_resolve(plus_3)
-    ans_28 = await (await var_2())(await var_1())
-    print(await ans_28())
-    # # # 8
-    # var_0 = promise_resolve(await server.deregister_top_level("var_0", int_type))
-    # var_210 = (await var_1)(await var_0)
-    # print(await var_210)
+    # test0:
+    # expects 100
+    print("#############TEST RESULT#############")
+    print(await var_0())
 
-    # 26
-    # var_1 = promise_resolve(
-    #     await server.deregister_top_level(
-    #         "var_1", pi_to_json(json_kind("Int"), json_kind("Int"))
-    #     )
-    # )
+    # test1:
+    # expects 15
 
-    # var_232 = (await var_2)(await var_1)
-    # print(await var_232)
+    fiften = await (await var_1())(10)
+    print("#############TEST RESULT#############")
+
+    print(await fiften())
+
+    # expectes 105
+
+    hundred_and_five = await (await var_1())(await var_0())
+    print("#############TEST RESULT#############")
+    print(await hundred_and_five())
+
+    # test2:
+    # expects 25
+
+    twenty_five = await (await var_2())(await var_1())
+    print("#############TEST RESULT#############")
+    print(await twenty_five())
 
 
 loop.run_until_complete(main())

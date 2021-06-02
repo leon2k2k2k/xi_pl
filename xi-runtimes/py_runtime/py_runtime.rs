@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 use deno_core::error::AnyError;
 
 const PY_RUNTIME_FILE: &str = "_aplite_python_runtime";
@@ -41,5 +42,36 @@ pub async fn run_py_from_string(source_code: String) -> Result<(), AnyError> {
     worker.execute("window.dispatchEvent(new Event('load'))")?;
     worker.run_event_loop().await?;
     worker.execute("window.dispatchEvent(new Event('unload'))")?;
+=======
+use std::{
+    collections::BTreeMap,
+    io::Write,
+    process::{Command, Stdio},
+    str::FromStr,
+};
+
+pub const PY_RUNTIME_FILE: &str = "_aplite_python_runtime";
+
+pub fn run_py_from_string(source_code: &str) -> Result<(), std::io::Error> {
+    // let's goooooo
+    // I probably will just dash -c it
+
+    let output = Command::new("python3")
+        .args(&["-c", source_code])
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .stdin(Stdio::inherit())
+        .output()
+        .expect("failed to execute process");
+>>>>>>> dd2f282 (Fixing things)
     Ok(())
+}
+
+mod test {
+    #[test]
+    fn test1() {
+        use super::run_py_from_string;
+        let source_code = "print('hello world')";
+        run_py_from_string(source_code);
+    }
 }

@@ -1,1 +1,16 @@
-let x = 5
+
+// let id_int = lambda|n : Int| n
+// let five = id_int(5)
+
+
+ffi "./runtime.js" {
+    console_output: Int -> IO Int,
+    console_input: IO Int,
+}
+
+let main = {
+    let a = console_input!
+    let s = console_output(a)!
+    // do console_output(s)!
+    val 10!
+}

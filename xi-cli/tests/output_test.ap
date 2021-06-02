@@ -7,10 +7,13 @@ ffi "./some_file.js"{
     console_input: IO String,
 }
 
+let m = lambda |x : String, f : String -> String| f x
+
 let main = {
-    let str = "hello world"
+    let str = console_input!
     do console_output(str)!
     let x = 5 + 6
-    do console_output(int_to_string(x))!
+    do console_output(m "hi" (lambda |x| x))!
+   do console_output(int_to_string(x))!
     val unit!
 }

@@ -68,7 +68,7 @@ pub fn module_to_python_module(module: PyModule, main_id: VarUuid) -> Mod {
 
     let import_asyncio = Stmt(json!({
         "ast_type": "Import",
-        "names": [{"ast_type": "alias", "name": to_py_ident2("asyncio").0}]
+        "names": [{"ast_type": "alias", "name": to_py_ident2("asyncio").0}],
     }));
 
     ffi_imports.push(import_asyncio);
@@ -82,7 +82,8 @@ pub fn module_to_python_module(module: PyModule, main_id: VarUuid) -> Mod {
                 "ast_type": "alias",
                 "name": to_py_ident2(function_name).0,
                 "asname": to_py_ident2(format!("ffi{}", index.index())).0,
-            }]
+            }],
+            "level": 0,
         }));
 
         ffi_imports.push(module_import);
@@ -169,17 +170,18 @@ fn to_py(
             let (sub_func_defs, sub_expr) =
                 to_py(&expr, add_to_ctx(ctx, index, &var_name.clone()), ffi);
 
+            let mut func_body = sub_func_defs.into_iter().map(|x| x.0).collect::<Vec<_>>();
+            func_body.push(json!({"ast_type": "Return", "value": sub_expr.0}));
+
             let func_def = Stmt(json!({
                 "ast_type": "AsyncFunctionDef",
                 "decorator_list": [],
                 "name": var_name.0.clone(),
                 "args": to_py_arguments(vec![var_name.clone()]).0,
-                "body": [{"ast_type": "Return", "value": sub_expr.0}],
+                "body": Value::Array(func_body),
             }));
 
-            let mut result_func_defs = sub_func_defs;
-            result_func_defs.push(func_def);
-            (result_func_defs, promise_resolve(to_py_ident1(var_name)))
+            (vec![func_def], promise_resolve(to_py_ident1(var_name)))
         }
         JudgmentKind::BoundVar(_, _var_type) => {
             unreachable!("we use unbind so should never see a BoundVar")
@@ -193,7 +195,10 @@ fn to_py(
 
             (
                 result_func_defs,
-                to_py_app(sub_expr_func, vec![sub_expr_arg]),
+                to_py_await(to_py_app(
+                    to_py_await2(sub_expr_func),
+                    vec![to_py_await2(sub_expr_arg)],
+                )),
             )
         }
     }
@@ -231,7 +236,7 @@ pub fn to_py_ident2(name: impl Into<String>) -> Identifier {
 }
 
 pub fn to_py_member(obj: Expr, prop: Expr) -> Expr {
-    Expr(json!({"ast_type": "Attribute", "value": obj.0, "identifier": prop.0}))
+    Expr(json!({"ast_type": "Attribute", "value": obj.0, "attr": prop.0}))
 }
 
 pub fn to_py_app(func: Expr, args: Vec<Expr>) -> Expr {
@@ -240,6 +245,10 @@ pub fn to_py_app(func: Expr, args: Vec<Expr>) -> Expr {
 }
 
 pub fn to_py_await(expr: Expr) -> Expr {
+    Expr(json!({"ast_type": "Await", "value": expr.0}))
+}
+
+pub fn to_py_await2(expr: Expr) -> Expr {
     // Transforms await (promise_resolve(x)) => x
     if let Some(map) = expr.0.as_object() {
         if map["ast_type"] == "Call" {
@@ -249,7 +258,7 @@ pub fn to_py_await(expr: Expr) -> Expr {
         }
     }
 
-    Expr(json!({"ast_type": "Await", "value": expr.0}))
+    Expr(json!({"ast_type": "Await", "value": to_py_app(expr, vec![]).0}))
 }
 
 ///Take a rust string and returns a javascript string object

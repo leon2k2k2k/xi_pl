@@ -6,7 +6,7 @@ export const io_bind = Promise.resolve(async (_: any) =>
       async (func: any) => {
         return async () => {
           const value = await arg();
-          return await (await (await func)(value))();
+          return await (await func(value))();
         };
       }
 );

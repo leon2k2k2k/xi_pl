@@ -5,3 +5,5 @@
 /xi-frontend/tree-sitter-aplite/binding.gyp
 /xi-frontend/tree-sitter-aplite/build
 /deno-fork
+__pycache__
+*.pyc

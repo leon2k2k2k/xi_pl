@@ -37,8 +37,8 @@ impl Primitive for PyPrim {
 impl PyPrim {
     pub fn to_py_prim(&self, ffi: &mut BTreeMap<(String, String), VarUuid>) -> Expr {
         match self {
-            PyPrim::StringType => promise_resolve(to_py_ident("String")),
-            PyPrim::NumberType => promise_resolve(to_py_ident("Number")),
+            PyPrim::StringType => promise_resolve(to_py_str("String")),
+            PyPrim::NumberType => promise_resolve(to_py_str("Number")),
             PyPrim::StringElem(str) => promise_resolve(to_py_str(str.clone())),
             PyPrim::NumberElem(num) => promise_resolve(to_py_num(num.clone())),
             PyPrim::Ffi(filename, ffi_name) => {

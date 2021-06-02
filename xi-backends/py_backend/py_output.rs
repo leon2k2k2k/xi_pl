@@ -11,16 +11,16 @@ use xi_uuid::VarUuid;
 use crate::py_backend::py_prim::{PyModule, PyModuleItem, PyPrim};
 
 #[derive(Clone, Debug)]
-pub struct Mod(Value);
+pub struct Mod(pub Value);
 #[derive(Clone, Debug)]
-pub struct Stmt(Value);
+pub struct Stmt(pub Value);
 #[derive(Clone, Debug)]
-pub struct Expr(Value);
+pub struct Expr(pub Value);
 #[derive(Clone, Debug)]
-pub struct Identifier(Value);
+pub struct Identifier(pub Value);
 
 #[derive(Clone, Debug)]
-pub struct Arguments(Value);
+pub struct Arguments(pub Value);
 
 pub fn judgment_to_mod(
     judgment: Judgment<PyPrim>,
@@ -186,7 +186,7 @@ pub fn make_var_name(index: VarUuid) -> Identifier {
     to_py_ident2(format!("var_{}", index.index()))
 }
 
-fn to_py(
+pub fn to_py(
     judgment: &Judgment<PyPrim>,
     ctx: BTreeMap<VarUuid, Identifier>,
     ffi: &mut BTreeMap<(String, String), VarUuid>,
@@ -242,13 +242,13 @@ fn to_py(
     }
 }
 
-fn add_to_ctx<T: Ord, U: Clone>(v: BTreeMap<T, U>, index: T, x: &U) -> BTreeMap<T, U> {
+pub fn add_to_ctx<T: Ord, U: Clone>(v: BTreeMap<T, U>, index: T, x: &U) -> BTreeMap<T, U> {
     let mut v = v;
     v.insert(index, x.clone());
     v
 }
 
-fn to_py_arguments(args: Vec<Identifier>) -> Arguments {
+pub fn to_py_arguments(args: Vec<Identifier>) -> Arguments {
     let args2 = args
         .iter()
         .map(|arg| json!({"ast_type": "arg", "arg": arg.0}))
@@ -318,4 +318,13 @@ pub fn run_io(expr: Expr) -> Expr {
         to_py_member(to_py_ident("asyncio"), to_py_ident("run")),
         vec![to_py_app(expr, vec![])],
     )
+}
+
+pub fn py_expr_to_stmt(expr: Expr) -> Stmt {
+    Stmt(json!({"ast_type": "Expr", "value": expr.0}))
+}
+
+pub fn to_py_assign(targets: Vec<Expr>, value: Expr) -> Stmt {
+    let exprs: Vec<Value> = targets.into_iter().map(|x| x.0).collect();
+    Stmt(json!({"ast_type": "Assign", "targets": exprs, "value": value.0,}))
 }

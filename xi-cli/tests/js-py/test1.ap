@@ -1,19 +1,19 @@
 // let it up so this will work:
 
-// 100
-@js transport py let var_0 = 100
+// 5
+@js transport py let five = 5
 // plus_5
-@js transport py fn var_1 |x : Int| -> Int {val 5 + x }
+@js transport py fn plus_five |x : Int| -> Int {val 5 + x }
 // apply_20
-@js transport py fn var_2 |f : Int -> Int| -> Int
+@js transport py fn apply_20 |f : Int -> Int| -> Int
   {val f 20}
 // plus 
-@js transport py fn var_3 |x : Int, y : Int| { val x + y}
+@js transport py fn plus |x : Int, y : Int| { val x + y}
 
-// @js let ten = add3 (five)
 
-// @js let ten = apply234234 add3
+@py let ten = plus_five (five)
 
-// @py let ten = apply234234 add3
 
-@js let seven = var_3(95)(4)
+@py let ten = apply_20 (plus_five)
+
+@py let seven = plus(five) (ten)

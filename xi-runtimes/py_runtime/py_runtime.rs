@@ -28,6 +28,6 @@ mod test {
     fn test1() {
         use super::run_py_from_string;
         let source_code = "print('hello world')";
-        run_py_from_string(actual_source_code);
+        run_py_from_string(source_code);
     }
 }

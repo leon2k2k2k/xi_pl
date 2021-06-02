@@ -10,7 +10,7 @@ use xi_backends::js_backend::{
     js_output::{
         make_var_name, module_item_to_swc_module_item, promise_resolve, run_io,
         string_to_import_specifier, swc_module_to_string, to_js_await, to_js_ident, to_js_ident2,
-        to_js_str,
+        to_js_num, to_js_sm_int, to_js_str,
     },
     js_prim::{JsModule, JsPrim},
 };
@@ -18,17 +18,13 @@ use xi_backends::js_backend::{
 use xi_core::judgment::Judgment;
 use xi_uuid::VarUuid;
 
-pub struct JsPyModules {
-    js_backend: Module,
-    py: Module,
-}
-
 // let's try to write the modules again.
 
-pub fn module_to_swc_module(
+pub fn module_to_js_module(
     module: JsModule,
     main_id: Option<VarUuid>,
-    server_name: String,
+    port: u32,
+    other_port: u32,
 ) -> Module {
     // first the standard server kind of stuff:
     // import {Server, pi_to_json, json_kind} from "./server.ts";
@@ -47,7 +43,7 @@ pub fn module_to_swc_module(
     // first we add in the import server stuff code:
     body.push(std_import_from_server());
     // then run server.
-    body.push(let_server_code(server_name.clone()));
+    body.push(let_server_code(port, other_port));
 
     // keep track of all the ffi functions.
     let mut ffi_functions = BTreeMap::new();
@@ -59,8 +55,8 @@ pub fn module_to_swc_module(
     dbg!(&module.module_items);
     for (var_index, module_item) in &module.module_items {
         dbg!(&var_index);
-        if Some(server_name.clone()) == module_item.transport_info().origin {
-            let (swc_module_item) =
+        if Some("js".into()) == module_item.transport_info().origin {
+            let swc_module_item =
                 module_item_to_swc_module_item(&mut ffi_functions, module_item.clone(), *var_index);
             // we add everything to the var_names now:
             // first the ffi functions, which are ffi{var_index}
@@ -70,11 +66,11 @@ pub fn module_to_swc_module(
             // do below only if it has a transport
             // server.register(var_1, serialized_var_1);
 
-            if let Some(server_name) = module_item.transport_info().transport {
+            if Some("py".into()) == module_item.transport_info().transport {
                 let serialized_var_module_item = register_top_level(var_index, module_item.type_());
                 body.push(serialized_var_module_item);
             }
-        } else if Some(server_name.clone()) == module_item.transport_info().transport {
+        } else if Some("js".into()) == module_item.transport_info().transport {
             let deregister_top_level = Expr::Member(MemberExpr {
                 span: DUMMY_SP,
                 obj: ExprOrSuper::Expr(Box::new(to_js_ident("server"))),
@@ -204,19 +200,19 @@ pub fn get_vars(type_: Judgment<JsPrim>, vars: &mut Vec<Judgment<JsPrim>>) {
 }
 
 pub fn js_module_to_string(module: JsModule) -> String {
-    let module = module_to_swc_module(module, None, "js".into());
+    let module = module_to_js_module(module, None, 5000, 8080);
     swc_module_to_string(module)
 }
 
-pub fn js_module_to_py_string(module: JsModule) -> String {
-    let py_module = module_to_swc_module(module, None, "py".into());
-    swc_module_to_string(py_module)
-}
+// pub fn js_module_to_py_string(module: JsModule) -> String {
+//     let py_module = module_to_js_module(module, None, "py".into());
+//     swc_module_to_string(py_module)
+// }
 
-pub fn js_module_to_py_string_with_run(module: JsModule, main_id: VarUuid) -> String {
-    let py_main_module = module_to_swc_module(module, Some(main_id), "py".into());
-    swc_module_to_string(py_main_module)
-}
+// pub fn js_module_to_py_string_with_run(module: JsModule, main_id: VarUuid) -> String {
+//     let py_main_module = module_to_js_module(module, Some(main_id), "py".into());
+//     swc_module_to_string(py_main_module)
+// }
 
 pub fn register_top_level(index: &VarUuid, type_: Judgment<JsPrim>) -> ModuleItem {
     // first let's make the json object associated to var_a.type_:
@@ -299,7 +295,7 @@ pub fn json_kind(str: String) -> Expr {
     to_js_app_wo_await(to_js_ident("json_kind"), vec![to_js_str(str)])
 }
 
-pub fn let_server_code(server_name: String) -> ModuleItem {
+pub fn let_server_code(port: u32, other_port: u32) -> ModuleItem {
     let var_declarator = VarDeclarator {
         span: DUMMY_SP,
         name: Pat::Ident(BindingIdent {
@@ -309,10 +305,16 @@ pub fn let_server_code(server_name: String) -> ModuleItem {
         init: Some(Box::new(Expr::New(NewExpr {
             span: DUMMY_SP,
             callee: Box::new(to_js_ident("Server")),
-            args: Some(vec![ExprOrSpread {
-                spread: None,
-                expr: Box::new(to_js_str(server_name)),
-            }]),
+            args: Some(vec![
+                ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(to_js_sm_int(port)),
+                },
+                ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(to_js_sm_int(other_port)),
+                },
+            ]),
             type_args: None,
         }))),
         definite: false,
@@ -327,12 +329,4 @@ pub fn let_server_code(server_name: String) -> ModuleItem {
             decls: vec![var_declarator],
         }),
     }))
-}
-
-// this backend takes an Aplite file and gets a Python and Js module:
-fn module_to_js_py_modules(module: JsModule) -> JsPyModules {
-    JsPyModules {
-        js_backend: module_to_swc_module(module.clone(), None, "js".into()),
-        py: module_to_swc_module(module, None, "py".into()),
-    }
 }

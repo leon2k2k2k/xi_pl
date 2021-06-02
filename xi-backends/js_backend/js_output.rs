@@ -1,9 +1,9 @@
-use std::{collections::BTreeMap, rc::Rc};
+use std::{collections::BTreeMap, rc::Rc, time::Duration};
 use swc_common::{FilePathMapping, SourceMap, DUMMY_SP};
 use swc_ecma_ast::{
     ArrowExpr, AwaitExpr, BigInt, BindingIdent, BlockStmtOrExpr, CallExpr, Decl, ExportDecl, Expr,
     ExprOrSpread, ExprOrSuper, ExprStmt, Ident, ImportDecl, ImportNamedSpecifier, ImportSpecifier,
-    Lit, MemberExpr, Module, ModuleDecl, ModuleItem, ParenExpr, Pat, Stmt, Str, VarDecl,
+    Lit, MemberExpr, Module, ModuleDecl, ModuleItem, Number, ParenExpr, Pat, Stmt, Str, VarDecl,
     VarDeclKind, VarDeclarator,
 };
 use swc_ecma_codegen::{text_writer::JsWriter, Config, Emitter};
@@ -288,7 +288,7 @@ pub fn to_js_str(string: impl Into<String>) -> Expr {
     };
     Expr::Lit(Lit::Str(str))
 }
-
+// goes to BigInt
 pub fn to_js_num(num: String) -> Expr {
     let bigint_oops = num_bigint::BigInt::parse_bytes(&num.into_bytes(), 10).unwrap();
     let bigint = BigInt {
@@ -296,6 +296,13 @@ pub fn to_js_num(num: String) -> Expr {
         value: bigint_oops,
     };
     Expr::Lit(Lit::BigInt(bigint))
+}
+
+pub fn to_js_sm_int(int: u32) -> Expr {
+    Expr::Lit(Lit::Num(Number {
+        span: DUMMY_SP,
+        value: int as f64,
+    }))
 }
 
 pub fn promise_resolve(expr: Expr) -> Expr {

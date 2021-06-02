@@ -1,17 +1,14 @@
 
-// let id_int = lambda|n : Int| n
-// let five = id_int(5)
+@py transport js let id_int = lambda|n : Int| n
+@js let five = id_int(5)
 
 
-ffi "runtime.py" {
-    console_output: String -> IO String,
-    console_input: IO String,
-}
-
-let main = {
-    let u = console_output("waiting for input")!
-    let a = console_input!
-    let s = console_output(a)!
-    // do console_output(s)!
-    val 10!
-}
+@js ffi "./some_file.js" {
+     console_output: String -> IO String,
+     console_input: IO String,
+     int_to_string: Int -> String,
+ }
+ 
+@js let main = {
+    let s = console_output(int_to_string(five))!
+    val 10!}

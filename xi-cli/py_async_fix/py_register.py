@@ -23,7 +23,6 @@ async def main():
     server.register_top_level(var_0, "var_0", json_kind("Int"))
 
     # plus_5
-
     async def plus_5(x):
         return promise_resolve(x + 5)
 

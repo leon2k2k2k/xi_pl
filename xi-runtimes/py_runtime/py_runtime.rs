@@ -1,3 +1,5 @@
+use deno_core::error::AnyError;
+
 const PY_RUNTIME_FILE: &str = "_aplite_python_runtime";
 
 pub async fn run_py_from_string(source_code: String) -> Result<(), AnyError> {

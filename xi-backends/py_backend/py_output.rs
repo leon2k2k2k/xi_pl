@@ -73,6 +73,29 @@ pub fn module_to_python_module(module: PyModule, main_id: VarUuid) -> Mod {
 
     ffi_imports.push(import_asyncio);
 
+    let promise_resolve_decl = Stmt(json!({
+        "ast_type": "FunctionDef",
+        "name": to_py_ident2("promise_resolve").0,
+        "args": to_py_arguments(vec![to_py_ident2("x")]).0,
+        "body": [{
+            "ast_type": "AsyncFunctionDef",
+            "name": to_py_ident2("helper").0,
+            "args": to_py_arguments(vec![]).0,
+            "body": [{
+                "ast_type": "Return",
+                "value": to_py_ident("x").0,
+
+            }],
+            "decorator_list": [],
+        }, {
+            "ast_type": "Return",
+            "value": to_py_ident("helper").0,
+        }],
+        "decorator_list": [],
+    }));
+
+    ffi_imports.push(promise_resolve_decl);
+
     for ((file_name, function_name), index) in ffi_functions {
         let file_no_extension = &file_name[..file_name.len() - 3];
         let module_import = Stmt(json!({
@@ -91,13 +114,27 @@ pub fn module_to_python_module(module: PyModule, main_id: VarUuid) -> Mod {
 
     let run_main = Stmt(json!({
         "ast_type": "Expr",
-        "value": run_io(to_py_ident1(make_var_name(main_id))).0,
+        "value": to_py_await2(to_py_await2(to_py_ident1(make_var_name(main_id)))).0,
+    }));
+    body.push(run_main);
+
+    let main_fn = Stmt(json!({
+        "ast_type": "AsyncFunctionDef",
+        "name": to_py_ident2("main").0,
+        "args": to_py_arguments(vec![]).0,
+        "body": Value::Array(body.into_iter().map(|x| x.0).collect()),
+        "decorator_list": [],
+    }));
+
+    let run_main2 = Stmt(json!({
+        "ast_type": "Expr",
+        "value": to_py_app(to_py_member(to_py_ident("asyncio"), to_py_ident("run")), vec![to_py_app(to_py_ident("main"), vec![])]).0,
     }));
 
     let body_with_imports = {
         let mut t = ffi_imports;
-        t.extend(body);
-        t.push(run_main);
+        t.push(main_fn);
+        t.push(run_main2);
         t.into_iter().map(|x| x.0).collect()
     };
 
@@ -116,6 +153,7 @@ pub fn python_module_to_string(module: Mod) -> String {
         .arg("-c")
         .arg(python_file)
         .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
         .spawn()
         .ok()
         .expect("Failed to spawn python");

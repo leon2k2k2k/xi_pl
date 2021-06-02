@@ -3,12 +3,13 @@
 // let five = id_int(5)
 
 
-ffi "./runtime.js" {
-    console_output: Int -> IO Int,
-    console_input: IO Int,
+ffi "runtime.py" {
+    console_output: String -> IO String,
+    console_input: IO String,
 }
 
 let main = {
+    let u = console_output("waiting for input")!
     let a = console_input!
     let s = console_output(a)!
     // do console_output(s)!

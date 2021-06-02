@@ -23,22 +23,22 @@ pub struct Identifier(pub Value);
 pub struct Arguments(pub Value);
 
 pub fn judgment_to_mod(
+    ffi_functions: &mut BTreeMap<(String, String), VarUuid>,
     judgment: Judgment<PyPrim>,
-) -> (BTreeMap<(String, String), VarUuid>, Vec<Stmt>, Expr) {
-    let mut ffi_functions = BTreeMap::new();
+) -> (Vec<Stmt>, Expr) {
+    let (func_defs, main_py) = to_py(&judgment, BTreeMap::new(), ffi_functions);
 
-    let (func_defs, main_py) = to_py(&judgment, BTreeMap::new(), &mut ffi_functions);
-
-    (ffi_functions, func_defs, main_py)
+    (func_defs, main_py)
 }
 
 pub fn module_item_to_stmt(
+    ffi_functions: &mut BTreeMap<(String, String), VarUuid>,
     module_item: PyModuleItem,
     var_index: VarUuid,
-) -> (BTreeMap<(String, String), VarUuid>, Vec<Stmt>) {
+) -> (Vec<Stmt>) {
     match module_item {
         PyModuleItem::Define(define_item) => {
-            let (ffi_functions, func_defs, expr) = judgment_to_mod(define_item.impl_);
+            let (func_defs, expr) = judgment_to_mod(ffi_functions, define_item.impl_);
 
             let var_name = to_py_ident1(make_var_name(var_index));
 
@@ -48,7 +48,7 @@ pub fn module_item_to_stmt(
             let mut result = func_defs;
             result.push(stmt);
 
-            (ffi_functions, result)
+            result
         }
     }
 }
@@ -58,9 +58,7 @@ pub fn module_to_python_module(module: PyModule, main_id: VarUuid) -> Mod {
     let mut ffi_functions = BTreeMap::new();
 
     for (var_index, module_item) in &module.module_items {
-        let (new_ffi_functions, module_items) =
-            module_item_to_stmt(module_item.clone(), *var_index);
-        ffi_functions.extend(new_ffi_functions);
+        let module_items = module_item_to_stmt(&mut ffi_functions, module_item.clone(), *var_index);
         body.extend(module_items);
     }
 

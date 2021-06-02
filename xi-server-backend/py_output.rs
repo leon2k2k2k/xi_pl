@@ -28,9 +28,8 @@ pub fn module_to_py_mod(
         dbg!(&module_item.transport_info());
         if Some("py".into()) == module_item.transport_info().origin {
             dbg!("hello!!!");
-            let (new_ffi_functions, module_items) =
-                module_item_to_stmt(module_item.clone(), *var_index);
-            ffi_functions.extend(new_ffi_functions);
+            let module_items =
+                module_item_to_stmt(&mut ffi_functions, module_item.clone(), *var_index);
             body.extend(module_items);
 
             // check that if it needs to be transported somewhere:

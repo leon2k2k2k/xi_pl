@@ -41,18 +41,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file_contents = std::fs::read_to_string(input[1].clone())?;
 
     let module_and_imports = ui_to_module(&file_contents);
-    let module = module_and_imports.module;
-    dbg!(&module);
 
     let js_or_py = input[2].clone();
     if js_or_py == "js" {
-        let jsmodule = front_to_js_back(module);
+        let jsmodule = front_to_js_back(module_and_imports);
 
         let js = js_module_to_string(jsmodule.clone());
         println!("{}", js);
         js_runtime::run_js_from_string(js).await?;
     } else {
-        let py_module = front_to_py_back(module);
+        let py_module = front_to_py_back(module_and_imports);
         let py = module_to_py_string(py_module, None, 8080, 5000);
         println!("{}", py);
         py_runtime::run_py_from_string(&py);

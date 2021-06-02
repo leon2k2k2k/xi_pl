@@ -23,7 +23,7 @@ export const equals = Promise.resolve(async (a) =>
       );
     } else {
       return Promise.resolve(
-        (async (T) => (async (t) => (async (f) => t))),
+        (async (T) => (async (t) => (async (f) => f))),
       );
     }
   }
@@ -71,6 +71,6 @@ export const concat = Promise.resolve(async (a) =>
 export const YCombinator_please_accept_us = Promise.resolve(async (fn) =>
   async () =>
     (async (x) => x(x))(
-      async (maker) => async (...args) => fn(maker(maker))(...args),
+      async (maker) => async (...args) => (await (await fn)(await (await maker)(await maker)))(...args),
     )
 )

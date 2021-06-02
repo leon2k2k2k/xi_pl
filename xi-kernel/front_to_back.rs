@@ -2,16 +2,39 @@ use std::{collections::BTreeMap, rc::Rc};
 
 use xi_backends::{
     js_backend::js_prim::{self, JsDefineItem, JsModule, JsModuleItem, JsPrim},
-    py_backend::py_prim::{PyDefineItem, PyModule, PyModuleItem, PyPrim, TransportInfo},
+    py_backend::py_prim::{
+        PyDefineItem, PyModule, PyModuleAndImports, PyModuleItem, PyPrim, TransportInfo,
+    },
 };
 use xi_core::judgment::{Judgment, Primitive};
-use xi_frontend::{type_inference::UiPrim, Module, ModuleItem};
+use xi_frontend::{type_inference::UiPrim, DefineItem, Module, ModuleAndImports, ModuleItem};
 use xi_runtimes::js_runtime::js_runtime::JS_RUNTIME_FILE;
 use xi_runtimes::py_runtime::py_runtime::PY_RUNTIME_FILE;
 // use xi_runtimes::js_runtime::js_runtime::RUNTIME_FILE;
 use xi_uuid::VarUuid;
+
+pub fn add_to_module(module: &mut Module, modules: ModuleAndImports) {
+    for (_index, item) in modules.imports {
+        add_to_module(module, item)
+    }
+
+    for (index, item) in modules.module.module_items {
+        match item {
+            ModuleItem::Define(_) => module.add(index, item),
+            ModuleItem::Import(_) => {}
+        }
+    }
+}
+
+pub fn combine_module_and_imports(modules: ModuleAndImports) -> Module {
+    let mut module = Module::new();
+    add_to_module(&mut module, modules);
+    dbg!("returning module", &module);
+    return module;
+}
 // takes a module and get back a PyModule, which is exactly what is needed to produce a Py file.
-pub fn front_to_py_back(module: Module) -> PyModule {
+pub fn front_to_py_back(modules: ModuleAndImports) -> PyModule {
+    let module = combine_module_and_imports(modules);
     let mut py_module_items = BTreeMap::new();
     for (var_index, module_item) in module.module_items {
         let py_module_item = match module_item {
@@ -31,7 +54,8 @@ pub fn front_to_py_back(module: Module) -> PyModule {
         module_items: py_module_items,
     }
 }
-pub fn front_to_js_back(module: Module) -> JsModule {
+pub fn front_to_js_back(modules: ModuleAndImports) -> JsModule {
+    let module = combine_module_and_imports(modules);
     let mut js_module_items = BTreeMap::new();
     for (var_index, module_item) in module.module_items {
         let js_module_item = match module_item {

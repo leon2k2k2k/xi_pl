@@ -13,27 +13,25 @@ use xi_uuid::VarUuid;
 use crate::js_backend::js_prim::{JsModule, JsModuleItem, JsPrim};
 
 pub fn judgment_to_swc_expr(
+    ffi_functions: &mut BTreeMap<(String, String), VarUuid>,
     judgment: Judgment<JsPrim>,
-) -> (BTreeMap<(String, String), VarUuid>, Expr) {
-    let mut ffi_functions = BTreeMap::new();
-
-    let main_js = to_js(&judgment, BTreeMap::new(), &mut ffi_functions);
-
-    (ffi_functions, main_js)
+) -> Expr {
+    to_js(&judgment, BTreeMap::new(), ffi_functions)
 }
 
 // a module_item should go to a swc module_item
 pub fn module_item_to_swc_module_item(
+    ffi_functions: &mut BTreeMap<(String, String), VarUuid>,
     module_item: JsModuleItem,
     var_index: VarUuid,
-) -> (BTreeMap<(String, String), VarUuid>, ModuleItem) {
+) -> ModuleItem {
     let pat = Pat::Ident(BindingIdent {
         id: make_var_name(var_index),
         type_ann: None,
     });
     match module_item {
         JsModuleItem::Define(define_item) => {
-            let (ffi_functions, expr) = judgment_to_swc_expr(define_item.impl_);
+            let expr = judgment_to_swc_expr(ffi_functions, define_item.impl_);
             let var_declarator = VarDeclarator {
                 span: DUMMY_SP,
                 name: pat,
@@ -53,7 +51,7 @@ pub fn module_item_to_swc_module_item(
                 decl: decl,
             }));
 
-            (ffi_functions, module)
+            module
         }
     }
 }
@@ -64,9 +62,8 @@ pub fn module_to_swc_module(module: JsModule, main_id: VarUuid) -> Module {
     let mut ffi_functions = BTreeMap::new();
 
     for (var_index, module_item) in &module.module_items {
-        let (new_ffi_functions, module_item) =
-            module_item_to_swc_module_item(module_item.clone(), *var_index);
-        ffi_functions.extend(new_ffi_functions);
+        let module_item =
+            module_item_to_swc_module_item(&mut ffi_functions, module_item.clone(), *var_index);
         body.push(module_item);
     }
 
@@ -144,17 +141,12 @@ fn to_js(
     match &*judgment.tree {
         JudgmentKind::Type => to_js_str("Type"),
         JudgmentKind::Prim(t, _prim_type) => JsPrim::to_js_prim(&t, ffi),
-        JudgmentKind::FreeVar(var_index, _var_type) => {
-            match ctx.get(var_index) {
-                Some(ident) => promise_resolve(to_js_ident1(ident.clone())),
-                None => {
-                    unreachable!("this means that we have a loose free variable")
-                }
+        JudgmentKind::FreeVar(var_index, _var_type) => match ctx.get(var_index) {
+            Some(ident) => promise_resolve(to_js_ident1(ident.clone())),
+            None => {
+                unreachable!("this means that we have a loose free variable")
             }
-            // let metadata = judgment.metadata.ffi.clone().unwrap();
-            // ffi.push((*var_index, metadata));
-            // to_js_ident(format!("ffi{}", var_index.index()))
-        }
+        },
         JudgmentKind::Pi(_, _) => to_js_str("pi"),
         JudgmentKind::Lam(_var_type, sexpr) => {
             let (index, expr) = sexpr.clone().unbind();

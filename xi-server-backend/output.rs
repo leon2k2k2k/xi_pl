@@ -60,9 +60,8 @@ pub fn module_to_swc_module(
     for (var_index, module_item) in &module.module_items {
         dbg!(&var_index);
         if Some(server_name.clone()) == module_item.transport_info().origin {
-            let (new_ffi_functions, swc_module_item) =
-                module_item_to_swc_module_item(module_item.clone(), *var_index);
-            ffi_functions.extend(new_ffi_functions);
+            let (swc_module_item) =
+                module_item_to_swc_module_item(&mut ffi_functions, module_item.clone(), *var_index);
             // we add everything to the var_names now:
             // first the ffi functions, which are ffi{var_index}
 

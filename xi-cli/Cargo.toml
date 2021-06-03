@@ -18,7 +18,8 @@ xi-runtimes = {path = "../xi-runtimes", optional=true }
 xi-proc-macro = { path = "../xi-proc-macro" }
 xi-core = { path = "../xi-core" }
 xi-server-backend = { path = "../xi-server-backend" }
+xi-uuid = { path = "../xi-uuid"}
 
 [features]
-deno-with-server = ["tokio",  "xi-runtimes"]
-deno-no-server = ["tokio", "xi-runtimes"]
+run-with-server = ["tokio",  "xi-runtimes"]
+run-no-server = ["tokio", "xi-runtimes"]

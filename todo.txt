@@ -1,12 +1,6 @@
-now-todo:
-1. now try to set up a server in python, and basically translate js's code to python.
- I think I can use Flask as my server. 
-Now distant goal:
-Get tictactoe should up in this way.
-
-
-
-
+Leon todo:
+1. make cli to take optional main arguments.
+2. test server_backend.
 
 todo list:
 1. Output:

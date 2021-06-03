@@ -174,7 +174,7 @@ pub fn loop_run() -> Vec<Stmt> {
     vec![run_until_comp_stmt, run_forever]
 }
 
-pub fn module_to_py_string(
+pub fn module_with_server_to_py_string(
     module: PyModule,
     main_id: Option<VarUuid>,
     port: u32,

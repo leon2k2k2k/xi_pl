@@ -1,87 +1,145 @@
-use xi_backends::py_backend::py_output::module_to_py_string;
-use xi_kernel::front_to_back::front_to_py_back;
+use xi_backends::{
+    js_backend::js_output::module_to_js_string, py_backend::py_output::module_to_py_string,
+};
+use xi_frontend::ui_to_module;
+use xi_kernel::front_to_back::{front_to_js_back, front_to_py_back};
+use xi_server_backend::js_output::module_with_server_to_js_string;
+use xi_server_backend::py_output::module_with_server_to_py_string;
 
-#[cfg(feature = "deno-no-server")]
+// it goes like
+// cargo run --features [Options] {aplite file} {backend compiler} {Option(main_func_name)}
+
+#[cfg(feature = "run-no-server")]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use xi_backend::output::module_to_js_string;
-    use xi_frontend::compile_module_item;
-    use xi_frontend::ui_to_module;
-    use xi_kernel::front_to_back::front_to_back;
-    use xi_runtime::runtime;
-
     let input = std::env::args().collect::<Vec<_>>();
-    let file_contents = std::fs::read_to_string(input[1].clone())?;
-    let func_name = input[2].clone();
-
-    let module_and_imports = ui_to_module(&file_contents);
-    let module = module_and_imports.module;
-    let jsmodule = front_to_back(module);
-    let index = *jsmodule
-        .str_to_index
-        .get(&func_name)
-        .expect("func not found");
-    let js = module_to_js_string(jsmodule, index);
-    println!("{}", js);
-    runtime::run_js_from_string(js).await?;
-    Ok(())
-}
-
-#[cfg(feature = "deno-with-server")]
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use xi_frontend::compile_module_item;
-    use xi_frontend::ui_to_module;
-    use xi_kernel::front_to_back::{front_to_js_back, front_to_py_back};
-    use xi_runtimes::js_runtime::js_runtime;
-    use xi_runtimes::py_runtime::py_runtime;
-    use xi_server_backend::js_output::js_module_to_string;
-    use xi_server_backend::py_output::module_to_py_string;
-    let input = std::env::args().collect::<Vec<_>>();
-    let file_contents = std::fs::read_to_string(input[1].clone())?;
-
-    let module_and_imports = ui_to_module(&file_contents);
-
-    let js_or_py = input[2].clone();
-    if js_or_py == "js" {
-        let jsmodule = front_to_js_back(module_and_imports);
-
-        let js = js_module_to_string(jsmodule.clone());
-        println!("{}", js);
-        js_runtime::run_js_from_string(js).await?;
+    let file_contents = std::fs::read_to_string(input[1].clone()).unwrap();
+    let back_end = BackEnd::parse_back_end(input[2].clone());
+    let main_func = if input.len() == 4 {
+        Some(input[3].clone())
     } else {
-        let py_module = front_to_py_back(module_and_imports);
-        let py = module_to_py_string(py_module, None, 8080, 5000);
-        println!("{}", py);
-        py_runtime::run_py_from_string(&py);
+        None
+    };
+    let str = aplite_to_backend_source_code(file_contents, main_func, back_end.clone(), false);
+
+    match back_end {
+        BackEnd::Js => xi_runtimes::js_runtime::js_runtime::run_js_from_string(str).await?,
+        BackEnd::Py => {
+            println!("helloooo");
+            xi_runtimes::py_runtime::py_runtime::run_py_from_string(&str);
+        }
     }
 
     Ok(())
 }
 
-// we are going to compile this all the way down to javascript
-#[cfg(all(not(feature = "deno-with-server"), not(feature = "deno-no-server")))]
-fn main() {
-    use xi_backends::js_backend::js_output::module_to_js_string;
-    use xi_frontend::ui_to_module;
-    use xi_kernel::front_to_back::front_to_js_back;
-
+// this one runs the code with server
+#[cfg(all(feature = "run-with-server", not(feature = "run-no-server")))]
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = std::env::args().collect::<Vec<_>>();
     let file_contents = std::fs::read_to_string(input[1].clone()).unwrap();
+    let back_end = BackEnd::parse_back_end(input[2].clone());
+    let main_func = if input.len() == 4 {
+        Some(input[3].clone())
+    } else {
+        None
+    };
+    let str = aplite_to_backend_source_code(file_contents, main_func, back_end.clone(), true);
 
-    let module_and_imports = ui_to_module(&file_contents);
+    match back_end {
+        BackEnd::Js => xi_runtimes::js_runtime::js_runtime::run_js_from_string(str).await?,
+        BackEnd::Py => {
+            println!("helloooo");
+            xi_runtimes::py_runtime::py_runtime::run_py_from_string(&str);
+        }
+    }
 
-    let py_module = front_to_py_back(module_and_imports);
+    Ok(())
+}
 
-    let func_name = input[2].clone();
+// this one prints the output js/py source code.
 
-    let index = *py_module
-        .str_to_index
-        .get(&func_name)
-        .expect("func not found");
+#[cfg(all(not(feature = "run-with-server"), not(feature = "run-no-server")))]
+fn main() {
+    let input = std::env::args().collect::<Vec<_>>();
+    let file_contents = std::fs::read_to_string(input[1].clone()).unwrap();
+    let back_end = BackEnd::parse_back_end(input[2].clone());
+    let main_func = if input.len() == 4 {
+        Some(input[3].clone())
+    } else {
+        None
+    };
+    let str = aplite_to_backend_source_code(file_contents, main_func, back_end, false);
+    println!("{}", str);
+}
+#[derive(Clone, Debug)]
+pub enum BackEnd {
+    Js,
+    Py,
+    //go,
+    //haskell,
+}
 
-    let py = module_to_py_string(py_module, index);
-    println!("{}", py);
-    // use xi_runtimes::py_runtime::py_runtime::run_py_from_string;
-    // run_py_from_string(&py);
+impl BackEnd {
+    pub fn parse_back_end(str: String) -> BackEnd {
+        if str == "js" {
+            BackEnd::Js
+        } else if str == "py" {
+            BackEnd::Py
+        } else {
+            panic!("No such backend (for now ;))")
+        }
+    }
+}
+
+pub fn aplite_to_backend_source_code(
+    source_code: String,
+    main_func: Option<String>,
+    backend: BackEnd,
+    with_server: bool,
+) -> String {
+    let module_and_imports = ui_to_module(&source_code);
+    let main_id = match main_func {
+        Some(func_name) => Some(
+            *module_and_imports
+                .module
+                .str_to_index
+                .get(&func_name)
+                .expect("func not found"),
+        ),
+        None => None,
+    };
+    match backend {
+        BackEnd::Js => {
+            let js_module = front_to_js_back(module_and_imports);
+            match with_server {
+                true => {
+                    let js_string = module_with_server_to_js_string(js_module, main_id, 5000, 8080);
+                    println!("{}", &js_string);
+                    js_string
+                }
+                false => {
+                    let js_string = module_to_js_string(js_module, main_id);
+                    println!("{}", &js_string);
+                    js_string
+                }
+            }
+        }
+        BackEnd::Py => {
+            let py_module = front_to_py_back(module_and_imports);
+            match with_server {
+                true => {
+                    let py_string = module_with_server_to_py_string(py_module, main_id, 8080, 5000);
+                    println!("{}", &py_string);
+                    py_string
+                }
+                false => {
+                    let py_string = module_to_py_string(py_module, main_id);
+                    println!("{}", &py_string);
+                    py_string
+                }
+            }
+        }
+    }
 }

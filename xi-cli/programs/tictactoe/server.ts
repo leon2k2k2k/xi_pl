@@ -22,7 +22,8 @@ export async function tictactoe(play: any, init_board: any, init_square: any) {
           const body = await requestEvent.request.text();
           let pos = BigInt(JSON.parse(body));
 
-          let play_result = await ((await (await (await (await play)(board))(pos))(square))());
+          let play_result =
+            await ((await (await (await (await play)(board))(pos))(square))());
           console.log(play_result);
           let response;
           if (play_result.message === "invalid") {

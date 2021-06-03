@@ -57,7 +57,7 @@ pub fn module_item_to_swc_module_item(
 }
 
 // a js_module go to a swc module
-pub fn module_to_swc_module(module: JsModule, main_id: VarUuid) -> Module {
+pub fn module_to_js_module(module: JsModule, main_id: Option<VarUuid>) -> Module {
     let mut body = vec![];
     let mut ffi_functions = BTreeMap::new();
 
@@ -88,15 +88,18 @@ pub fn module_to_swc_module(module: JsModule, main_id: VarUuid) -> Module {
         ffi_imports.push(ModuleItem::ModuleDecl(module_import));
     }
 
-    let run_main = ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-        span: DUMMY_SP,
-        expr: Box::new(run_io(Expr::Ident(make_var_name(main_id)))),
-    }));
-
     let body_with_imports = {
         let mut t = ffi_imports;
         t.extend(body);
-        t.push(run_main);
+        // if there is a main_id, run the function.
+
+        if let Some(main_id) = main_id {
+            let run_main = ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(run_io(Expr::Ident(make_var_name(main_id)))),
+            }));
+            t.push(run_main);
+        }
         t
     };
 
@@ -124,8 +127,8 @@ pub fn swc_module_to_string(module: Module) -> String {
     std::str::from_utf8(output_buf.as_slice()).unwrap().into()
 }
 
-pub fn module_to_js_string(module: JsModule, main_id: VarUuid) -> String {
-    let module = module_to_swc_module(module, main_id);
+pub fn module_to_js_string(module: JsModule, main_id: Option<VarUuid>) -> String {
+    let module = module_to_js_module(module, main_id);
     swc_module_to_string(module)
 }
 

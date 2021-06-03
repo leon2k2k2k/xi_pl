@@ -199,8 +199,13 @@ pub fn get_vars(type_: Judgment<JsPrim>, vars: &mut Vec<Judgment<JsPrim>>) {
     }
 }
 
-pub fn js_module_to_string(module: JsModule) -> String {
-    let module = module_to_js_module(module, None, 5000, 8080);
+pub fn module_with_server_to_js_string(
+    module: JsModule,
+    main_id: Option<VarUuid>,
+    port: u32,
+    other_port: u32,
+) -> String {
+    let module = module_to_js_module(module, main_id, port, other_port);
     swc_module_to_string(module)
 }
 

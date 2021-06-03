@@ -4063,6 +4063,7 @@ dependencies = [
  "xi-proc-macro",
  "xi-runtimes",
  "xi-server-backend",
+ "xi-uuid",
 ]
 
 [[package]]

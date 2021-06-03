@@ -53,7 +53,7 @@ pub fn module_item_to_stmt(
     }
 }
 
-pub fn module_to_python_module(module: PyModule, main_id: VarUuid) -> Mod {
+pub fn module_to_python_module(module: PyModule, main_id: Option<VarUuid>) -> Mod {
     let mut body = vec![];
     let mut ffi_functions = BTreeMap::new();
 
@@ -110,11 +110,13 @@ pub fn module_to_python_module(module: PyModule, main_id: VarUuid) -> Mod {
         ffi_imports.push(module_import);
     }
 
-    let run_main = Stmt(json!({
-        "ast_type": "Expr",
-        "value": to_py_await2(to_py_await2(to_py_ident1(make_var_name(main_id)))).0,
-    }));
-    body.push(run_main);
+    if let Some(main_id) = main_id {
+        let run_main = Stmt(json!({
+            "ast_type": "Expr",
+            "value": to_py_await2(to_py_await2(to_py_ident1(make_var_name(main_id)))).0,
+        }));
+        body.push(run_main);
+    }
 
     let main_fn = Stmt(json!({
         "ast_type": "AsyncFunctionDef",
@@ -175,7 +177,7 @@ pub fn python_module_to_string(module: Mod) -> String {
     std::str::from_utf8(&output.stdout).unwrap().into()
 }
 
-pub fn module_to_py_string(module: PyModule, main_id: VarUuid) -> String {
+pub fn module_to_py_string(module: PyModule, main_id: Option<VarUuid>) -> String {
     let module = module_to_python_module(module, main_id);
     python_module_to_string(module)
 }

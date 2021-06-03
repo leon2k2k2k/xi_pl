@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, rc::Rc, time::Duration};
+use std::{collections::BTreeMap, rc::Rc};
 use swc_common::{FilePathMapping, SourceMap, DUMMY_SP};
 use swc_ecma_ast::{
     ArrowExpr, AwaitExpr, BigInt, BindingIdent, BlockStmtOrExpr, CallExpr, Decl, ExportDecl, Expr,

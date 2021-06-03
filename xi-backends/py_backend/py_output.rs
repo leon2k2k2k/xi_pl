@@ -35,7 +35,7 @@ pub fn module_item_to_stmt(
     ffi_functions: &mut BTreeMap<(String, String), VarUuid>,
     module_item: PyModuleItem,
     var_index: VarUuid,
-) -> (Vec<Stmt>) {
+) -> Vec<Stmt> {
     match module_item {
         PyModuleItem::Define(define_item) => {
             let (func_defs, expr) = judgment_to_mod(ffi_functions, define_item.impl_);

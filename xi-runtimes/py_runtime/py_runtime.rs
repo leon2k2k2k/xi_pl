@@ -1,9 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    io::Write,
-    process::{Command, Stdio},
-    str::FromStr,
-};
+use std::process::{Command, Stdio};
 
 pub const PY_RUNTIME_FILE: &str = "_aplite_python_runtime";
 
@@ -13,7 +8,7 @@ pub fn run_py_from_string(source_code: &str) -> Result<(), std::io::Error> {
     let actual_source_code = format!("{}\n\n{}", runtime_code, source_code);
     eprintln!("{}", &actual_source_code);
 
-    let output = Command::new("python3")
+    let _output = Command::new("python3")
         .args(&["-c", &actual_source_code])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())

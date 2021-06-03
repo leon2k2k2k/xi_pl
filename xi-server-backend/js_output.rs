@@ -10,7 +10,7 @@ use xi_backends::js_backend::{
     js_output::{
         make_var_name, module_item_to_swc_module_item, promise_resolve, run_io,
         string_to_import_specifier, swc_module_to_string, to_js_await, to_js_ident, to_js_ident2,
-        to_js_num, to_js_sm_int, to_js_str,
+        to_js_sm_int, to_js_str,
     },
     js_prim::{JsModule, JsPrim},
 };

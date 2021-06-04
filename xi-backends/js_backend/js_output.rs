@@ -14,7 +14,7 @@ use crate::js_backend::js_prim::{JsModule, JsModuleItem, JsPrim};
 
 pub fn judgment_to_swc_expr(
     ffi_functions: &mut BTreeMap<(String, String), VarUuid>,
-    judgment: Judgment<JsPrim>,
+    judgment: &Judgment<JsPrim>,
 ) -> Expr {
     to_js(&judgment, BTreeMap::new(), ffi_functions)
 }
@@ -22,8 +22,8 @@ pub fn judgment_to_swc_expr(
 // a module_item should go to a swc module_item
 pub fn module_item_to_swc_module_item(
     ffi_functions: &mut BTreeMap<(String, String), VarUuid>,
-    module_item: JsModuleItem,
-    var_index: VarUuid,
+    module_item: &JsModuleItem,
+    var_index: &VarUuid,
 ) -> ModuleItem {
     let pat = Pat::Ident(BindingIdent {
         id: make_var_name(var_index),
@@ -31,7 +31,7 @@ pub fn module_item_to_swc_module_item(
     });
     match module_item {
         JsModuleItem::Define(define_item) => {
-            let expr = judgment_to_swc_expr(ffi_functions, define_item.impl_);
+            let expr = judgment_to_swc_expr(ffi_functions, &define_item.impl_);
             let var_declarator = VarDeclarator {
                 span: DUMMY_SP,
                 name: pat,
@@ -63,7 +63,7 @@ pub fn module_to_js_module(module: JsModule, main_id: Option<VarUuid>) -> Module
 
     for (var_index, module_item) in &module.module_items {
         let module_item =
-            module_item_to_swc_module_item(&mut ffi_functions, module_item.clone(), *var_index);
+            module_item_to_swc_module_item(&mut ffi_functions, module_item, var_index);
         body.push(module_item);
     }
 
@@ -74,7 +74,7 @@ pub fn module_to_js_module(module: JsModule, main_id: Option<VarUuid>) -> Module
             specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                 span: DUMMY_SP,
                 local: to_js_ident2(format!("ffi{}", index.index())),
-                imported: Some(to_js_ident2(function_name.clone())),
+                imported: Some(to_js_ident2(&function_name)),
             })],
             src: Str {
                 span: DUMMY_SP,
@@ -93,7 +93,7 @@ pub fn module_to_js_module(module: JsModule, main_id: Option<VarUuid>) -> Module
         t.extend(body);
         // if there is a main_id, run the function.
 
-        if let Some(main_id) = main_id {
+        if let Some(main_id) = &main_id {
             let run_main = ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                 span: DUMMY_SP,
                 expr: Box::new(run_io(Expr::Ident(make_var_name(main_id)))),
@@ -132,13 +132,13 @@ pub fn module_to_js_string(module: JsModule, main_id: Option<VarUuid>) -> String
     swc_module_to_string(module)
 }
 
-pub fn make_var_name(index: VarUuid) -> Ident {
+pub fn make_var_name(index: &VarUuid) -> Ident {
     to_js_ident2(format!("var_{}", index.index()))
 }
 
 fn to_js(
     judgment: &Judgment<JsPrim>,
-    ctx: BTreeMap<VarUuid, Ident>,
+    ctx: BTreeMap<&VarUuid, Ident>,
     ffi: &mut BTreeMap<(String, String), VarUuid>,
 ) -> Expr {
     match &*judgment.tree {
@@ -152,7 +152,7 @@ fn to_js(
         },
         JudgmentKind::Pi(_, _) => to_js_str("pi"),
         JudgmentKind::Lam(_var_type, sexpr) => {
-            let (index, expr) = sexpr.clone().unbind();
+            let (index, expr) = &sexpr.clone().unbind();
             let var_name = make_var_name(index);
 
             to_js_lam(

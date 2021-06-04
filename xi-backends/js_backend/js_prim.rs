@@ -52,7 +52,7 @@ impl JsPrim {
 
                 to_js_ident(format!("ffi{}", var.index()))
             }
-            JsPrim::Var(index) => Expr::Ident(make_var_name(*index)),
+            JsPrim::Var(index) => Expr::Ident(make_var_name(index)),
         }
     }
 }

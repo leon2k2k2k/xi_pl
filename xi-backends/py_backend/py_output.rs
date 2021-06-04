@@ -24,7 +24,7 @@ pub struct Arguments(pub Value);
 
 pub fn judgment_to_mod(
     ffi_functions: &mut BTreeMap<(String, String), VarUuid>,
-    judgment: Judgment<PyPrim>,
+    judgment: &Judgment<PyPrim>,
 ) -> (Vec<Stmt>, Expr) {
     let (func_defs, main_py) = to_py(&judgment, BTreeMap::new(), ffi_functions);
 
@@ -33,12 +33,12 @@ pub fn judgment_to_mod(
 
 pub fn module_item_to_stmt(
     ffi_functions: &mut BTreeMap<(String, String), VarUuid>,
-    module_item: PyModuleItem,
-    var_index: VarUuid,
+    module_item: &PyModuleItem,
+    var_index: &VarUuid,
 ) -> Vec<Stmt> {
     match module_item {
         PyModuleItem::Define(define_item) => {
-            let (func_defs, expr) = judgment_to_mod(ffi_functions, define_item.impl_);
+            let (func_defs, expr) = judgment_to_mod(ffi_functions, &define_item.impl_);
 
             let var_name = to_py_ident1(make_var_name(var_index));
 
@@ -58,7 +58,7 @@ pub fn module_to_python_module(module: PyModule, main_id: Option<VarUuid>) -> Mo
     let mut ffi_functions = BTreeMap::new();
 
     for (var_index, module_item) in &module.module_items {
-        let module_items = module_item_to_stmt(&mut ffi_functions, module_item.clone(), *var_index);
+        let module_items = module_item_to_stmt(&mut ffi_functions, module_item, var_index);
         body.extend(module_items);
     }
 
@@ -110,7 +110,7 @@ pub fn module_to_python_module(module: PyModule, main_id: Option<VarUuid>) -> Mo
         ffi_imports.push(module_import);
     }
 
-    if let Some(main_id) = main_id {
+    if let Some(main_id) = &main_id {
         let run_main = Stmt(json!({
             "ast_type": "Expr",
             "value": to_py_await2(to_py_await2(to_py_ident1(make_var_name(main_id)))).0,
@@ -182,13 +182,13 @@ pub fn module_to_py_string(module: PyModule, main_id: Option<VarUuid>) -> String
     python_module_to_string(module)
 }
 
-pub fn make_var_name(index: VarUuid) -> Identifier {
+pub fn make_var_name(index: &VarUuid) -> Identifier {
     to_py_ident2(format!("var_{}", index.index()))
 }
 
 pub fn to_py(
     judgment: &Judgment<PyPrim>,
-    ctx: BTreeMap<VarUuid, Identifier>,
+    ctx: BTreeMap<&VarUuid, Identifier>,
     ffi: &mut BTreeMap<(String, String), VarUuid>,
 ) -> (Vec<Stmt>, Expr) {
     match &*judgment.tree {
@@ -202,7 +202,7 @@ pub fn to_py(
         },
         JudgmentKind::Pi(_, _) => (vec![], to_py_str("pi")),
         JudgmentKind::Lam(_var_type, sexpr) => {
-            let (index, expr) = sexpr.clone().unbind();
+            let (index, expr) = &sexpr.clone().unbind();
             let var_name = make_var_name(index);
 
             let (sub_func_defs, sub_expr) =

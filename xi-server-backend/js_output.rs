@@ -57,7 +57,7 @@ pub fn module_to_js_module(
         dbg!(&var_index);
         if Some("js".into()) == module_item.transport_info().origin {
             let swc_module_item =
-                module_item_to_swc_module_item(&mut ffi_functions, module_item.clone(), *var_index);
+                module_item_to_swc_module_item(&mut ffi_functions, module_item, var_index);
             // we add everything to the var_names now:
             // first the ffi functions, which are ffi{var_index}
 
@@ -136,7 +136,7 @@ pub fn module_to_js_module(
     let body_with_imports = {
         let mut t = ffi_imports;
         t.extend(body);
-        if let Some(main_id) = main_id {
+        if let Some(main_id) = &main_id {
             let run_main = ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                 span: DUMMY_SP,
                 expr: Box::new(run_io(Expr::Ident(make_var_name(main_id)))),

@@ -53,7 +53,7 @@ impl PyPrim {
 
                 to_py_ident(format!("ffi{}", var.index()))
             }
-            PyPrim::Var(index) => to_py_ident1(make_var_name(*index)),
+            PyPrim::Var(index) => to_py_ident1(make_var_name(index)),
         }
     }
 }

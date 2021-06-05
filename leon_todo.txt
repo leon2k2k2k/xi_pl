@@ -1,0 +1,4 @@
+Here's some Aplite things for Leon to do:
+
+1. Generate Aplite functions from plain js/py functions.
+2. Supporting enum, structs in the backend, transport.

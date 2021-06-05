@@ -6,7 +6,7 @@ pub fn run_py_from_string(source_code: &str) -> Result<(), std::io::Error> {
     let runtime_code = include_str!("runtime.py");
 
     let actual_source_code = format!("{}\n\n{}", runtime_code, source_code);
-    eprintln!("{}", &actual_source_code);
+    // eprintln!("{}", &actual_source_code);
 
     let _output = Command::new("python3")
         .args(&["-c", &actual_source_code])

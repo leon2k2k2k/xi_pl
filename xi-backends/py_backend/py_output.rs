@@ -95,6 +95,7 @@ pub fn module_to_python_module(module: PyModule, main_id: Option<VarUuid>) -> Mo
     ffi_imports.push(promise_resolve_decl);
 
     for ((file_name, function_name), index) in ffi_functions {
+        dbg!(&function_name);
         let file_no_extension = &file_name[..file_name.len() - 3];
         let module_import = Stmt(json!({
             "ast_type": "ImportFrom",

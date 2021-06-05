@@ -3,9 +3,9 @@ use std::collections::BTreeMap;
 use deno_core::serde_json::{json, Value};
 use xi_backends::py_backend::{
     py_output::{
-        module_item_to_stmt, py_expr_to_stmt, python_module_to_string, to_py_app, to_py_arguments,
-        to_py_assign, to_py_await, to_py_ident, to_py_ident2, to_py_member, to_py_num, to_py_str,
-        Expr, Mod, Stmt,
+        make_var_name, module_item_to_stmt, py_expr_to_stmt, python_module_to_string, to_py_app,
+        to_py_arguments, to_py_assign, to_py_await, to_py_await2, to_py_ident, to_py_ident1,
+        to_py_ident2, to_py_member, to_py_num, to_py_str, Expr, Mod, Stmt,
     },
     py_prim::{PyModule, PyPrim},
 };
@@ -14,7 +14,7 @@ use xi_uuid::VarUuid;
 
 pub fn module_to_py_mod(
     module: PyModule,
-    _main_id: Option<VarUuid>,
+    main_id: Option<VarUuid>,
     port: u32,
     other_port: u32,
 ) -> Mod {
@@ -54,29 +54,6 @@ pub fn module_to_py_mod(
     let mut vec = vec![asyncio_loop_stmt, start_server];
     ffi_imports.append(&mut vec);
 
-    // let promise_resolve_decl = Stmt(json!({
-    //     "ast_type": "FunctionDef",
-    //     "name": to_py_ident2("promise_resolve").0,
-    //     "args": to_py_arguments(vec![to_py_ident2("x")]).0,
-    //     "body": [{
-    //         "ast_type": "AsyncFunctionDef",
-    //         "name": to_py_ident2("helper").0,
-    //         "args": to_py_arguments(vec![]).0,
-    //         "body": [{
-    //             "ast_type": "Return",
-    //             "value": to_py_ident("x").0,
-
-    //         }],
-    //         "decorator_list": [],
-    //     }, {
-    //         "ast_type": "Return",
-    //         "value": to_py_ident("helper").0,
-    //     }],
-    //     "decorator_list": [],
-    // }));
-
-    // ffi_imports.push(promise_resolve_decl);
-
     for ((file_name, function_name), index) in ffi_functions {
         let file_no_extension = &file_name[..file_name.len() - 3];
         let module_import = Stmt(json!({
@@ -93,11 +70,13 @@ pub fn module_to_py_mod(
         ffi_imports.push(module_import);
     }
 
-    // let run_main = Stmt(json!({
-    //     "ast_type": "Expr",
-    //     "value": to_py_await2(to_py_await2(to_py_ident1(make_var_name(main_id)))).0,
-    // }));
-    // body.push(run_main);
+    if let Some(main_id) = main_id {
+        let run_main = Stmt(json!({
+            "ast_type": "Expr",
+            "value": to_py_await2(to_py_await2(to_py_ident1(make_var_name(&main_id)))).0,
+        }));
+        body.push(run_main);
+    }
 
     let main_fn = Stmt(json!({
         "ast_type": "AsyncFunctionDef",
@@ -106,11 +85,6 @@ pub fn module_to_py_mod(
         "body": Value::Array(body.into_iter().map(|x| x.0).collect()),
         "decorator_list": [],
     }));
-
-    // let run_main2 = Stmt(json!({
-    //     "ast_type": "Expr",
-    //     "value": to_py_app(to_py_member(to_py_ident("asyncio"), to_py_ident("run")), vec![to_py_app(to_py_ident("main"), vec![])]).0,
-    // }));
 
     let body_with_imports = {
         let mut t = ffi_imports;
@@ -177,7 +151,10 @@ pub fn module_with_server_to_py_string(
     other_port: u32,
 ) -> String {
     let py_mod = module_to_py_mod(module, main_id, port, other_port);
-    python_module_to_string(py_mod)
+    let str = python_module_to_string(py_mod);
+    // now I need to add the source string of the py_server.py code on top of this.
+    let server_code = include_str!("py_server.py");
+    format!("{}\n \n{}", server_code, str)
 }
 
 // write out the generated registration code:

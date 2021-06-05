@@ -54,7 +54,6 @@ pub fn module_to_js_module(
     // else just ignore it.
     dbg!(&module.module_items);
     for (var_index, module_item) in &module.module_items {
-        dbg!(&var_index);
         if Some("js".into()) == module_item.transport_info().origin {
             let swc_module_item =
                 module_item_to_swc_module_item(&mut ffi_functions, module_item, var_index);

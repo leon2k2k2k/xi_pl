@@ -1,12 +1,9 @@
-# this is Python's correspnding server to server.ts, I think I will
-# be using flask. Let's just try to set up the server.
+# I shove it here because only the server-back needs it.
 
 import asyncio
-from logging import raiseExceptions
 import aiohttp
 from aiohttp import web
 import json
-import requests
 
 
 ###########################
@@ -132,10 +129,10 @@ class Server:
         # methods: "POST", json = "{js_ident: ??, value: ??}",
         # the value part is optional.
 
-        async def handle_post():
+        async def handle_post(request):
             # serialized_data = request.json
             # data = json.loads(serialized_data)
-            dict = await request.get_json()
+            dict = await request.json()
 
             print("////////////////////////////////////////////////////")
             print(f"Py Server receive request with json {dict}")
@@ -143,7 +140,7 @@ class Server:
             if "request_type" in dict:
                 reg_id = self.var_registrations[dict["var_name"]]
                 print(reg_id)
-                return json.dumps(reg_id)
+                return web.Response(text=json.dumps(reg_id))
                 # do other stuff not worry about it here.
             else:
                 if "js_ident" in dict:
@@ -154,9 +151,9 @@ class Server:
                             ans = await (await result_ident())(dict["value"])
                             print("*****************************")
                             print(type(ans))
-                            return json.dumps(ans)
+                            return web.Response(text=json.dumps(ans))
                         else:
-                            return json.dumps(await result_ident())
+                            return web.Response(text=json.dumps(await result_ident()))
                     else:
                         raise "ident not found"
 
@@ -172,3 +169,6 @@ class Server:
 
         # wait forever, running both the web server and the tasks
         await asyncio.Event().wait()
+
+
+######################

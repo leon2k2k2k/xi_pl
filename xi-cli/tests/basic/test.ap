@@ -1,0 +1,5 @@
+let x = 5
+
+let y = lambda|x : Int| {val x + 5}
+
+let apply_3 = lambda|func: Int -> Int| {val func (3)}

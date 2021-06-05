@@ -3,13 +3,13 @@
  @py transport js let five = 5
 
 
-@js ffi "./some_file.js" {
+@py ffi "runtime.py" {
       console_output: String -> IO String,
       console_input: IO String,
-      int_to_string: Int -> String,
+//      int_to_string: Int -> String,
   }
  
 @py let main = {
-    let str = int_to_string(5 + 5)
+    let str = "hello"
     let s = console_output(str)!
     val 10!}

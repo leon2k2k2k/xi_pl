@@ -1,0 +1,16 @@
+# this builds the rust package.
+
+on: [push]
+
+name: build
+
+jobs: 
+  build_and_test:
+    name: Aplite
+    runs-on: ubuntu-latest
+    step:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: cargo build 

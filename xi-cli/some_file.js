@@ -7,9 +7,64 @@ export const five = Promise.resolve(5);
 
 export const six = Promise.resolve(6);
 
-export const add = Promise.resolve(async (a) =>
-  async (b) => Promise.resolve(a + b)
-);
+function pi_to_json(left, right) {
+  return { kind: { left: left, right: right } };
+}
+
+function json_kind(type) {
+  return { kind: type };
+}
+
+let int = json_kind("Int");
+let str = json_kind("Str");
+// we need a context because we have to call all the variables at once
+function js_to_aplite(var_, var_type) {
+  function js_to_aplite_helper(var_, var_type, ctx) {
+    // console.log(ctx);
+    if (var_type.kind === "Int") {
+      if (ctx.length == 0) {
+        return Promise.resolve(var_);
+      } else {
+        return Promise.resolve(var_.apply(null, ctx));
+      }
+    } else if (var_type.kind === "Str") {
+      if (ctx.length == 0) {
+        return Promise.resolve(var_);
+      } else {
+        return Promise.resolve(var_.apply(null, ctx));
+      }
+    } else {
+      let return_type = var_type.kind.right;
+      // console.log(return_type);
+      return Promise.resolve(async (arg) => {
+        ctx.push(arg);
+        let ans = js_to_aplite_helper(var_, return_type, ctx);
+        ctx = [];
+        return ans;
+      });
+    }
+  }
+  return js_to_aplite_helper(var_, var_type, []);
+}
+
+///////////////////////////////////////////
+
+function int_to_string_helper(a) {
+  return a.toString();
+}
+function concat_helper(a, b) {
+  return a + b;
+}
+
+
+export const int_to_string = js_to_aplite(int_to_string_helper, pi_to_json(int, str));
+
+export const concat = js_to_aplite(concat_helper, pi_to_json(str, pi_to_json(str, str)));
+
+
+
+
+
 
 export const io_pure = Promise.resolve(async (_) =>
   async (val) => async () => val
@@ -28,12 +83,10 @@ export const equals = Promise.resolve(async (a) =>
     }
   }
 );
+// export const int_to_string = Promise.resolve(async (a) =>
+//   Promise.resolve(a.toString())
+// );
 
-export const int_to_string = Promise.resolve(async (a) =>
-  Promise.resolve(a.toString())
-);
-
-export const concat_hello = async (a) => Promise.resolve(a + "hello");
 
 export const console_input = Promise.resolve(async () => {
   const input = [];
@@ -63,11 +116,10 @@ export const panic = Promise.resolve(async (out_str) =>
   }
 );
 
-export const concat = Promise.resolve(async (a) =>
-  async (b) => Promise.resolve(a + b)
-);
+// export const concat = Promise.resolve(async (a) =>
+//   async (b) => Promise.resolve(a + b)
+// );
 
-// probably doesn't work
 export const YCombinator_please_accept_us = Promise.resolve(async (fn) =>
   async () =>
     (async (x) => x(x))(

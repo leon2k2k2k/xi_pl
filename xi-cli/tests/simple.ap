@@ -7,9 +7,13 @@
       console_output: String -> IO String,
       console_input: IO String,
       int_to_string: Int -> String,
+      concat: String -> String -> String,
   }
  
 @py let main = {
-    let str = int_to_string(5 + 5)
+
+    let str = int_to_string(5)
+    let str2 = int_to_string(10)
+    let str = concat(str, str2)
     let s = console_output(str)!
     val 10!}

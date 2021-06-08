@@ -57,29 +57,49 @@ export const io_pure = Promise.resolve(async (_: any) =>
   async (val: any) => async () => val
 );
 // plus
-export function plus_helper(x: any, y: any) {
+function plus_helper(x: any, y: any) {
   return x + y;
+}
+
+function minus_helper(x: any, y: any) {
+  return x - y;
+}
+
+function multiply_helper(x: any, y: any) {
+  return x * y;
+}
+
+function divide_helper(x: any, y: any) {
+  if (y == 0) return 0;
+  else return x / y;
+}
+
+function modulo_helper(x: any, y: any) {
+  if (y == 0) return 0;
+  else return x % y;
 }
 
 export const plus = js_to_aplite(
   plus_helper,
   pi_to_json(int, pi_to_json(int, int)),
 );
-export const minus = Promise.resolve(async (a: any) =>
-  async (b: any) => Promise.resolve(a - b)
+
+export const minus = js_to_aplite(
+  minus_helper,
+  pi_to_json(int, pi_to_json(int, int)),
 );
-export const multiply = Promise.resolve(async (a: any) =>
-  async (b: any) => Promise.resolve(a * b)
+
+export const multiply = js_to_aplite(
+  multiply_helper,
+  pi_to_json(int, pi_to_json(int, int)),
 );
-export const divide = Promise.resolve(async (a: any) =>
-  async (b: any) => {
-    if (b == 0) return 0;
-    return Promise.resolve(a / b);
-  }
+
+export const divide = js_to_aplite(
+  divide_helper,
+  pi_to_json(int, pi_to_json(int, int)),
 );
-export const modulo = Promise.resolve(async (a: any) =>
-  async (b: any) => {
-    if (b == 0) return 0;
-    return Promise.resolve(a % b);
-  }
+
+export const modulo = js_to_aplite(
+  modulo_helper,
+  pi_to_json(int, pi_to_json(int, int)),
 );

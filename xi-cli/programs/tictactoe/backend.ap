@@ -170,7 +170,7 @@ fn bool_to_string |bool : Bool| -> String {
 
 ffi "./some_file.js" {
     console_output : String -> IO Bool,
-    add : String -> String -> String,
+    concat : String -> String -> String,
     console_input : IO String,
 }
 
@@ -182,14 +182,14 @@ fn row_to_string |row : Triple Square| -> String {
     let first = square_to_string (triple_first Square row)
     let second = square_to_string (triple_second Square row)
     let third = square_to_string (triple_third Square row)
-    val add (add (add (add first "|") second) "|") third
+    val concat (concat (concat (concat first "|") second) "|") third
 }
 
 fn board_to_string |board : Board| -> String {
     let first = row_to_string (triple_first (Triple Square) (BoardElim board))
     let second = row_to_string (triple_second (Triple Square) (BoardElim board))
     let third = row_to_string (triple_third (Triple Square) (BoardElim board))
-    val add (add (add (add first "
+    val concat (concat (concat (concat first "
 -----
 ") second) "
 -----
@@ -357,6 +357,7 @@ let main1 = {
     val 5!
 }
 
+// play on localhost 8080
 let main2 = {
     let board = empty_board
     let square = "x"

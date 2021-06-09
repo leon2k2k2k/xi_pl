@@ -19,23 +19,23 @@ jobs:
           name: Aplite 
           path: public/
   
-  test:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2 
-      - uses: actions/download-artifact@main
-        with: 
-          name: Aplite
-          path: public
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with: 
-          profile: minimal 
-          toolchain: stable
-          override: true 
+#   test:
+#     needs: build
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v2 
+#       - uses: actions/download-artifact@main
+#         with: 
+#           name: Aplite
+#           path: public
+#       - name: Install stable toolchain
+#         uses: actions-rs/toolchain@v1
+#         with: 
+#           profile: minimal 
+#           toolchain: stable
+#           override: true 
 
-      - naem: Run cargo test 
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+#       - naem: Run cargo test 
+#         uses: actions-rs/cargo@v1
+#         with:
+#           command: test

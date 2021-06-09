@@ -20,3 +20,7 @@ swc_common = "0.10"
 swc_ecma_codegen = "0.48"
 num-bigint = {version = "0.2"}
 url = "2.2"
+
+deno = { git = "https://github.com/leon2k2k2k/deno", branch = "mybranch" }
+deno_core = { git = "https://github.com/leon2k2k2k/deno", branch = "mybranch" }
+deno_runtime = { git = "https://github.com/leon2k2k2k/deno", branch = "mybranch" }

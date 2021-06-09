@@ -14,7 +14,7 @@ pub async fn run_js_from_string(source_code: String) -> Result<(), AnyError> {
     let main_module = resolve_url_or_path("./$deno$eval.js").unwrap();
     let permissions = Permissions::from_options(&flags.clone().into());
     let program_state = ProgramState::build(flags.clone()).await?;
-    let mut worker = create_main_worker(&program_state, main_module.clone(), permissions);
+    let mut worker = create_main_worker(&program_state, main_module.clone(), permissions, false);
 
     let main_module_file = File {
         local: main_module.clone().to_file_path().unwrap(),
@@ -43,7 +43,7 @@ pub async fn run_js_from_string(source_code: String) -> Result<(), AnyError> {
 
     worker.execute_module(&main_module).await?;
     worker.execute("window.dispatchEvent(new Event('load'))")?;
-    worker.run_event_loop().await?;
+    worker.run_event_loop(false).await?;
     worker.execute("window.dispatchEvent(new Event('unload'))")?;
     Ok(())
 }

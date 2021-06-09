@@ -6,7 +6,7 @@ name: build
 
 jobs: 
   build:
-    name: Aplite
+    name: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -14,10 +14,7 @@ jobs:
         with:
           toolchain: stable
       - run: cargo build 
-      - uses: actions/upload-artifact@main
-        with: 
-          name: Aplite 
-          path: public/
+
   
   
 #   test:
@@ -47,10 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2 
-      - uses: actions/download-artifact@main
-        with: 
-          name: Aplite
-          path: public
+
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with: 

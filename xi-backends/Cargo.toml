@@ -13,8 +13,8 @@ path = "lib.rs"
 xi-proc-macro = { path = "../xi-proc-macro" }
 xi-uuid = { path = "../xi-uuid" }
 xi-core = { path = "../xi-core" }
-swc_ecma_ast = "0.40"
-swc_common = "0.10"
+swc_ecma_ast = "0.45"
+swc_common = "0.10.20"
 swc_ecma_codegen = "0.48"
 serde_json = "1.0"
 num-bigint = {version = "0.2"}

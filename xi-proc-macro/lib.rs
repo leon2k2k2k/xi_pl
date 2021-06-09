@@ -317,229 +317,91 @@ mod test {
                 )
             }},
         );
+
         test_expand(
             "Pi |T : U| T -> T",
-            quote! {{
-                let T = VarUuid::new();
-                Judgment::pi(
-                    Judgment::u(None),
-                    Judgment::free(T, Judgment::u(None), None).bind(T),
-                    None
-                )
-            }},
+            quote! {        { let T = VarUuid :: new () ;
+                Judgment :: pi (Judgment :: u (None) ,
+                Judgment :: pi (Judgment :: free (T , Judgment :: u (None) , None) ,
+                Judgment :: free (T , Judgment :: u (None) , None) . to_scoped () , None) . bind (T) , None) }
+            },
         );
         test_expand(
             "Lam |T : U, t : T| t",
-            quote! {{
-                let T = VarUuid::new();
-                Judgment::lam(
-                    Judgment::u(),
-                    Judgment::rebind(
-                        {
-                            let t = VarUuid::new();
-                            Judgment::lam(
-                                Judgment::free(T, Judgment::u()),
-                                Judgment::rebind(
-                                    Judgment::free(t, Judgment::free(T, Judgment::u())),
-                                    t
-                                )
-                            )
-                        },
-                        T
-                    )
-                )
-            }},
+            quote! {{ let T = VarUuid :: new () ; Judgment :: lam (
+            Judgment :: u (None) , { let t = VarUuid :: new () ; Judgment :: lam (
+                    Judgment :: free (T , Judgment :: u (None) , None) , Judgment :: free (
+                        t , Judgment :: free (T , Judgment :: u (None) , None) , None) . bind (t) , None) } . bind (T) , None) }},
         );
         test_expand(
             "Lam |A : U| A -> (A -> A) -> A",
-            quote! {{
-                let A = VarUuid::new();
-                Judgment::lam(
-                    Judgment::u(),
-                    Judgment::rebind(
-                        Judgment::pi(
-                            Judgment::free(A, Judgment::u()),
-                            Judgment::pi(
-                                Judgment::pi(
-                                    Judgment::free(A, Judgment::u()),
-                                    Judgment::free(A, Judgment::u())
-                                ),
-                                Judgment::free(A, Judgment::u())
-                            )
-                        ),
-                        A
-                    )
-                )
-            }},
+            quote! {{ let A = VarUuid :: new () ; Judgment :: lam (
+            Judgment :: u (None) , Judgment :: pi (Judgment :: free (
+                A , Judgment :: u (None) , None) , Judgment :: pi (
+                        Judgment :: pi (Judgment :: free (A , Judgment :: u (None) , None) , Judgment :: free (
+                            A , Judgment :: u (None) , None) . to_scoped () , None) , Judgment :: free (
+                                A , Judgment :: u (None) , None) . to_scoped () , None) . to_scoped () , None) . bind (A) , None) }},
         );
         test_expand(
             "Lam |A : U, f : A -> A| f f f",
             quote! {{
-                let A = VarUuid::new();
-                Judgment::lam(
-                    Judgment::u(),
-                    Judgment::rebind(
-                        {
-                            let f = VarUuid::new();
-                            Judgment::lam(
-                                Judgment::pi(
-                                    Judgment::free(A, Judgment::u()),
-                                    Judgment::free(A, Judgment::u())
-                                ),
-                                Judgment::rebind(
-                                    Judgment::app(
-                                        Judgment::app(
-                                            Judgment::free(
-                                                f,
-                                                Judgment::pi(
-                                                    Judgment::free(A, Judgment::u()),
-                                                    Judgment::free(A, Judgment::u())
-                                                )
-                                            ),
-                                            Judgment::free(
-                                                f,
-                                                Judgment::pi(
-                                                    Judgment::free(A, Judgment::u()),
-                                                    Judgment::free(A, Judgment::u())
-                                                )
-                                            )
-                                        ),
-                                        Judgment::free(
-                                            f,
-                                            Judgment::pi(
-                                                Judgment::free(A, Judgment::u()),
-                                                Judgment::free(A, Judgment::u())
-                                            )
-                                        )
-                                    ),
-                                    f
-                                )
-                            )
-                        },
-                        A
-                    )
-                )
+                let A = VarUuid :: new () ; Judgment :: lam (Judgment :: u (None) , { let f = VarUuid :: new () ; Judgment :: lam (Judgment :: pi (Judgment :: free (A , Judgment :: u (None) , None) , Judgment :: free (A , Judgment :: u (None) , None) . to_scoped () , None) , Judgment :: app (Judgment :: app (Judgment :: free (f , Judgment :: pi (Judgment :: free (A , Judgment :: u (None) , None) , Judgment :: free (A , Judgment :: u (None) , None) . to_scoped () , None) , None) , Judgment :: free (f , Judgment :: pi (Judgment :: free (A , Judgment :: u (None) , None) , Judgment :: free (A , Judgment :: u (None) , None) . to_scoped () , None) , None) , None) , Judgment :: free (f , Judgment :: pi (Judgment :: free (A , Judgment :: u (None) , None) , Judgment :: free (A , Judgment :: u (None) , None) . to_scoped () , None) , None) , None) . bind (f) , None) } . bind (A) , None)
             }},
         );
         test_expand("Lam |A : U| A -> {empty_type}", {
             quote! {{
-                let A = VarUuid::new();
-                Judgment::lam(
-                    Judgment::u(),
-                    Judgment::rebind(
-                        Judgment::pi(Judgment::free(A, Judgment::u()), empty_type.clone()),
-                        A
-                    )
-                )
+                let A = VarUuid :: new () ; Judgment :: lam (Judgment :: u (None) , Judgment :: pi (Judgment :: free (A , Judgment :: u (None) , None) , empty_type . clone () . to_scoped () , None) . bind (A) , None)
             }}
         });
         test_expand(
             "Lam |A : U| A -> U",
             quote! {{
-                let A = VarUuid::new();
-                Judgment::lam(
-                    Judgment::u(),
-                    Judgment::rebind(
-                        Judgment::pi(Judgment::free(A, Judgment::u()), Judgment::u()),
-                        A
-                    )
-                )
+                let A = VarUuid :: new () ; Judgment :: lam (Judgment :: u (None) , Judgment :: pi (Judgment :: free (A , Judgment :: u (None) , None) , Judgment :: u (None) . to_scoped () , None) . bind (A) , None)
             }},
         );
         test_expand(
             "Pi |A : U, P : A -> U| Lam |a : A| P a -> P a",
             quote! {{
-                let A = VarUuid::new();
-                Judgment::pi(
-                    Judgment::u(),
-                    Judgment::rebind(
-                        {
-                            let P = VarUuid::new();
-                            Judgment::pi(
-                                Judgment::pi(Judgment::free(A, Judgment::u()), Judgment::u()),
-                                Judgment::rebind(
-                                    {
-                                        let a = VarUuid::new();
-                                        Judgment::lam(
-                                            Judgment::free(A, Judgment::u()),
-                                            Judgment::rebind(
-                                                Judgment::pi(
-                                                    Judgment::app(
-                                                        Judgment::free(
-                                                            P,
-                                                            Judgment::pi(
-                                                                Judgment::free(A, Judgment::u()),
-                                                                Judgment::u()
-                                                            )
-                                                        ),
-                                                        Judgment::free(
-                                                            a,
-                                                            Judgment::free(A, Judgment::u())
-                                                        )
-                                                    ),
-                                                    Judgment::app(
-                                                        Judgment::free(
-                                                            P,
-                                                            Judgment::pi(
-                                                                Judgment::free(A, Judgment::u()),
-                                                                Judgment::u()
-                                                            )
-                                                        ),
-                                                        Judgment::free(
-                                                            a,
-                                                            Judgment::free(A, Judgment::u())
-                                                        )
-                                                    )
-                                                ),
-                                                a
-                                            )
-                                        )
-                                    },
-                                    P
-                                )
-                            )
-                        },
-                        A
-                    )
-                )
+                let A = VarUuid :: new () ; Judgment :: pi (Judgment :: u (None) , { let P = VarUuid :: new () ; Judgment :: pi (Judgment :: pi (Judgment :: free (A , Judgment :: u (None) , None) , Judgment :: u (None) . to_scoped () , None) , { let a = VarUuid :: new () ; Judgment :: lam (Judgment :: free (A , Judgment :: u (None) , None) , Judgment :: pi (Judgment :: app (Judgment :: free (P , Judgment :: pi (Judgment :: free (A , Judgment :: u (None) , None) , Judgment :: u (None) . to_scoped () , None) , None) , Judgment :: free (a , Judgment :: free (A , Judgment :: u (None) , None) , None) , None) , Judgment :: app (Judgment :: free (P , Judgment :: pi (Judgment :: free (A , Judgment :: u (None) , None) , Judgment :: u (None) . to_scoped () , None) , None) , Judgment :: free (a , Judgment :: free (A , Judgment :: u (None) , None) , None) , None) . to_scoped () , None) . bind (a) , None) } . bind (P) , None) } . bind (A) , None)
             }},
         );
         test_expand(
             "{a} {b}",
             quote! {
-                Judgment::app(a.clone(), b.clone())
+                Judgment :: app (a . clone () , b . clone () , None)
             },
         );
-        test_expand(
-            "[a] [b]",
-            quote! {
-                Judgment::app(Judgment::prim(a), Judgment::prim(b))
-            },
-        );
-        test_expand(
-            "|T : U| T",
-            quote! {{
-                let T = VarUuid::new();
-                (T, Judgment::free(T, Judgment::u()))
-            }},
-        );
-        test_expand(
-            "|T : U, S : U| T -> U",
-            quote! {{
-                let T = VarUuid::new();
-                let S = VarUuid::new();
-                ((T, S), Judgment::pi(Judgment::Free(T, Judgment::u()), Judgment::u()))
-            }},
-        );
-    }
-    // test if the square brackets aka primitives works
-    #[test]
-    fn prim_test() {
-        use super::*;
-        // test_expand(
-        //     "[NumberType] -> [NumberType] -> [NumberType]",
-        //     quote! {{hello}},
-        // );
-        test_expand("[NumberElem : [NumberType]]", quote! {{hello}});
+        //     test_expand(
+        //         "[a] [b]",
+        //         quote! {
+        //             Judgment::app(Judgment::prim(a), Judgment::prim(b))
+        //         },
+        //     );
+        //     test_expand(
+        //         "|T : U| T",
+        //         quote! {{
+        //             let T = VarUuid::new();
+        //             (T, Judgment::free(T, Judgment::u()))
+        //         }},
+        //     );
+        //     test_expand(
+        //         "|T : U, S : U| T -> U",
+        //         quote! {{
+        //             let T = VarUuid::new();
+        //             let S = VarUuid::new();
+        //             ((T, S), Judgment::pi(Judgment::Free(T, Judgment::u()), Judgment::u()))
+        //         }},
+        //     );
+        // }
+        // // test if the square brackets aka primitives works
+        // #[test]
+        // fn prim_test() {
+        //     use super::*;
+        //     // test_expand(
+        //     //     "[NumberType] -> [NumberType] -> [NumberType]",
+        //     //     quote! {{hello}},
+        //     // );
+        //     test_expand("[NumberElem : [NumberType]]", quote! {"Judgment :: prim (NumberElem , Judgment :: prim (NumberType , NumberType . maybe_prim_type () . expect (\"Couldn\'t get primitive type\") , None) , None)"`});
+        // }
     }
 }

@@ -10,8 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v1.3.0
+
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -54,7 +53,8 @@ jobs:
           profile: minimal 
           toolchain: stable
           override: true 
-
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v1.3.0
       - name: Run cargo test 
         uses: actions-rs/cargo@v1
         with:

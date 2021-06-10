@@ -104,7 +104,7 @@ pub fn ui_to_js_judgment(front: Judgment<UiPrim>) -> Judgment<JsPrim> {
     use xi_proc_macro::term;
 
     let io_monad = make_ffi("IO", term!(U -> U));
-
+    let UnitType = make_ffi("UnitType", term!(U));
     front.define_prim_unchecked(Rc::new(
         move |s, prim_type, define_prim| -> Judgment<JsPrim> {
             match s {
@@ -150,6 +150,13 @@ pub fn ui_to_js_judgment(front: Judgment<UiPrim>) -> Judgment<JsPrim> {
                         term!([NumberType] -> [NumberType] -> [NumberType]),
                     ),
                 },
+                UiPrim::ConsoleOutput => make_ffi(
+                    "console_output",
+                    term!([StringType] -> {io_monad}{UnitType}),
+                ),
+                UiPrim::ConsoleInput => make_ffi("console_input", term!({ io_monad }[StringType])),
+                UiPrim::UnitType => UnitType.clone(),
+                UiPrim::Unit => make_ffi("unit", UnitType.clone()),
                 UiPrim::Ffi(filename, ffi_name) => Judgment::prim(
                     JsPrim::Ffi(filename, ffi_name),
                     define_prim(prim_type),
@@ -162,6 +169,7 @@ pub fn ui_to_js_judgment(front: Judgment<UiPrim>) -> Judgment<JsPrim> {
         },
     ))
 }
+
 pub fn ui_to_py_judgment(front: Judgment<UiPrim>) -> Judgment<PyPrim> {
     // In the backend, make some primitive function to FFIs.
     fn make_ffi(name: &str, var_type: Judgment<PyPrim>) -> Judgment<PyPrim> {
@@ -176,7 +184,7 @@ pub fn ui_to_py_judgment(front: Judgment<UiPrim>) -> Judgment<PyPrim> {
     use xi_proc_macro::term;
 
     let io_monad = make_ffi("IO", term!(U -> U));
-
+    let UnitType = make_ffi("UnitType", term!(U));
     front.define_prim_unchecked(Rc::new(
         move |s, prim_type, define_prim| -> Judgment<PyPrim> {
             match s {
@@ -186,6 +194,13 @@ pub fn ui_to_py_judgment(front: Judgment<UiPrim>) -> Judgment<PyPrim> {
                     term!(Pi |A : U, B : U| {io_monad} A -> (A -> {io_monad} B) -> {io_monad} B),
                 ),
                 UiPrim::IOPure => make_ffi("io_pure", term!(Pi |A : U| A -> {io_monad} A)),
+                UiPrim::ConsoleOutput => make_ffi(
+                    "console_output",
+                    term!([StringType] -> {io_monad}{UnitType}),
+                ),
+                UiPrim::ConsoleInput => make_ffi("console_input", term!({io_monad }{UnitType})),
+                UiPrim::UnitType => UnitType.clone(),
+                UiPrim::Unit => make_ffi("unit", UnitType.clone()),
                 UiPrim::StringElem(str) => {
                     Judgment::prim_wo_prim_type(PyPrim::StringElem(str), None)
                 }

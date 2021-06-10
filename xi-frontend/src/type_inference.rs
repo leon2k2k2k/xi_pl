@@ -552,6 +552,10 @@ pub enum UiPrim {
     Binary(UiBinaryOp),
     Ffi(String, String),
     Global(VarUuid),
+    ConsoleOutput,
+    ConsoleInput,
+    UnitType,
+    Unit,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -606,6 +610,10 @@ impl Primitive for UiPrim {
             }
             Ffi(_, _) => None,
             Global(_index) => None,
+            ConsoleOutput => Some(term!([StringType] -> [IOMonad][UnitType])),
+            ConsoleInput => Some(term!([IOMonad][StringType])),
+            UnitType => Some(term!(U)),
+            Unit => Some(term!([UnitType])),
         }
     }
 }

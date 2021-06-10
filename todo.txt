@@ -1,6 +1,8 @@
 Leon todo:
-1. make cli to take optional main arguments.
-2. test server_backend.
+CI/CD:
+1. make console_input, console_output and stuff into the canonical runtime file, 
+ so that we don't need to ffi standard stuff.
+
 
 todo list:
 1. Output:

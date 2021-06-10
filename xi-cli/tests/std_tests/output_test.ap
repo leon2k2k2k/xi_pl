@@ -14,6 +14,6 @@ let main = {
     do console_output(str)!
     let x = 5 + 6
     do console_output(m "hi" (lambda |x| x))!
-   do console_output(int_to_string(x))!
+    do console_output(int_to_string(x))!
     val unit!
 }

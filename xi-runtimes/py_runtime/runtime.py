@@ -20,6 +20,13 @@ import sys
 runtime = Runtime("runtime")
 sys.modules["runtime"] = runtime
 
+UnitType = promise_resolve("UnitType")
+unit = promise_resolve("unit")
+
+
+async def int_to_string(x):
+    return promise_resolve(str(x))
+
 
 async def plus():
     async def plus_helper1(x):

@@ -49,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(all(not(feature = "run-with-server"), not(feature = "run-no-server")))]
 fn main() {
     let cli_info = CliInfo::get_inputs(false);
-    let str = CliInfo::aplite_to_backend_source_code(&cli_info);
+    let _str = CliInfo::aplite_to_backend_source_code(&cli_info);
     // println!("{}", str);
 }
 #[derive(Clone, Debug)]
@@ -143,5 +143,29 @@ impl CliInfo {
                 }
             }
         }
+    }
+}
+
+// integration tests!
+mod test {
+    use crate::CliInfo;
+
+    #[tokio::test]
+    async fn test() {
+        let source_code = include_str!("./tests/std_tests/input_test.ap");
+        let main_func = "main";
+        println!("{}", source_code);
+        let js_cli_info = CliInfo {
+            source_code: source_code.into(),
+            main_func: Some(main_func.into()),
+            back_end: crate::BackEnd::Py,
+            with_server: false,
+        };
+
+        let py_source_code = CliInfo::aplite_to_backend_source_code(&js_cli_info);
+        println!("{}", &py_source_code);
+
+        xi_runtimes::py_runtime::py_runtime::run_py_from_string(&py_source_code);
+        panic!("noo")
     }
 }

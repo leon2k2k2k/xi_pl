@@ -1,7 +1,7 @@
 
 let main = {
 
-    ffi "./some_file.js"{
+    ffi "runtime.py"{
         UnitType : Type,
         unit : UnitType,
         console_output: String -> IO UnitType,
@@ -16,5 +16,5 @@ let main = {
     let me = console_output(a)!
     let me = console_output(in)!
 
-    val unit!
+    val 5!
 }

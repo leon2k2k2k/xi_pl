@@ -24,8 +24,11 @@ UnitType = promise_resolve("UnitType")
 unit = promise_resolve("unit")
 
 
-async def int_to_string(x):
-    return promise_resolve(str(x))
+async def int_to_string():
+    async def int_to_string_helper(x):
+        return promise_resolve(x)
+
+    return int_to_string_helper
 
 
 async def plus():

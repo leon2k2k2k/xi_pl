@@ -1,8 +1,8 @@
-ffi "./some_file.js"{
-//   UnitType : Type,
+ffi "runtime.js"{
+   UnitType : Type,
 //   unit : UnitType,
    int_to_string : Int -> String,
-//   console_output: String -> IO UnitType,
+   console_output: String -> IO UnitType,
 //  console_input: IO String,
 }
 

@@ -18,7 +18,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match &cli_info.back_end {
         BackEnd::Js => xi_runtimes::js_runtime::js_runtime::run_js_from_string(str).await?,
         BackEnd::Py => {
-            println!("helloooo");
             xi_runtimes::py_runtime::py_runtime::run_py_from_string(&str);
         }
     }
@@ -36,7 +35,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match &cli_info.back_end {
         BackEnd::Js => xi_runtimes::js_runtime::js_runtime::run_js_from_string(str).await?,
         BackEnd::Py => {
-            println!("helloooo");
             xi_runtimes::py_runtime::py_runtime::run_py_from_string(&str);
         }
     }
@@ -152,7 +150,7 @@ mod test {
 
     #[tokio::test]
     async fn test() {
-        let source_code = include_str!("./tests/std_tests/input_test.ap");
+        let source_code = include_str!("./tests/std_tests/arithmetic_test.ap");
         let main_func = "main";
         println!("{}", source_code);
         let js_cli_info = CliInfo {

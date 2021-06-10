@@ -46,7 +46,7 @@ jobs:
           python-version: '3.9'
           architecture: 'x64'
       # install packages
-      - run: python3.9 -m pip3.9 install --upgrade pip astor json
+      - run: python3.9 -m pip install --upgrade pip astor
 
       - run: cargo run --features run-no-server ./xi-cli/tests/std_tests/arithmetic_test.ap py main
   

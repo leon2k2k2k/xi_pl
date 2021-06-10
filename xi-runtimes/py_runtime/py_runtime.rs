@@ -26,7 +26,7 @@ pub fn run_py_to_stdout(source_code: &str) -> Result<String, std::io::Error> {
 
     let actual_source_code = format!("{}\n\n{}", runtime_code, source_code);
 
-    let ans = Command::new("python3")
+    let ans = Command::new("python3.9")
         .args(&["-c", &actual_source_code])
         .stderr(Stdio::inherit())
         .stdin(Stdio::inherit())

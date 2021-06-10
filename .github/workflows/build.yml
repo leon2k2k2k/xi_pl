@@ -114,12 +114,9 @@ jobs:
           profile: minimal 
           toolchain: stable
           override: true 
-      # - name: Rust Cache
-      #   uses: Swatinem/rust-cache@v1.3.0
-      # now I need to download python. I need it for the python backend.
 
 
-      # - name: Run cargo test 
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: test
+      - name: Run cargo test 
+        uses: actions-rs/cargo@v1
+        with:
+          command: test

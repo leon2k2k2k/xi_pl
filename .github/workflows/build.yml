@@ -109,7 +109,7 @@ jobs:
           architecture: 'x64'
       
       - name: Run cargo test on arithmetic_test.ap
-        uses: action-rs/cargo@v1
+        uses: actions-rs/cargo@v1
         with: 
           command: run --features run-no-sever ./tests/std_tests/arithmetic_test.ap py main
       

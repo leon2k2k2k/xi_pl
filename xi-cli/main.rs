@@ -163,7 +163,11 @@ mod test {
         let py_source_code = CliInfo::aplite_to_backend_source_code(&js_cli_info);
         println!("{}", &py_source_code);
 
-        xi_runtimes::py_runtime::py_runtime::run_py_from_string(&py_source_code);
-        panic!("noo")
+        // xi_runtimes::py_runtime::py_runtime::run_py_from_string(source_code);
+        // panic!("laksjdflja");
+        let output = xi_runtimes::py_runtime::py_runtime::run_py_to_stdout(&py_source_code)
+            .expect("we got this");
+        eprintln!("the output is {}", &output);
+        assert_eq!("11\n", output);
     }
 }

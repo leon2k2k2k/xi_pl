@@ -150,7 +150,7 @@ pub fn python_module_to_string(module: Mod) -> String {
 
     let json = module.0.to_string();
     let python_file = include_str!("json_to_ast.py");
-    let mut python_process = Command::new("python")
+    let mut python_process = Command::new("python3.9")
         .arg("-c")
         .arg(python_file)
         .stdin(Stdio::piped())

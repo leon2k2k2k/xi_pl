@@ -11,7 +11,6 @@ pub mod desugar;
 pub mod resolve;
 pub mod rowan_ast;
 pub mod type_inference;
-pub mod test;
 #[derive(Clone, Debug)]
 
 pub struct Module {

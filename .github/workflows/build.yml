@@ -1,4 +1,6 @@
 # this builds the rust package.
+# I am able to install python and make Aplite run with Python backends.
+
 
 on: [push]
 

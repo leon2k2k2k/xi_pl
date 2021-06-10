@@ -154,7 +154,8 @@ pub fn module_with_server_to_py_string(
     let str = python_module_to_string(py_mod);
     // now I need to add the source string of the py_server.py code on top of this.
     let server_code = include_str!("py_server.py");
-    format!("{}\n \n{}", server_code, str)
+    let str = format!("{}\n \n{}", server_code, str);
+    str
 }
 
 // write out the generated registration code:

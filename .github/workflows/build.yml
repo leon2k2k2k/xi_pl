@@ -34,11 +34,18 @@ jobs:
             stable-debug-target-
 
 
-      # build
-      - uses: actions-rs/toolchain@v1
+      # # build
+      # - uses: actions-rs/toolchain@v1
+      #   with:
+      #     toolchain: stable
+      # - run: cargo build 
+      
+      # download python
+      - uses: actions/setup-python@v2
         with:
-          toolchain: stable
-      - run: cargo build 
+          python-version: '3.9'
+          architecture: 'x64'
+      
       - run: cargo run --features run-no-server ./xi-cli/tests/std_tests/arithmetic_test.ap py main
   
       # - name: Run cargo test on arithmetic_test.ap
@@ -106,11 +113,7 @@ jobs:
       # - name: Rust Cache
       #   uses: Swatinem/rust-cache@v1.3.0
       # now I need to download python. I need it for the python backend.
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
-          architecture: 'x64'
-      
+
 
       # - name: Run cargo test 
       #   uses: actions-rs/cargo@v1

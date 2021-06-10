@@ -38,11 +38,14 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-
       - run: cargo build 
 
   
-  
+      - name: Run cargo test on arithmetic_test.ap
+        uses: actions-rs/toolchain@v1
+        with: 
+          command: cargo run --features run-no-sever ./tests/std_tests/arithmetic_test.ap py main
+        
 #   test:
 #     name: Test Suite
 #     runs-on: ubuntu-latest
@@ -108,11 +111,7 @@ jobs:
           python-version: '3.9'
           architecture: 'x64'
       
-      - name: Run cargo test on arithmetic_test.ap
-        uses: actions-rs/cargo@v1
-        with: 
-          command: run --features run-no-sever ./tests/std_tests/arithmetic_test.ap py main
-      
+
       # - name: Run cargo test 
       #   uses: actions-rs/cargo@v1
       #   with:

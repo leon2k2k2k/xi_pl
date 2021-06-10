@@ -12,4 +12,5 @@ jobs:
         with:
           python-version: '3.9'
           architecture: 'x64'
-      - run: python3.9 ./xi-runtimes/py_runtime/runtime.py
+      - run: python3.9 -m pip3.9 install --upgrade pip astor json
+      - run: python3.9 ./xi-backends/py_backend/json_to_ast.py

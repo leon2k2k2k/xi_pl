@@ -39,13 +39,15 @@ jobs:
       #   with:
       #     toolchain: stable
       # - run: cargo build 
-      
+
       # download python
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v2 
         with:
           python-version: '3.9'
           architecture: 'x64'
-      
+      # install packages
+      - run: python3.9 -m pip3.9 install --upgrade pip astor json
+
       - run: cargo run --features run-no-server ./xi-cli/tests/std_tests/arithmetic_test.ap py main
   
       # - name: Run cargo test on arithmetic_test.ap

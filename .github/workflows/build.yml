@@ -13,7 +13,8 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cahce@v1.3.0 # this caches the cargo build
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v1.3.0
       - run: cargo build 
 
   

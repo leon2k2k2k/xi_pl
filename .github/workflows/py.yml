@@ -11,4 +11,4 @@ jobs:
         with:
           python-version: '3.9'
           architecture: 'x64'
-      - run python ./xi-runtimes/runtime.py
+      - run: python ./xi-runtimes/runtime.py

@@ -39,7 +39,7 @@ jobs:
         with:
           toolchain: stable
       - run: cargo build 
-      - run: cargo run --features run-no-server ./tests/std_tests/arithmetic_test.ap
+      - run: cargo run --features run-no-server ./xi-cli/tests/std_tests/arithmetic_test.ap
   
       # - name: Run cargo test on arithmetic_test.ap
       #   uses: actions-rs/toolchain@v1

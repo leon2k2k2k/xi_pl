@@ -26,7 +26,7 @@ pub fn add_to_module(module: &mut Module, modules: ModuleAndImports) {
 pub fn combine_module_and_imports(modules: ModuleAndImports) -> Module {
     let mut module = Module::new();
     add_to_module(&mut module, modules);
-    dbg!("returning module", &module);
+    // dbg!("returning module", &module);
     return module;
 }
 // takes a module and get back a PyModule, which is exactly what is needed to produce a Py file.

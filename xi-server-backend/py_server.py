@@ -48,7 +48,7 @@ class Server:
             return self.register_new(value)
         # only doing Int right now.
         elif type_["kind"] == "Str":
-            return self.register_new(promise_resolve(value))
+            return self.register_new(value)
         else:
             arg_type = type_["kind"]["left"]
             return_type = type_["kind"]["right"]

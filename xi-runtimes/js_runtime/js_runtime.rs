@@ -1,3 +1,6 @@
+use std::process::Command;
+use std::str::from_utf8;
+
 use deno::create_main_worker;
 use deno::file_fetcher::File;
 use deno::media_type::MediaType;
@@ -46,6 +49,23 @@ pub async fn run_js_from_string(source_code: String) -> Result<(), AnyError> {
     worker.run_event_loop(false).await?;
     worker.execute("window.dispatchEvent(new Event('unload'))")?;
     Ok(())
+}
+
+pub async fn run_js_to_std() -> Result<String, AnyError> {
+    // this case we are going to run Aplite with Js backend as a subprocess, and
+    // take its stdout and assert_eq it.
+    let run_aplite = Command::new("cargo")
+        .args(&[
+            "run",
+            "--features",
+            "run-no-server",
+            "./tests/std_tests/arithmetic_test.ap",
+            "js",
+            "main",
+        ])
+        .output()
+        .expect("failed to execute Aplite");
+    Ok(from_utf8(&run_aplite.stdout).expect("str").into())
 }
 mod test {
 

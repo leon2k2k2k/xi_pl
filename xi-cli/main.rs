@@ -14,7 +14,7 @@ use xi_server_backend::py_output::module_with_server_to_py_string;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli_info = CliInfo::get_inputs(false);
     let str = CliInfo::aplite_to_backend_source_code(&cli_info);
-    println!("{}", str);
+    // println!("{}", str);
     match &cli_info.back_end {
         BackEnd::Js => xi_runtimes::js_runtime::js_runtime::run_js_from_string(str).await?,
         BackEnd::Py => {
@@ -54,8 +54,8 @@ fn main() {
 pub enum BackEnd {
     Js,
     Py,
-    //go,
-    //haskell,
+    //Go,
+    //Haskell,
 }
 
 impl BackEnd {
@@ -114,12 +114,12 @@ impl CliInfo {
                     true => {
                         let js_string =
                             module_with_server_to_js_string(js_module, main_id, 5000, 8080);
-                        println!("{}", &js_string);
+                        // println!("{}", &js_string);
                         js_string
                     }
                     false => {
                         let js_string = module_to_js_string(js_module, main_id);
-                        println!("{}", &js_string);
+                        // println!("{}", &js_string);
                         js_string
                     }
                 }
@@ -130,12 +130,12 @@ impl CliInfo {
                     true => {
                         let py_string =
                             module_with_server_to_py_string(py_module, main_id, 8080, 5000);
-                        println!("{}", &py_string);
+                        // println!("{}", &py_string);
                         py_string
                     }
                     false => {
                         let py_string = module_to_py_string(py_module, main_id);
-                        println!("{}", &py_string);
+                        // println!("{}", &py_string);
                         py_string
                     }
                 }
@@ -146,28 +146,65 @@ impl CliInfo {
 
 // integration tests!
 mod test {
+    use std::{process::Command, str::from_utf8};
+
     use crate::CliInfo;
 
+    // #[tokio::test]
+    // async fn py_test() {
+    //     let source_code = include_str!("./tests/std_tests/arithmetic_test.ap");
+    //     let main_func = "main";
+    //     println!("{}", source_code);
+    //     let js_cli_info = CliInfo {
+    //         source_code: source_code.into(),
+    //         main_func: Some(main_func.into()),
+    //         back_end: crate::BackEnd::Py,
+    //         with_server: false,
+    //     };
+
+    //     let py_source_code = CliInfo::aplite_to_backend_source_code(&js_cli_info);
+    //     println!("{}", &py_source_code);
+
+    //     // xi_runtimes::py_runtime::py_runtime::run_py_from_string(source_code);
+    //     // panic!("laksjdflja");
+    //     let output = xi_runtimes::py_runtime::py_runtime::run_py_to_stdout(&py_source_code)
+    //         .expect("we got this");
+    //     eprintln!("the output is {}", &output);
+    //     assert_eq!("11\n", output);
+    // }
+
+    // #[tokio::test]
+    // async fn js_test() {
+    //     // this case we are going to run Aplite with Js backend as a subprocess, and
+    //     // take its stdout and assert_eq it.
+    //     let run_aplite = Command::new("cargo")
+    //         .args(&[
+    //             "run",
+    //             "--features",
+    //             "run-no-server",
+    //             "./tests/std_tests/arithmetic_test.ap",
+    //             "js",
+    //             "main",
+    //         ])
+    //         .output()
+    //         .expect("failed to execute Aplite");
+    //     let stdout_str: String = from_utf8(&run_aplite.stdout).expect("str").into();
+    //     assert_eq!("11\n", stdout_str);
+    // }
     #[tokio::test]
-    async fn test() {
-        let source_code = include_str!("./tests/std_tests/arithmetic_test.ap");
-        let main_func = "main";
-        println!("{}", source_code);
-        let js_cli_info = CliInfo {
-            source_code: source_code.into(),
-            main_func: Some(main_func.into()),
-            back_end: crate::BackEnd::Py,
-            with_server: false,
-        };
-
-        let py_source_code = CliInfo::aplite_to_backend_source_code(&js_cli_info);
-        println!("{}", &py_source_code);
-
-        // xi_runtimes::py_runtime::py_runtime::run_py_from_string(source_code);
-        // panic!("laksjdflja");
-        let output = xi_runtimes::py_runtime::py_runtime::run_py_to_stdout(&py_source_code)
-            .expect("we got this");
-        eprintln!("the output is {}", &output);
-        assert_eq!("11\n", output);
+    async fn py_test() {
+        let run_aplite = Command::new("cargo")
+            .args(&[
+                "run",
+                "--features",
+                "run-no-server",
+                "./tests/std_tests/arithmetic_test.ap",
+                "py",
+                "main",
+            ])
+            .output()
+            .expect("failed to execute Aplite");
+        let stdout_str: String = from_utf8(&run_aplite.stdout).expect("str").into();
+        assert_eq!("11\n", stdout_str);
     }
 }

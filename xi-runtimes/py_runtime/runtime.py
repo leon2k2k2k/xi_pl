@@ -87,6 +87,16 @@ async def modulo():
     return helper1
 
 
+async def concat():
+    async def helper1(x):
+        async def helper2(y):
+            return promise_resolve(x + y)
+
+        return promise_resolve(helper2)
+
+    return helper1
+
+
 # arg: IO A
 # arg: AFn() -> A
 # func: A -> IO B

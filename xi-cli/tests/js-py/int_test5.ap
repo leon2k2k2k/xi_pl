@@ -1,0 +1,29 @@
+// py has plus, ten, five, js should get 15.
+
+
+// @py ffi "runtime.py"{
+//    UnitType : Type,
+// //   unit : UnitType,
+//    int_to_string : Int -> String,
+//    console_output: String -> IO UnitType,
+// //  console_input: IO String,
+// }
+
+@js ffi "./some_file.js" {
+    UnitType : Type,
+// unit : UnitType,
+   int_to_string : Int -> String,
+   console_output: String -> IO UnitType,
+//  console_input: IO String,
+}
+
+
+@py transport js let plus = lambda|x: Int, y : Int| {val x + y}
+@py transport js let ten = 10
+@py transport js let five = 5 
+@js let x = plus(ten, five)
+
+@js let main = {
+    do console_output(int_to_string(x))!
+    val 5!
+}

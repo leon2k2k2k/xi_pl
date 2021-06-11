@@ -1,0 +1,26 @@
+// send number 5 from py to js.
+// js prints 5.
+
+// @py ffi "runtime.py"{
+//    UnitType : Type,
+// //   unit : UnitType,
+//    int_to_string : Int -> String,
+//    console_output: String -> IO UnitType,
+// //  console_input: IO String,
+// }
+
+@js ffi "./some_file.js" {
+    UnitType : Type,
+// unit : UnitType,
+   int_to_string : Int -> String,
+   console_output: String -> IO UnitType,
+//  console_input: IO String,
+}
+
+
+@py transport js let x = 5
+
+@js let main = {
+    do console_output(int_to_string(x))!
+    val 5!
+}

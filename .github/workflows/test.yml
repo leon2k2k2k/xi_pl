@@ -1,0 +1,59 @@
+
+
+on : [push]
+
+name: test 
+
+
+test:
+  name: Test
+  needs: build
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v2 
+
+# cacheing
+    - name: Cache Cargo registry
+      uses: actions/cache@v1
+      with:
+        path: ~/.cargo/registry
+        key: stable-cargo-registry
+        restore-keys: |
+          stable-cargo-registry-
+    - name: Cache Cargo index
+      uses: actions/cache@v1
+      with:
+        path: ~/.cargo/git
+        key: stable-cargo-index
+        restore-keys: |
+          stable-cargo-index-
+    - name: Cache Cargo build
+      uses: actions/cache@v1
+      with:
+        path: target/debug
+        key: stable-debug-target
+        restore-keys: |
+          stable-debug-target-
+
+    - name: Install stable toolchain
+      uses: actions-rs/toolchain@v1
+      with: 
+        profile: minimal 
+        toolchain: stable
+        override: true
+          
+    # download python
+    - uses: actions/setup-python@v2 
+      with:
+        python-version: '3.9'
+        architecture: 'x64'
+    # install packages
+    - run: python3.9 -m pip install --upgrade pip astor
+
+    - run: cargo run --features run-no-server ./xi-cli/tests/std_tests/arithmetic_test.ap py main
+
+
+    - name: Run cargo test 
+      uses: actions-rs/cargo@v1
+      with:
+        command: test

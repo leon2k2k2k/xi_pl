@@ -1,0 +1,29 @@
+// js have two functions add_10 and apply_3, 
+// py apply apply_3 to add_10, and prints it, should be 13
+
+// @py ffi "runtime.py"{
+//    UnitType : Type,
+// //   unit : UnitType,
+//    int_to_string : Int -> String,
+//    console_output: String -> IO UnitType,
+// //  console_input: IO String,
+// }
+
+@js ffi "./some_file.js" {
+    UnitType : Type,
+// unit : UnitType,
+   int_to_string : Int -> String,
+   console_output: String -> IO UnitType,
+//  console_input: IO String,
+}
+
+
+@py transport js fn add_10 |x : Int| -> Int  {val x + 10}
+
+@py transport js fn apply_3 |func: Int -> Int| -> Int  {val func(3)}
+
+@js let x = apply_3 (add_10)
+@js let main = {
+    do console_output(int_to_string(x))!
+    val 5!
+}

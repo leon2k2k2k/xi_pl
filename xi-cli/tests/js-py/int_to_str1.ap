@@ -1,0 +1,27 @@
+
+@py ffi "runtime.py"{
+//    UnitType : Type,
+//   unit : UnitType,
+   int_to_string : Int -> String,
+//    console_output: String -> IO UnitType,
+//    concat: String -> String -> String,
+//  console_input: IO String,
+}
+
+@js ffi "./some_file.js" {
+   UnitType : Type,
+// unit : UnitType,
+//    int_to_string : Int -> String,
+  console_output: String -> IO UnitType,
+ console_input: IO String,
+    concat: String -> String -> String,
+
+}
+
+@py let y = 100
+@py transport js let y_str = int_to_string(y)
+@js let x = concat (y_str, " is stupid!")
+@js let main = {
+    do console_output(x)!
+    val 5!
+}

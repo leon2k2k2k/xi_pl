@@ -1,0 +1,31 @@
+// js have two functions concat ", world!", and apply_hello
+// py apply apply_3 to add_10, and prints it, should be 13
+
+@py ffi "runtime.py"{
+//    UnitType : Type,
+// //   unit : UnitType,
+//    int_to_string : Int -> String,
+//    console_output: String -> IO UnitType,
+   concat: String -> String -> String,
+//  console_input: IO String,
+}
+
+@js ffi "./some_file.js" {
+    UnitType : Type,
+// unit : UnitType,
+   int_to_string : Int -> String,
+   console_output: String -> IO UnitType,
+ console_input: IO String,
+    // concat: String ->  String -> String,
+}
+
+
+@py transport js fn add_world |x : String| -> String  {val concat (x, ", world!")}
+
+@py transport js fn apply_hello |func: String -> String| -> String  {val func ("hello")}
+
+@js let x = apply_hello (add_world)
+@js let main = {
+    do console_output(x)!
+    val 5!
+}

@@ -5,6 +5,16 @@ CI and make testing work:
 3. write and run some server tests.
 
 
+server-backend:
+1. make dependent pi types as json value.
+    1. Make the corresponding functions.
+    2. change the js_server to work with these data structures. Also send types across networks.
+2. transport dependent types.
+3. transport enum structs.
+
+
+
+
 todo list:
 1. Output:
     a. do some tests: console_input testing,

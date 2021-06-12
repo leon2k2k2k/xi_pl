@@ -1,0 +1,27 @@
+// js has apply twice.
+@py ffi "runtime.py"{
+   UnitType : Type,
+//   unit : UnitType,
+   int_to_string : Int -> String,
+   console_output: String -> IO UnitType,
+//  console_input: IO String,
+}
+
+// @js ffi "./some_file.js" {
+//     UnitType : Type,
+// // unit : UnitType,
+//    int_to_string : Int -> String,
+//    console_output: String -> IO UnitType,
+// //  console_input: IO String,
+// }
+
+
+@js transport py fn apply_twice |func: Int -> Int| -> (Int -> Int) {
+    val lambda|x: Int| func (func x)
+}
+@py let add_five = lambda|x : Int| (x + 5)
+@py let x = apply_twice(add_five) (9)
+@py let main = {
+    do console_output(int_to_string(x))!
+    val 5!
+}

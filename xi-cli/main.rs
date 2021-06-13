@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli_info = CliInfo::get_inputs(true);
     let str = CliInfo::aplite_to_backend_source_code(&cli_info);
-    // println!("{}", str);
+    println!("{}", str);
     match &cli_info.back_end {
         BackEnd::Js => xi_runtimes::js_runtime::js_runtime::run_js_from_string(str).await?,
         BackEnd::Py => {

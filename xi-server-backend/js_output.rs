@@ -10,7 +10,7 @@ use xi_backends::js_backend::{
     js_output::{
         make_var_name, module_item_to_swc_module_item, promise_resolve, run_io,
         string_to_import_specifier, swc_module_to_string, to_js_await, to_js_ident, to_js_ident2,
-        to_js_sm_int, to_js_str,
+        to_js_num, to_js_sm_int, to_js_str,
     },
     js_prim::{JsModule, JsPrim},
 };
@@ -27,7 +27,7 @@ pub fn module_to_js_module(
     other_port: u32,
 ) -> Module {
     // first the standard server kind of stuff:
-    // import {Server, pi_to_json, json_kind} from "./server.ts";
+    // import {Server, pi, prim, u , freevar} from "./server.ts";
 
     // let server = new Server("js");
 
@@ -168,15 +168,18 @@ pub fn module_to_js_module(
 // server.deregistar_var(var_2, [json(var_2.type_)])
 // ...
 
-// import { server, pi_to_json, json_kind } from "./new_server.js";
+// import { server, pi, prim, u, freevar} from "./new_server.js";
 
 pub fn std_import_from_server() -> ModuleItem {
-    let server = string_to_import_specifier("Server".into());
-    let pi_to_json = string_to_import_specifier("pi_to_json".into());
-    let json_kind = string_to_import_specifier("json_kind".into());
+    let import_names = vec!["Server", "pi", "prim", "u", "freevar"];
+    let specifiers: Vec<ImportSpecifier> = import_names
+        .iter()
+        .map(|str| string_to_import_specifier(str.clone().into()))
+        .collect();
+
     ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
         span: DUMMY_SP,
-        specifiers: vec![server, pi_to_json, json_kind],
+        specifiers: specifiers,
         src: Str {
             span: DUMMY_SP,
             value: "./js_server.ts".into(),
@@ -259,29 +262,35 @@ fn to_js_app_wo_await(func: Expr, args: Vec<Expr>) -> Expr {
 }
 
 // this function takes an Aplite type and encode it as a JSON object of binary tree of Pi's.
-
+// right now we can do primitives and dependent pi types.
 pub fn type_to_json(type_: Judgment<JsPrim>) -> Expr {
     match *type_.tree {
         xi_core::judgment::JudgmentKind::Pi(arg_type, return_type) => {
-            //use pi_to_json:
-            // ahhh what about free vars
-            let args = vec![type_to_json(arg_type), type_to_json(return_type.unbind().1)];
-            to_js_app_wo_await(to_js_ident("pi_to_json"), args)
+            let (id, return_type) = return_type.unbind();
+
+            let args = vec![
+                type_to_json(arg_type),
+                type_to_json(return_type),
+                to_js_num(format!("{}", id.index())),
+            ];
+            to_js_app_wo_await(to_js_ident("pi"), args)
         }
-        xi_core::judgment::JudgmentKind::Type => {
-            unreachable!("we shouldn't see this here")
-        }
+        xi_core::judgment::JudgmentKind::Type => to_js_app_wo_await(to_js_ident("u"), vec![]),
         xi_core::judgment::JudgmentKind::Prim(prim, _) => match prim {
-            JsPrim::StringType => json_kind("Str".into()),
-            JsPrim::NumberType => json_kind("Int".into()),
+            JsPrim::StringType => to_js_app_wo_await(to_js_ident("prim"), vec![to_js_str("Str")]),
+            JsPrim::NumberType => to_js_app_wo_await(to_js_ident("prim"), vec![to_js_str("Int")]),
             JsPrim::StringElem(_) => unreachable!("nope"),
             JsPrim::NumberElem(_) => unreachable!("nope"),
             JsPrim::Ffi(_, _) => unreachable!("nope"),
             JsPrim::Var(_) => unreachable!("nope"),
         },
-        xi_core::judgment::JudgmentKind::FreeVar(_, _) => {
-            panic!("ahhhh")
-        }
+        xi_core::judgment::JudgmentKind::FreeVar(index, var_type) => to_js_app_wo_await(
+            to_js_ident("freevar"),
+            vec![
+                to_js_num(format!("{}", index.index())),
+                type_to_json(var_type),
+            ],
+        ),
         xi_core::judgment::JudgmentKind::Lam(_, _) => {
             unreachable!("we shouldn't see this here")
         }

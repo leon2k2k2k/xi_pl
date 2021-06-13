@@ -10,6 +10,21 @@ let UnitType = pi(u(), pi(freevar(0, u()), freevar(0, u()), 1), 0);
 // now we want to apply this to T = String
 let StrType = prim("Str", u());
 
-export let var_0 = Promise.resolve(await server.deregister_top_level("var_0", UnitType));
+// export let var_0 = Promise.resolve(await server.deregister_top_level("var_0", UnitType));
 
-console.log(await (await (await var_0)(StrType))("hello"));
+// console.log(await (await (await var_0)(StrType))("hello"));
+
+
+let T_to_T = pi(freevar(0, u()), freevar(0, u()), 1);
+let T_to_T_to_T = pi(freevar(0, u()), T_to_T, 2);
+let BoolType = pi(u(), T_to_T_to_T, 0);
+
+export let var_1 = Promise.resolve(await server.deregister_top_level("var_1", BoolType))
+
+
+console.log(await (await (await (await var_1)(StrType))("hello"))("world"))
+
+export let var_2 = Promise.resolve(await server.deregister_top_level("var_2", BoolType))
+
+
+console.log(await (await (await (await var_2)(StrType))("hello"))("world"))

@@ -5,9 +5,9 @@ export let server = new Server(8080, 5000);
 // js_register side.
 
 let int = prim("Int", u());
-let int_to_int = pi(int, int, freevar(0, int));
-let int_to_int______to_int = pi(int_to_int, int, freevar(1, int));
-let int_to______int_to_int = pi(int, int_to_int, freevar(2, int));
+let int_to_int = pi(int, int, 0);
+let int_to_int______to_int = pi(int_to_int, int, 1);
+let int_to______int_to_int = pi(int, int_to_int, 2);
 
 
 // //  100

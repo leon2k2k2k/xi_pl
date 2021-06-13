@@ -34,7 +34,7 @@ export function freevar(index: any, var_type: any): any {
   return { kind: "free_var", index: index, var_type: var_type };
 }
 export function instantiate(sexpr: any, expr: any, var_index: any): any {
-  console.log("in instantiate, the sexpr is", sexpr, "expr is ", expr);
+  // console.log("in instantiate, the sexpr is", sexpr, "expr is ", expr);
   if (sexpr.kind === "prim") {
     return prim(sexpr.value, instantiate(sexpr.var_type, expr, var_index));
   } else if (sexpr.kind === "U") {
@@ -101,14 +101,14 @@ export class Server {
       let var_id = type.var_id;
       // s is only going to be the term, not the type, we don't need the type of s!.
       let new_func = Promise.resolve(async (s: any) => {
-        console.log("serialized: s is", s, "and var_type is", var_type);
+        // console.log("serialized: s is", s, "and var_type is", var_type);
         let x = await this.deserialize(s, var_type);
         // let x_type = (await value_and_type).type;
-        console.log("serialized: x is", x);
-        console.log("in serialize, return_type is", return_type);
-        console.log("also we have value", value, "and type", type);
-        let instantiated = instantiate(return_type, x, var_id);
-        console.log("this is the instantiated:", instantiated);
+        // console.log("serialized: x is", x);
+        // console.log("in serialize, return_type is", return_type);
+        // console.log("also we have value", value, "and type", type);
+        // let instantiated = instantiate(return_type, x, var_id);
+        // console.log("this is the instantiated:", instantiated);
         return this.serialize(
           await value(await x),
           instantiate(return_type, x, var_id),
@@ -173,7 +173,7 @@ export class Server {
   // only need to send the type of arg over.
 
   async deserialize(value: any, type: any): Promise<any> {
-    console.log("in deserialize, the type is", type);
+    // console.log("in deserialize, the type is", type);
     if (type.kind === "prim") {
       if (type.value === "Int") {
         let request = JSON.stringify({
@@ -193,16 +193,16 @@ export class Server {
       let return_type = type.right;
       let var_id = type.var_id;
       return async (x: any) => {
-        console.log("in deserialized, x is", x);
-        console.log("in deserialized, var_type is", var_type);
+        // console.log("in deserialized, x is", x);
+        // console.log("in deserialized, var_type is", var_type);
         let serialized_x = this.serialize(x, var_type);
-        console.log(serialized_x);
+        // console.log(serialized_x);
         let request = JSON.stringify({
           remote_ident: value,
           arg: serialized_x,
         });
-        console.log("x is :::::::::", x);
-        console.log("return_type is :::::::", return_type);
+        // console.log("x is :::::::::", x);
+        // console.log("return_type is :::::::", return_type);
         let return_id = JSON.parse(await this.post(request));
         return Promise.resolve(
           await this.deserialize(

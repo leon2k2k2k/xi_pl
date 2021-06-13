@@ -5,7 +5,7 @@ use xi_core::judgment::{Judgment, Primitive};
 use xi_uuid::VarUuid;
 
 use crate::js_backend::js_output::{
-    make_var_name, promise_resolve, to_js_ident, to_js_num, to_js_str,
+    make_var_name, promise_resolve, to_js_app_wo_await, to_js_ident, to_js_num, to_js_str,
 };
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -36,8 +36,14 @@ impl Primitive for JsPrim {
 impl JsPrim {
     pub fn to_js_prim(&self, ffi: &mut BTreeMap<(String, String), VarUuid>) -> Expr {
         match self {
-            JsPrim::StringType => promise_resolve(to_js_ident("String")),
-            JsPrim::NumberType => promise_resolve(to_js_ident("Number")),
+            JsPrim::StringType => promise_resolve(to_js_app_wo_await(
+                to_js_ident("prim"),
+                vec![to_js_str("Str")],
+            )),
+            JsPrim::NumberType => promise_resolve(to_js_app_wo_await(
+                to_js_ident("prim"),
+                vec![to_js_str("Int")],
+            )),
             JsPrim::StringElem(str) => promise_resolve(to_js_str(str.clone())),
             JsPrim::NumberElem(num) => promise_resolve(to_js_num(num.clone())),
             JsPrim::Ffi(filename, ffi_name) => {

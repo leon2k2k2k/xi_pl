@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use swc_common::DUMMY_SP;
 use swc_ecma_ast::{
-    AwaitExpr, BindingIdent, CallExpr, Decl, ExportDecl, Expr, ExprOrSpread, ExprOrSuper, ExprStmt,
+    AwaitExpr, BindingIdent, Decl, ExportDecl, Expr, ExprOrSpread, ExprOrSuper, ExprStmt,
     ImportDecl, ImportNamedSpecifier, ImportSpecifier, MemberExpr, Module, ModuleDecl, ModuleItem,
     NewExpr, Pat, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
 };
@@ -9,8 +9,8 @@ use swc_ecma_ast::{
 use xi_backends::js_backend::{
     js_output::{
         make_var_name, module_item_to_swc_module_item, promise_resolve, run_io,
-        string_to_import_specifier, swc_module_to_string, to_js_await, to_js_ident, to_js_ident2,
-        to_js_num, to_js_sm_int, to_js_str,
+        std_import_from_server, swc_module_to_string, to_js, to_js_app_wo_await, to_js_await,
+        to_js_ident, to_js_ident2, to_js_sm_int, to_js_str,
     },
     js_prim::{JsModule, JsPrim},
 };
@@ -41,7 +41,9 @@ pub fn module_to_js_module(
     let mut body = vec![];
 
     // first we add in the import server stuff code:
-    body.push(std_import_from_server());
+    let import_names = vec!["Server", "pi", "prim", "u", "freevar"];
+
+    body.push(std_import_from_server(import_names));
     // then run server.
     body.push(let_server_code(port, other_port));
 
@@ -80,7 +82,12 @@ pub fn module_to_js_module(
                 deregister_top_level,
                 vec![
                     to_js_str(format!("var_{}", var_index.index())),
-                    type_to_json(module_item.type_()),
+                    to_js(
+                        &module_item.type_(),
+                        BTreeMap::new(),
+                        &mut BTreeMap::new(),
+                        false,
+                    ),
                 ],
             );
             // Promise.resolve(await server.deserialize(thing(value), module_item.type_))
@@ -153,44 +160,6 @@ pub fn module_to_js_module(
     }
 }
 
-// this output is different as we need to import server and update_server,
-// and run the server in the beginning of the file, and stuff.
-
-// on the js side, the js.js file looks liek:
-// import {Server, pi_to_json, json_kind} from "./server.ts";
-
-// let server = new Server("js");
-
-// export const var_1 = ....
-// server.register_var(var_1, [json(var_1.type_)])
-
-// export const var_2 = ....
-// server.deregistar_var(var_2, [json(var_2.type_)])
-// ...
-
-// import { server, pi, prim, u, freevar} from "./new_server.js";
-
-pub fn std_import_from_server() -> ModuleItem {
-    let import_names = vec!["Server", "pi", "prim", "u", "freevar"];
-    let specifiers: Vec<ImportSpecifier> = import_names
-        .iter()
-        .map(|str| string_to_import_specifier(str.clone().into()))
-        .collect();
-
-    ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-        span: DUMMY_SP,
-        specifiers: specifiers,
-        src: Str {
-            span: DUMMY_SP,
-            value: "./js_server.ts".into(),
-            has_escape: false,
-            kind: swc_ecma_ast::StrKind::Synthesized,
-        },
-        type_only: false,
-        asserts: None,
-    }))
-}
-
 pub fn get_vars(type_: Judgment<JsPrim>, vars: &mut Vec<Judgment<JsPrim>>) {
     match *type_.tree {
         xi_core::judgment::JudgmentKind::Pi(var_type, expr) => {
@@ -224,7 +193,7 @@ pub fn module_with_server_to_js_string(
 pub fn register_top_level(index: &VarUuid, type_: Judgment<JsPrim>) -> ModuleItem {
     // first let's make the json object associated to var_a.type_:
     // server.register_var()
-    let json_var_type_ = type_to_json(type_);
+    let json_var_type_ = to_js(&type_, BTreeMap::new(), &mut BTreeMap::new(), false);
     let server_register_top_level = Expr::Member(MemberExpr {
         span: DUMMY_SP,
         obj: ExprOrSuper::Expr(Box::new(to_js_ident("server"))),
@@ -246,62 +215,47 @@ pub fn register_top_level(index: &VarUuid, type_: Judgment<JsPrim>) -> ModuleIte
     }))
 }
 
-fn to_js_app_wo_await(func: Expr, args: Vec<Expr>) -> Expr {
-    Expr::Call(CallExpr {
-        span: DUMMY_SP,
-        callee: ExprOrSuper::Expr(Box::new(func)),
-        args: args
-            .iter()
-            .map(|arg| ExprOrSpread {
-                spread: None,
-                expr: Box::new(arg.clone()),
-            })
-            .collect(),
-        type_args: None,
-    })
-}
+// // this function takes an Aplite type and encode it as a JSON object of binary tree of Pi's.
+// // right now we can do primitives and dependent pi types.
+// pub fn type_to_json(type_: Judgment<JsPrim>) -> Expr {
+//     match *type_.tree {
+//         xi_core::judgment::JudgmentKind::Pi(arg_type, return_type) => {
+//             let (id, return_type) = return_type.unbind();
 
-// this function takes an Aplite type and encode it as a JSON object of binary tree of Pi's.
-// right now we can do primitives and dependent pi types.
-pub fn type_to_json(type_: Judgment<JsPrim>) -> Expr {
-    match *type_.tree {
-        xi_core::judgment::JudgmentKind::Pi(arg_type, return_type) => {
-            let (id, return_type) = return_type.unbind();
-
-            let args = vec![
-                type_to_json(arg_type),
-                type_to_json(return_type),
-                to_js_num(format!("{}", id.index())),
-            ];
-            to_js_app_wo_await(to_js_ident("pi"), args)
-        }
-        xi_core::judgment::JudgmentKind::Type => to_js_app_wo_await(to_js_ident("u"), vec![]),
-        xi_core::judgment::JudgmentKind::Prim(prim, _) => match prim {
-            JsPrim::StringType => to_js_app_wo_await(to_js_ident("prim"), vec![to_js_str("Str")]),
-            JsPrim::NumberType => to_js_app_wo_await(to_js_ident("prim"), vec![to_js_str("Int")]),
-            JsPrim::StringElem(_) => unreachable!("nope"),
-            JsPrim::NumberElem(_) => unreachable!("nope"),
-            JsPrim::Ffi(_, _) => unreachable!("nope"),
-            JsPrim::Var(_) => unreachable!("nope"),
-        },
-        xi_core::judgment::JudgmentKind::FreeVar(index, var_type) => to_js_app_wo_await(
-            to_js_ident("freevar"),
-            vec![
-                to_js_num(format!("{}", index.index())),
-                type_to_json(var_type),
-            ],
-        ),
-        xi_core::judgment::JudgmentKind::Lam(_, _) => {
-            unreachable!("we shouldn't see this here")
-        }
-        xi_core::judgment::JudgmentKind::BoundVar(_, _) => {
-            unreachable!("we shouldn't see this here")
-        }
-        xi_core::judgment::JudgmentKind::App(_, _) => {
-            panic!("idk")
-        }
-    }
-}
+//             let args = vec![
+//                 type_to_json(arg_type),
+//                 type_to_json(return_type),
+//                 to_js_num(format!("{}", id.index())),
+//             ];
+//             to_js_app_wo_await(to_js_ident("pi"), args)
+//         }
+//         xi_core::judgment::JudgmentKind::Type => to_js_app_wo_await(to_js_ident("u"), vec![]),
+//         xi_core::judgment::JudgmentKind::Prim(prim, _) => match prim {
+//             JsPrim::StringType => to_js_app_wo_await(to_js_ident("prim"), vec![to_js_str("Str")]),
+//             JsPrim::NumberType => to_js_app_wo_await(to_js_ident("prim"), vec![to_js_str("Int")]),
+//             JsPrim::StringElem(_) => unreachable!("nope"),
+//             JsPrim::NumberElem(_) => unreachable!("nope"),
+//             JsPrim::Ffi(_, _) => unreachable!("nope"),
+//             JsPrim::Var(_) => unreachable!("nope"),
+//         },
+//         xi_core::judgment::JudgmentKind::FreeVar(index, var_type) => to_js_app_wo_await(
+//             to_js_ident("freevar"),
+//             vec![
+//                 to_js_num(format!("{}", index.index())),
+//                 type_to_json(var_type),
+//             ],
+//         ),
+//         xi_core::judgment::JudgmentKind::Lam(_, _) => {
+//             unreachable!("we shouldn't see this here")
+//         }
+//         xi_core::judgment::JudgmentKind::BoundVar(_, _) => {
+//             unreachable!("we shouldn't see this here")
+//         }
+//         xi_core::judgment::JudgmentKind::App(_, _) => {
+//             panic!("idk")
+//         }
+//     }
+// }
 
 // takes [str] to {kind: [str]}
 pub fn json_kind(str: String) -> Expr {

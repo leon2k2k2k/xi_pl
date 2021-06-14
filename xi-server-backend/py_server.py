@@ -8,12 +8,39 @@ import json
 
 ###########################
 # encoding types as Python dict objects.
-def json_kind(type_):
-    return {"kind": type_}
+def u():
+    return {"kind": "U", "value": "U"}
 
 
-def pi_to_json(left, right):
-    return {"kind": {"left": left, "right": right}}
+def prim(x):
+    return {"kind": "prim", "value": x}
+
+
+def pi(left, right, var_id):
+    return {"kind": "pi", "left": left, "right": right, "var_id": var_id}
+
+
+def freevar(index):
+    return {"kind": "free_var", "index": index}
+
+
+def instantiate(sexpr, expr, var_index):
+    if sexpr["kind"] == "prim":
+        return sexpr
+    elif sexpr["kind"] == "U":
+        return sexpr
+    elif sexpr["kind"] == "pi":
+        return pi(
+            instantiate(sexpr["left"], expr, var_index),
+            instantiate(sexpr["right"], expr, var_index),
+            sexpr["var_id"],
+        )
+    elif sexpr["kind"] == "free_var":
+        print("this is sexpr ", sexpr, " and var_index", var_index)
+        if sexpr["index"] == var_index:
+            return expr
+        else:
+            return sexpr
 
 
 def promise_resolve(x):
@@ -37,27 +64,57 @@ class Server:
         self.registrations = {}
         self.var_registrations = {}
 
-        loop.create_task(self.new_server(port))
+        # # runs the server:
+        # app = self.new_server(port)
+        loop.create_task(self.new_server())
         print(f"PY_SERVER running at {port}")
 
     def serialize(self, value, type_):
-        if type_["kind"] == "Int":
-            return self.register_new(value)
-        # only doing Int right now.
-        elif type_["kind"] == "Str":
-            return self.register_new(value)
-        else:
-            arg_type = type_["kind"]["left"]
-            return_type = type_["kind"]["right"]
-            # I am missing a bunch of awaits
+        if type_["kind"] == "prim":
+            if type_["value"] == "Int":
+                return self.register_new(value)
+            elif type_["value"] == "Str":
+                return self.register_new(value)
+            else:
+                raise ValueError("type_ not understood")
+        elif type_["kind"] == "pi":
+            var_type = type_["left"]
+            return_type = type_["right"]
+            var_id = type_["var_id"]
 
             async def new_func(s):
-                x = await self.deserialize(s, arg_type)
-                return self.serialize(await (await value())(x), return_type)
+                x = await self.deserialize(s, var_type)
+                return self.serialize(
+                    await (await value())(x), instantiate(return_type, x, var_id)
+                )
 
-            print("alskdjflaksjflaksj")
             return_value = promise_resolve(new_func)
             return self.register_new(return_value)
+        elif type_["kind"] == "free_var":
+            raise ValueError("type_ should not be freevar")
+        elif type_["kind"] == "U":
+            return value
+        else:
+            raise ValueError("type_ not understood")
+
+    # def serialize(self, value, type_):
+    #     if type_["kind"] == "Int":
+    #         return self.register_new(value)
+    #     # only doing Int right now.
+    #     elif type_["kind"] == "Str":
+    #         return self.register_new(value)
+    #     else:
+    #         arg_type = type_["kind"]["left"]
+    #         return_type = type_["kind"]["right"]
+    #         # I am missing a bunch of awaits
+
+    #         async def new_func(s):
+    #             x = await self.deserialize(s, arg_type)
+    #             return self.serialize(await (await value())(x), return_type)
+
+    #         print("alskdjflaksjflaksj")
+    #         return_value = promise_resolve(new_func)
+    #         return self.register_new(return_value)
 
     def register_new(self, value: any):
         current_register_id = self.register_id
@@ -81,28 +138,71 @@ class Server:
         return await self.deserialize(register_id, var_type)
 
     async def deserialize(self, value, type_):
-        if type_["kind"] == "Int":
-            request = {
-                "js_ident": value,
-            }
-            return int(await self.post(request))
-        elif type_["kind"] == "Str":
-            request = {"js_ident": value}
-            return await self.post(request)
-        else:
-            arg_type = type_["kind"]["left"]
-            return_type = type_["kind"]["right"]
-            # PROBLEM: THIS IS A SYNC FUNCTION AND THAT IS RUINING EVERYTHING!!!
-            async def new_func(x):
-                serialized_x = self.serialize(promise_resolve(x), arg_type)
+        if type_["kind"] == "prim":
+            if type_["value"] == "Int":
                 request = {
-                    "js_ident": value,
-                    "value": serialized_x,
+                    "remote_ident": value,
+                }
+                return int(await self.post(request))
+            elif type_["value"] == "Str":
+                request = {
+                    "remote_ident": value,
+                }
+                return await self.post(request)
+            else:
+                raise ValueError("type_ not understood")
+        elif type_["kind"] == "U":
+            return value
+        elif type_["kind"] == "free_var":
+            raise ValueError("shouldn't see a freevar")
+        elif type_["kind"] == "pi":
+            var_type = type_["left"]
+            return_type = type_["right"]
+            var_id = type_["var_id"]
+
+            async def new_func(x):
+                print("this is var_type", var_type, " and x ", x)
+                if "kind" in x:
+                    serialized_x = self.serialize(x, var_type)
+                else:
+                    serialized_x = self.serialize(promise_resolve(x), var_type)
+
+                request = {
+                    "remote_ident": value,
+                    "arg": serialized_x,
                 }
                 return_id = json.loads(await self.post(request))
-                return promise_resolve(await self.deserialize(return_id, return_type))
+                return promise_resolve(
+                    await self.deserialize(
+                        return_id, instantiate(return_type, x, var_id)
+                    )
+                )
 
             return new_func
+
+    # async def deserialize(self, value, type_):
+    #     if type_["kind"] == "Int":
+    #         request = {
+    #             "js_ident": value,
+    #         }
+    #         return int(await self.post(request))
+    #     elif type_["kind"] == "Str":
+    #         request = {"js_ident": value}
+    #         return await self.post(request)
+    #     else:
+    #         arg_type = type_["kind"]["left"]
+    #         return_type = type_["kind"]["right"]
+    #         # PROBLEM: THIS IS A SYNC FUNCTION AND THAT IS RUINING EVERYTHING!!!
+    #         async def new_func(x):
+    #             serialized_x = self.serialize(promise_resolve(x), arg_type)
+    #             request = {
+    #                 "js_ident": value,
+    #                 "value": serialized_x,
+    #             }
+    #             return_id = json.loads(await self.post(request))
+    #             return promise_resolve(await self.deserialize(return_id, return_type))
+
+    #         return new_func
 
     async def post(self, value):
         print(f"CLIENT: posting with {value}")
@@ -114,7 +214,7 @@ class Server:
                 print(f"CLIENT: received {ans} from post")
                 return ans
 
-    async def new_server(self, port):
+    async def new_server(self):
         # here's the code for the server
         app = web.Application()
 
@@ -140,12 +240,12 @@ class Server:
                 return web.Response(text=json.dumps(reg_id))
                 # do other stuff not worry about it here.
             else:
-                if "js_ident" in dict:
-                    if dict["js_ident"] in self.registrations:
-                        result_ident = self.registrations[dict["js_ident"]]
-                        if "value" in dict:
+                if "remote_ident" in dict:
+                    if dict["remote_ident"] in self.registrations:
+                        result_ident = self.registrations[dict["remote_ident"]]
+                        if "arg" in dict:
                             # need to change.
-                            ans = await (await result_ident())(dict["value"])
+                            ans = await (await result_ident())(dict["arg"])
                             print("*****************************")
                             print(type(ans))
                             return web.Response(text=json.dumps(ans))
@@ -160,9 +260,10 @@ class Server:
             ]
         )
 
+        # web.run_app(app, host="127.0.0.1", port=self.port)
         runner = aiohttp.web.AppRunner(app)
         await runner.setup()
-        await aiohttp.web.TCPSite(runner).start()
+        await aiohttp.web.TCPSite(runner, host="127.0.0.1", port=self.port).start()
 
         # wait forever, running both the web server and the tasks
         await asyncio.Event().wait()

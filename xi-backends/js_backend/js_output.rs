@@ -202,8 +202,8 @@ pub fn to_js(
             unreachable!("we use unbind so should never see a BoundVar")
         }
         JudgmentKind::App(func, arg) => to_js_app(
-            to_js(&*func, ctx.clone(), ffi, false),
-            vec![to_js(&*arg, ctx, ffi, false)],
+            to_js(&*func, ctx.clone(), ffi, in_type),
+            vec![to_js(&*arg, ctx, ffi, in_type)],
         ),
     }
 }

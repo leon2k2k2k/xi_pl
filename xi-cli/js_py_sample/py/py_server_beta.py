@@ -162,7 +162,10 @@ class Server:
 
             async def new_func(x):
                 print("this is var_type", var_type, " and x ", x)
-                serialized_x = self.serialize(promise_resolve(x), var_type)
+                if type(x) == dict:
+                    serialized_x = self.serialize(x, var_type)
+                else:
+                    serialized_x = self.serialize(promise_resolve(x), var_type)
 
                 request = {
                     "remote_ident": value,
@@ -260,7 +263,7 @@ class Server:
         # web.run_app(app, host="127.0.0.1", port=self.port)
         runner = aiohttp.web.AppRunner(app)
         await runner.setup()
-        await aiohttp.web.TCPSite(runner).start()
+        await aiohttp.web.TCPSite(runner, host="127.0.0.1", port=self.port).start()
 
         # wait forever, running both the web server and the tasks
         await asyncio.Event().wait()

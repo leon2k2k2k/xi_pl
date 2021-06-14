@@ -7,7 +7,7 @@ use crate::py_backend::py_output::{
     make_var_name, promise_resolve, to_py_ident, to_py_num, to_py_str, Expr,
 };
 
-use super::py_output::to_py_ident1;
+use super::py_output::{to_py_app, to_py_ident1};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum PyPrim {
@@ -37,8 +37,12 @@ impl Primitive for PyPrim {
 impl PyPrim {
     pub fn to_py_prim(&self, ffi: &mut BTreeMap<(String, String), VarUuid>) -> Expr {
         match self {
-            PyPrim::StringType => promise_resolve(to_py_str("String")),
-            PyPrim::NumberType => promise_resolve(to_py_str("Number")),
+            PyPrim::StringType => {
+                promise_resolve(to_py_app(to_py_ident("prim"), vec![to_py_str("Str")]))
+            }
+            PyPrim::NumberType => {
+                promise_resolve(to_py_app(to_py_ident("prim"), vec![to_py_str("Int")]))
+            }
             PyPrim::StringElem(str) => promise_resolve(to_py_str(str.clone())),
             PyPrim::NumberElem(num) => promise_resolve(to_py_num(num.clone())),
             PyPrim::Ffi(filename, ffi_name) => {

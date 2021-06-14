@@ -8,7 +8,10 @@ use std::{
 use xi_core::judgment::{Judgment, JudgmentKind};
 use xi_uuid::VarUuid;
 
-use crate::py_backend::py_prim::{PyModule, PyModuleItem, PyPrim};
+use crate::{
+    js_backend::js_output::to_js_app_wo_await,
+    py_backend::py_prim::{PyModule, PyModuleItem, PyPrim},
+};
 
 #[derive(Clone, Debug)]
 pub struct Mod(pub Value);
@@ -26,7 +29,7 @@ pub fn judgment_to_mod(
     ffi_functions: &mut BTreeMap<(String, String), VarUuid>,
     judgment: &Judgment<PyPrim>,
 ) -> (Vec<Stmt>, Expr) {
-    let (func_defs, main_py) = to_py(&judgment, BTreeMap::new(), ffi_functions);
+    let (func_defs, main_py) = to_py(&judgment, BTreeMap::new(), ffi_functions, true);
 
     (func_defs, main_py)
 }
@@ -191,23 +194,54 @@ pub fn to_py(
     judgment: &Judgment<PyPrim>,
     ctx: BTreeMap<&VarUuid, Identifier>,
     ffi: &mut BTreeMap<(String, String), VarUuid>,
+    in_type: bool,
 ) -> (Vec<Stmt>, Expr) {
     match &*judgment.tree {
-        JudgmentKind::Type => (vec![], to_py_str("Type")),
+        JudgmentKind::Type => (vec![], promise_resolve(to_py_app(to_py_ident("u"), vec![]))),
         JudgmentKind::Prim(t, _prim_type) => (vec![], PyPrim::to_py_prim(&t, ffi)),
-        JudgmentKind::FreeVar(var_index, _var_type) => match ctx.get(var_index) {
-            Some(ident) => (vec![], promise_resolve(to_py_ident1(ident.clone()))),
-            None => {
-                unreachable!("this means that we have a loose free variable")
+        JudgmentKind::FreeVar(var_index, _var_type) => {
+            // we represent freevar as a dict object when it is part of a type
+            if in_type == true {
+                (
+                    vec![],
+                    promise_resolve(to_py_app(
+                        to_py_ident("freevar"),
+                        vec![to_py_num(format!("{}", var_index.index()))],
+                    )),
+                )
+            } else {
+                match ctx.get(var_index) {
+                    Some(ident) => (vec![], promise_resolve(to_py_ident1(ident.clone()))),
+                    None => {
+                        unreachable!("this means that we have a loose free variable")
+                    }
+                }
             }
-        },
-        JudgmentKind::Pi(_, _) => (vec![], to_py_str("pi")),
+        }
+        JudgmentKind::Pi(arg_type, return_type) => {
+            let (index, return_type) = return_type.clone().unbind();
+            let var_name = make_var_name(&index);
+            let args = vec![
+                to_py_await2(to_py(arg_type, ctx.clone(), ffi, true).1),
+                to_py_await2(
+                    to_py(
+                        &return_type,
+                        add_to_ctx(ctx, &index, &var_name.clone()),
+                        ffi,
+                        true,
+                    )
+                    .1,
+                ),
+                to_py_num(format!("{}", index.index())),
+            ];
+            (vec![], promise_resolve(to_py_app(to_py_ident("pi"), args)))
+        }
         JudgmentKind::Lam(_var_type, sexpr) => {
             let (index, expr) = &sexpr.clone().unbind();
             let var_name = make_var_name(index);
 
             let (sub_func_defs, sub_expr) =
-                to_py(&expr, add_to_ctx(ctx, index, &var_name.clone()), ffi);
+                to_py(&expr, add_to_ctx(ctx, index, &var_name.clone()), ffi, false);
 
             let mut func_body = sub_func_defs.into_iter().map(|x| x.0).collect::<Vec<_>>();
             func_body.push(json!({"ast_type": "Return", "value": sub_expr.0}));
@@ -226,8 +260,8 @@ pub fn to_py(
             unreachable!("we use unbind so should never see a BoundVar")
         }
         JudgmentKind::App(func, arg) => {
-            let (sub_func_defs_func, sub_expr_func) = to_py(&*func, ctx.clone(), ffi);
-            let (sub_func_defs_arg, sub_expr_arg) = to_py(&*arg, ctx.clone(), ffi);
+            let (sub_func_defs_func, sub_expr_func) = to_py(&*func, ctx.clone(), ffi, in_type);
+            let (sub_func_defs_arg, sub_expr_arg) = to_py(&*arg, ctx.clone(), ffi, in_type);
 
             let mut result_func_defs = sub_func_defs_func;
             result_func_defs.extend(sub_func_defs_arg);
@@ -286,7 +320,7 @@ pub fn to_py_app(func: Expr, args: Vec<Expr>) -> Expr {
 pub fn to_py_await(expr: Expr) -> Expr {
     Expr(json!({"ast_type": "Await", "value": expr.0}))
 }
-
+// this is the inverse of promise_resolve
 pub fn to_py_await2(expr: Expr) -> Expr {
     // Transforms await (promise_resolve(x)) => x
     if let Some(map) = expr.0.as_object() {

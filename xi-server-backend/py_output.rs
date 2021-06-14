@@ -3,9 +3,9 @@ use std::collections::BTreeMap;
 use deno_core::serde_json::{json, Value};
 use xi_backends::py_backend::{
     py_output::{
-        make_var_name, module_item_to_stmt, py_expr_to_stmt, python_module_to_string, to_py_app,
-        to_py_arguments, to_py_assign, to_py_await, to_py_await2, to_py_ident, to_py_ident1,
-        to_py_ident2, to_py_member, to_py_num, to_py_str, Expr, Mod, Stmt,
+        make_var_name, module_item_to_stmt, py_expr_to_stmt, python_module_to_string, to_py,
+        to_py_app, to_py_arguments, to_py_assign, to_py_await, to_py_await2, to_py_ident,
+        to_py_ident1, to_py_ident2, to_py_member, to_py_num, to_py_str, Expr, Mod, Stmt,
     },
     py_prim::{PyModule, PyPrim},
 };
@@ -161,7 +161,7 @@ pub fn module_with_server_to_py_string(
 // write out the generated registration code:
 // server.register_top_level(var_[], "var_[]", json_kind(type_))
 pub fn register_top_level(index: VarUuid, type_: Judgment<PyPrim>) -> Stmt {
-    let json_var_type_ = type_to_json(type_);
+    let json_var_type_ = to_py_await2(to_py(&type_, BTreeMap::new(), &mut BTreeMap::new(), true).1);
     let server_reg_top_level =
         to_py_member(to_py_ident("server"), to_py_ident("register_top_level"));
     let expr = to_py_app(
@@ -183,36 +183,36 @@ pub fn deregister_top_level(index: VarUuid, type_: Judgment<PyPrim>) -> Stmt {
         to_py_member(to_py_ident("server"), to_py_ident("deregister_top_level")),
         vec![
             to_py_str(format!("var_{}", index.index())),
-            type_to_json(type_),
+            to_py_await2(to_py(&type_, BTreeMap::new(), &mut BTreeMap::new(), true).1),
         ],
     ));
     let value = to_py_app(to_py_ident("promise_resolve"), vec![await_expr]);
     to_py_assign(vec![to_py_ident(format!("var_{}", index.index()))], value)
 }
-pub fn type_to_json(type_: Judgment<PyPrim>) -> Expr {
-    match *type_.tree {
-        xi_core::judgment::JudgmentKind::Pi(arg_type, return_type) => {
-            let args = vec![type_to_json(arg_type), type_to_json(return_type.unbind().1)];
-            to_py_app(to_py_ident("pi_to_json"), args)
-        }
-        xi_core::judgment::JudgmentKind::Prim(prim, _) => match prim {
-            PyPrim::StringType => json_kind("Str".into()),
-            PyPrim::NumberType => json_kind("Int".into()),
-            PyPrim::StringElem(_) => todo!(),
-            PyPrim::NumberElem(_) => todo!(),
-            PyPrim::Ffi(_, _) => todo!(),
-            PyPrim::Var(_) => todo!(),
-        },
+// pub fn type_to_json(type_: Judgment<PyPrim>) -> Expr {
+//     match *type_.tree {
+//         xi_core::judgment::JudgmentKind::Pi(arg_type, return_type) => {
+//             let args = vec![type_to_json(arg_type), type_to_json(return_type.unbind().1)];
+//             to_py_app(to_py_ident("pi_to_json"), args)
+//         }
+//         xi_core::judgment::JudgmentKind::Prim(prim, _) => match prim {
+//             PyPrim::StringType => json_kind("Str".into()),
+//             PyPrim::NumberType => json_kind("Int".into()),
+//             PyPrim::StringElem(_) => todo!(),
+//             PyPrim::NumberElem(_) => todo!(),
+//             PyPrim::Ffi(_, _) => todo!(),
+//             PyPrim::Var(_) => todo!(),
+//         },
 
-        xi_core::judgment::JudgmentKind::Type => unreachable!("we shoudn't see this here"),
-        xi_core::judgment::JudgmentKind::FreeVar(_, _) => panic!("ahhhh"),
-        xi_core::judgment::JudgmentKind::Lam(_, _) => unreachable!("we shouldn't see this here"),
-        xi_core::judgment::JudgmentKind::BoundVar(_, _) => {
-            unreachable!("we shouldn't see this here")
-        }
-        xi_core::judgment::JudgmentKind::App(_, _) => panic!("idk"),
-    }
-}
+//         xi_core::judgment::JudgmentKind::Type => unreachable!("we shoudn't see this here"),
+//         xi_core::judgment::JudgmentKind::FreeVar(_, _) => panic!("ahhhh"),
+//         xi_core::judgment::JudgmentKind::Lam(_, _) => unreachable!("we shouldn't see this here"),
+//         xi_core::judgment::JudgmentKind::BoundVar(_, _) => {
+//             unreachable!("we shouldn't see this here")
+//         }
+//         xi_core::judgment::JudgmentKind::App(_, _) => panic!("idk"),
+//     }
+// }
 
 pub fn json_kind(str: String) -> Expr {
     to_py_app(to_py_ident("json_kind"), vec![to_py_str(str)])

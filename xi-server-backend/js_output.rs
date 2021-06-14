@@ -82,12 +82,12 @@ pub fn module_to_js_module(
                 deregister_top_level,
                 vec![
                     to_js_str(format!("var_{}", var_index.index())),
-                    to_js(
+                    to_js_await(to_js(
                         &module_item.type_(),
                         BTreeMap::new(),
                         &mut BTreeMap::new(),
                         false,
-                    ),
+                    )),
                 ],
             );
             // Promise.resolve(await server.deserialize(thing(value), module_item.type_))
@@ -206,7 +206,7 @@ pub fn register_top_level(index: &VarUuid, type_: Judgment<JsPrim>) -> ModuleIte
         vec![
             to_js_await(to_js_ident(format!("var_{}", index.index()))),
             to_js_str(format!("var_{}", index.index())),
-            json_var_type_,
+            to_js_await(json_var_type_),
         ],
     );
     ModuleItem::Stmt(Stmt::Expr(ExprStmt {

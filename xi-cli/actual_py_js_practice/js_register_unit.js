@@ -1,4 +1,4 @@
-import { Server, pi, prim, u, freevar, instantiate } from "./js_server_beta.ts";
+import { Server, pi, prim, u, freevar, instantiate } from "./../js_server.ts";
 export let server = new Server(8080, 5000);
 export const plus = Promise.resolve(async (a) =>
     async (b) => Promise.resolve(a + b)

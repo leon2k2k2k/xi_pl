@@ -1,15 +1,16 @@
-@js ffi "./some_file.js" {
-    UnitType : Type,
-// unit : UnitType,
-   int_to_string : Int -> String,
-   console_output: String -> IO UnitType,
-//  console_input: IO String,
-}
+// @js ffi "./some_file.js" {
+//     UnitType : Type,
+// // unit : UnitType,
+//    int_to_string : Int -> String,
+//    console_output: String -> IO UnitType,
+// //  console_input: IO String,
+// }
 
 
 @py transport js let id = lambda|T : Type, t : T| t
-
-@js let hello = id (String, "hello")
+@js let id_int = lambda|s : Int| s
+@js let id_int_2 = id (Pi|s : Int| Int, id_int)
+@js let five = id_int_2 (5)
 // @js let main = {
 //     do console_output(hello)!
 //     val 5!

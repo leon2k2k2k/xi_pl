@@ -148,17 +148,14 @@ pub fn to_js(
     in_type: bool,
 ) -> Expr {
     match &*judgment.tree {
-        JudgmentKind::Type => to_js_app_wo_await(to_js_ident("u"), vec![]),
+        JudgmentKind::Type => promise_resolve(to_js_app_wo_await(to_js_ident("u"), vec![])),
         JudgmentKind::Prim(t, _prim_type) => JsPrim::to_js_prim(&t, ffi),
-        JudgmentKind::FreeVar(var_index, var_type) => {
+        JudgmentKind::FreeVar(var_index, _var_type) => {
             if in_type == true {
-                to_js_app_wo_await(
+                promise_resolve(to_js_app_wo_await(
                     to_js_ident("freevar"),
-                    vec![
-                        to_js_num(format!("{}", var_index.index())),
-                        to_js(var_type, ctx, ffi, false),
-                    ],
-                )
+                    vec![to_js_num2(format!("{}", var_index.index()))],
+                ))
             } else {
                 match ctx.get(var_index) {
                     Some(ident) => promise_resolve(to_js_ident1(ident.clone())),
@@ -175,16 +172,16 @@ pub fn to_js(
             let (index, return_type) = return_type.clone().unbind();
             let var_name = make_var_name(&index);
             let args = vec![
-                to_js(arg_type, ctx.clone(), ffi, true),
-                to_js(
+                to_js_await(to_js(arg_type, ctx.clone(), ffi, true)),
+                to_js_await(to_js(
                     &return_type,
                     add_to_ctx(ctx, &index, &var_name.clone()),
                     ffi,
                     true,
-                ),
-                to_js_num(format!("{}", index.index())),
+                )),
+                to_js_num2(format!("{}", index.index())),
             ];
-            to_js_app_wo_await(to_js_ident("pi"), args)
+            promise_resolve(to_js_app_wo_await(to_js_ident("pi"), args))
         }
         JudgmentKind::Lam(_var_type, sexpr) => {
             let (index, expr) = &sexpr.clone().unbind();
@@ -351,6 +348,13 @@ pub fn to_js_num(num: String) -> Expr {
     };
     Expr::Lit(Lit::BigInt(bigint))
 }
+// goes to normal Int
+pub fn to_js_num2(num: String) -> Expr {
+    Expr::Lit(Lit::Num(Number {
+        span: DUMMY_SP,
+        value: num.parse::<f64>().unwrap(),
+    }))
+}
 
 pub fn to_js_sm_int(int: u32) -> Expr {
     Expr::Lit(Lit::Num(Number {
@@ -387,7 +391,6 @@ pub fn string_to_import_specifier(name: String) -> ImportSpecifier {
 }
 
 pub fn std_import_from_server(strs: Vec<&str>) -> ModuleItem {
-    let import_names = vec!["Server", "pi", "prim", "u", "freevar"];
     let specifiers: Vec<ImportSpecifier> = strs
         .iter()
         .map(|str| string_to_import_specifier(str.clone().into()))

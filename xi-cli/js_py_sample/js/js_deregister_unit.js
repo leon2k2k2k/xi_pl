@@ -1,4 +1,4 @@
-import { Server, pi, prim, u, freevar } from "./../js_server.ts";
+import { Server, pi, prim, u, freevar } from "./../../js_server.ts";
 export let server = new Server(5000, 8080);
 export const plus = Promise.resolve(async (a) =>
     async (b) => Promise.resolve(a + b)
@@ -27,10 +27,10 @@ let BoolType = pi(u(), T_to_T_to_T, 0);
 
 export let var_1 = Promise.resolve(await server.deregister_top_level("var_1", BoolType))
 
-
+// expect "hello"
 console.log(await (await (await (await var_1)(StrType))("hello"))("world"))
 
 export let var_2 = Promise.resolve(await server.deregister_top_level("var_2", BoolType))
 
-
+// expect "world"
 console.log(await (await (await (await var_2)(StrType))("hello"))("world"))

@@ -37,9 +37,6 @@ class Server:
         self.registrations = {}
         self.var_registrations = {}
 
-        # runs the server:
-        app = self.new_server(port)
-
         loop.create_task(self.new_server(port))
         print(f"PY_SERVER running at {port}")
 

@@ -8,9 +8,9 @@
 
 
 @py transport js let id = lambda|T : Type, t : T| t
-@js let id_int = lambda|s : Int| s
-@js let id_int_2 = id (Pi|s : Int| Int, id_int)
-@js let five = id_int_2 (5)
+// @js let id_int = lambda|s : Int| s
+// @js let id_int_2 = id (Pi|s : Int| Int, id_int)
+// @js let five = id_int_2 (5)
 // @js let main = {
 //     do console_output(hello)!
 //     val 5!

@@ -1,5 +1,5 @@
-import { Server, pi, prim, u, freevar } from "./../js_server.ts";
-export let server = new Server(8080, 5000);
+import { Server, pi, prim, u, freevar } from "./../../js_server.ts";
+export let server = new Server(5000, 8080);
 
 // this usage of things on this side should be the same as the 
 // js_register side.

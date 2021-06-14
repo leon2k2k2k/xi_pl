@@ -1,10 +1,10 @@
-import { Server, pi, prim, u, freevar } from "./../js_server.ts";
+import { Server, pi, prim, u, freevar } from "./../../js_server.ts";
 export let server = new Server(5000, 8080);
 export const plus = Promise.resolve(async (a) =>
   async (b) => Promise.resolve(a + b)
 );
 
-let int = prim("Int", u());
+let int = prim("Int");
 let int_to_int = pi(int, int, 0);
 let int_to_int______to_int = pi(int_to_int, int, 1);
 let int_to______int_to_int = pi(int, int_to_int, 2);

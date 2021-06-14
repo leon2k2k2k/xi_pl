@@ -36,7 +36,7 @@ export function freevar(index: any): any {
 export function instantiate(sexpr: any, expr: any, var_index: any): any {
   // console.log("in instantiate, the sexpr is", sexpr, "expr is ", expr);
   if (sexpr.kind === "prim") {
-    return prim(sexpr.value);
+    return sexpr;
   } else if (sexpr.kind === "U") {
     return sexpr;
   } else if (sexpr.kind === "pi") {
@@ -49,7 +49,7 @@ export function instantiate(sexpr: any, expr: any, var_index: any): any {
     if (sexpr.index == var_index) {
       return expr;
     } else {
-      return freevar(sexpr.index);
+      return sexpr;
     }
   }
 }

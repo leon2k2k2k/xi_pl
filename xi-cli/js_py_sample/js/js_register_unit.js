@@ -1,5 +1,5 @@
-import { Server, pi, prim, u, freevar, instantiate } from "./../js_server.ts";
-export let server = new Server(8080, 5000);
+import { Server, pi, prim, u, freevar, instantiate } from "./../../js_server.ts";
+export let server = new Server(5000, 8080);
 export const plus = Promise.resolve(async (a) =>
     async (b) => Promise.resolve(a + b)
 );
@@ -8,7 +8,7 @@ export const plus = Promise.resolve(async (a) =>
 let UnitType = pi(u(), pi(freevar(0), freevar(0), 1), 0);
 
 // now we want to apply this to T = String
-let StrType = prim("StrType");
+let StrType = prim("Str");
 
 let StrTypeToStrType = instantiate(UnitType.right, StrType, 0);
 

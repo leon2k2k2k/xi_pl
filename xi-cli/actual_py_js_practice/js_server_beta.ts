@@ -17,8 +17,8 @@
 export function u(): any {
   return { kind: "U", value: "U" };
 }
-export function prim(x: string, prim_type: any): any {
-  return { kind: "prim", value: x, var_type: prim_type };
+export function prim(x: string): any {
+  return { kind: "prim", value: x };
 }
 
 export function pi(left: any, right: any, var_id: any): any {
@@ -30,13 +30,13 @@ export function pi(left: any, right: any, var_id: any): any {
 //   return { kind: "app", left: left, right: right };
 // }
 
-export function freevar(index: any, var_type: any): any {
-  return { kind: "free_var", index: index, var_type: var_type };
+export function freevar(index: any): any {
+  return { kind: "free_var", index: index };
 }
 export function instantiate(sexpr: any, expr: any, var_index: any): any {
   // console.log("in instantiate, the sexpr is", sexpr, "expr is ", expr);
   if (sexpr.kind === "prim") {
-    return prim(sexpr.value, instantiate(sexpr.var_type, expr, var_index));
+    return prim(sexpr.value);
   } else if (sexpr.kind === "U") {
     return sexpr;
   } else if (sexpr.kind === "pi") {
@@ -49,7 +49,7 @@ export function instantiate(sexpr: any, expr: any, var_index: any): any {
     if (sexpr.index == var_index) {
       return expr;
     } else {
-      return freevar(sexpr.index, instantiate(sexpr.var_type, expr, var_index));
+      return freevar(sexpr.index);
     }
   }
 }
@@ -58,10 +58,10 @@ export function value_and_type(value: any, type: any): any {
   return { value: value, type: type };
 }
 // this is Pi|T: U| T -> T
-let UnitType = pi(u(), pi(freevar(0, u()), freevar(0, u()), 1), 0);
+let UnitType = pi(u(), pi(freevar(0), freevar(0), 1), 0);
 
 // now we want to apply this to T = String
-let StrType = prim("Str", u());
+let StrType = prim("Str");
 
 // let StrTypeToStrType = instantiate(UnitType.right, StrType, 0);
 

@@ -5,32 +5,32 @@ export const plus = Promise.resolve(async (a) =>
 );
 
 // this is Pi|T: U| T -> T
-let UnitType = pi(u(), pi(freevar(0, u()), freevar(0, u()), 1), 0);
+let UnitType = pi(u(), pi(freevar(0), freevar(0), 1), 0);
 
 // now we want to apply this to T = String
-let StrType = prim("Str", u());
-let int = prim("Int", u());
+let StrType = prim("Str");
+let int = prim("Int");
 
 let int_to_int = pi(int, int, 0);
 
 export let var_0 = Promise.resolve(await server.deregister_top_level("var_0", UnitType));
 
-export const var_1 = Promise.resolve(async (var_4659) => (await (await plus)(5n))(var_4659)
-);
-let plus_5 = (await (await var_0)(int_to_int))(await var_1);
+// export const var_1 = Promise.resolve(async (var_4659) => (await (await plus)(5n))(var_4659)
+// );
+// let plus_5 = (await (await var_0)(int_to_int))(await var_1);
 
-console.log(await (await plus_5)(6n))
+// console.log(await (await plus_5)(6n))
 
-// let T_to_T = pi(freevar(0, u()), freevar(0, u()), 1);
-// let T_to_T_to_T = pi(freevar(0, u()), T_to_T, 2);
-// let BoolType = pi(u(), T_to_T_to_T, 0);
+let T_to_T = pi(freevar(0), freevar(0), 1);
+let T_to_T_to_T = pi(freevar(0), T_to_T, 2);
+let BoolType = pi(u(), T_to_T_to_T, 0);
 
-// export let var_1 = Promise.resolve(await server.deregister_top_level("var_1", BoolType))
-
-
-// console.log(await (await (await (await var_1)(StrType))("hello"))("world"))
-
-// export let var_2 = Promise.resolve(await server.deregister_top_level("var_2", BoolType))
+export let var_1 = Promise.resolve(await server.deregister_top_level("var_1", BoolType))
 
 
-// console.log(await (await (await (await var_2)(StrType))("hello"))("world"))
+console.log(await (await (await (await var_1)(StrType))("hello"))("world"))
+
+export let var_2 = Promise.resolve(await server.deregister_top_level("var_2", BoolType))
+
+
+console.log(await (await (await (await var_2)(StrType))("hello"))("world"))

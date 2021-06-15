@@ -1,7 +1,0 @@
-// tests true and false
-
-@py transport js let true = lambda|T : Type, t1: T, t2: T| t1 
-@py transport js let false = lambda|T : Type, t1: T, t2: T| t2 
-
-@js let hello = true (String, "hello", "world")
-@js let world = false (String, "hello", "world")

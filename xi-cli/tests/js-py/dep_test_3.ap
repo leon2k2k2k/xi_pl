@@ -1,0 +1,21 @@
+// tests true and false
+@js ffi "./some_file.js" {
+    UnitType : Type,
+// unit : UnitType,
+   int_to_string : Int -> String,
+   console_output: String -> IO UnitType,
+//  console_input: IO String,
+}
+
+
+@py transport js let true = lambda|T : Type, t1: T, t2: T| t1 
+@py transport js let false = lambda|T : Type, t1: T, t2: T| t2 
+
+@js let hello = true (String, "hello", "world")
+@js let world = false (String, "hello", "world")
+
+@js let main = {
+    do console_output(hello)!
+    do console_output(world)!
+    val 5!
+}

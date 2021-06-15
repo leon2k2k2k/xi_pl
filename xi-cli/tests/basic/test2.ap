@@ -1,4 +1,0 @@
-// tests true and false
-
-@js transport py let true = lambda|T : Type, t1: T, t2: T| t1 
-@js transport py let false = lambda|T : Type, t1: T, t2: T| t2 

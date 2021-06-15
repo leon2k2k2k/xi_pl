@@ -1,0 +1,21 @@
+// tests true and false
+@py ffi "runtime.py"{
+   UnitType : Type,
+//   unit : UnitType,
+   int_to_string : Int -> String,
+   console_output: String -> IO UnitType,
+//  console_input: IO String,
+}
+
+@js transport py let true = lambda|T : Type, t1: T, t2: T| t1 
+@js transport py let false = lambda|T : Type, t1: T, t2: T| t2 
+
+
+@py let hello = true (String, "hello", "world")
+@py let world = false (String, "hello", "world")
+
+@py let main = {
+    do console_output(hello)!
+    do console_output(world)!
+    val 5!
+}

@@ -13,13 +13,18 @@
    int_to_string : Int -> String,
    console_output: String -> IO UnitType,
 //  console_input: IO String,
+    concat: String -> String -> String,
 }
 
 @js transport py let id = lambda|T : Type, t : T| t
 // @py let String_to_String = Pi|s : String| String
-@py let hello = id (String, "hello")
+
+@py let concat_str = lambda|x : String| concat x "world"
+@py let hello_world = id (Pi|s : String| String) concat_str "hello"
+
+// @py let hello = id (String, "hello")
 @py let main = {
-    do console_output(hello)!
+    do console_output(hello_world)!
     val 5!
 }
 // @js transport py let first = lambda|T : Type, t1: T, t2: T| t1

@@ -114,12 +114,12 @@ impl CliInfo {
                     true => {
                         let js_string =
                             module_with_server_to_js_string(js_module, main_id, 5000, 8080);
-                        // println!("{}", &js_string);
+                        println!("{}", &js_string);
                         js_string
                     }
                     false => {
                         let js_string = module_to_js_string(js_module, main_id);
-                        // println!("{}", &js_string);
+                        println!("{}", &js_string);
                         js_string
                     }
                 }

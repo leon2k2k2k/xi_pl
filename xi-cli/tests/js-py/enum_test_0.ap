@@ -1,0 +1,30 @@
+@js transport py enum Bool {
+    true,
+    false,
+}
+
+@py fn binary |bool : Bool| -> Int {
+    val BoolElim bool Int 0 1 
+}
+
+@py ffi "runtime.py"{
+   UnitType : Type,
+//   unit : UnitType,
+   int_to_string : Int -> String,
+   console_output: String -> IO UnitType,
+//  console_input: IO String,
+}
+
+// @js ffi "./some_file.js" {
+//     UnitType : Type,
+// // unit : UnitType,
+//    int_to_string : Int -> String,
+//    console_output: String -> IO UnitType,
+// //  console_input: IO String,
+// }
+
+
+@py let main = {
+    do console_output(int_to_string(binary true))!
+    val 5!
+}

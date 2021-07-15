@@ -6,7 +6,7 @@ use swc_ecma_ast::{
     NewExpr, Pat, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
 };
 
-use xi_backends::js_backend::{
+use crate::js_backend::{
     js_output::{
         make_var_name, module_item_to_swc_module_item, promise_resolve, run_io,
         std_import_from_server, swc_module_to_string, to_js, to_js_app_wo_await, to_js_await,

@@ -17,7 +17,6 @@ xi-kernel = { path = "../xi-kernel" }
 xi-runtimes = {path = "../xi-runtimes"}
 xi-proc-macro = { path = "../xi-proc-macro" }
 xi-core = { path = "../xi-core" }
-xi-server-backend = { path = "../xi-server-backend" }
 xi-uuid = { path = "../xi-uuid"}
 
 [features]

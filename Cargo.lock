@@ -4187,7 +4187,6 @@ dependencies = [
  "xi-kernel",
  "xi-proc-macro",
  "xi-runtimes",
- "xi-server-backend",
  "xi-uuid",
 ]
 
@@ -4247,24 +4246,6 @@ dependencies = [
  "swc_ecma_ast 0.40.0",
  "swc_ecma_codegen 0.48.0",
  "url",
- "xi-core",
- "xi-proc-macro",
- "xi-uuid",
-]
-
-[[package]]
-name = "xi-server-backend"
-version = "0.1.0"
-dependencies = [
- "deno",
- "deno_core",
- "deno_runtime",
- "num-bigint",
- "swc_common",
- "swc_ecma_ast 0.40.0",
- "swc_ecma_codegen 0.48.0",
- "url",
- "xi-backends",
  "xi-core",
  "xi-proc-macro",
  "xi-uuid",

@@ -8,6 +8,5 @@ members = [
     "xi-kernel",
     "xi-proc-macro",
     "xi-uuid",
-    "xi-server-backend",
     "xi-runtimes",
 ]

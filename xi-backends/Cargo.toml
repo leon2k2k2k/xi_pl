@@ -16,6 +16,7 @@ xi-core = { path = "../xi-core" }
 swc_ecma_ast = "0.40"
 swc_common = "0.10.20"
 swc_ecma_codegen = "0.48"
+rustpython-parser = "0.1"
 serde_json = "1.0"
 num-bigint = {version = "0.2"}
 url = "2.2"

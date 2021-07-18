@@ -13,11 +13,25 @@ Part III. Frontend
 1.5 Figure out how to factor this out in xi-k8s, aka don't have to add it into the xi-frontend.
 2. Change the frontend so that transport and import are more similiar. 
    More importantly, we can transport from another "library" which is really a service that we can talk to.
-   The syntax should be """
+   The syntax should be 
+   """
    transport k8s "http://localhost:31094" {
+       k8s: Type -> Type
        create_nginx_deployment: k8s UnitType
    }
+
+  let main = {
+      create_nginx_deployemnt
+      val 5!
+  }
    """
+py.ap:
+export x = 5
+export id = lambda|T : Type, t : T| t 
+
+
+
+
 3. Make everything work!!!
 
 That will be pretty cool to do!

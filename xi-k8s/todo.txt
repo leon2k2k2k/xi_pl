@@ -1,0 +1,23 @@
+Steps to make a basic aplite-k8s operator:
+
+Part I. practice with k8s and Docker
+1. Learn how to wrap a backend in docker, then put it on k8s and communicate with it.
+2. Do able to do js-py with one of the backend (py) on the server.
+
+Part II. Backend
+1. write a simple Python backend which aims to create a nginx deployment.
+2. Have it running as a pod, and can be called from the outside in the same way Aplite frontend functions can.
+
+Part III. Frontend 
+1. Parse create_nginx_deployment: k8s UnitType through the frontend.
+1.5 Figure out how to factor this out in xi-k8s, aka don't have to add it into the xi-frontend.
+2. Change the frontend so that transport and import are more similiar. 
+   More importantly, we can transport from another "library" which is really a service that we can talk to.
+   The syntax should be """
+   transport k8s "http://localhost:31094" {
+       create_nginx_deployment: k8s UnitType
+   }
+   """
+3. Make everything work!!!
+
+That will be pretty cool to do!

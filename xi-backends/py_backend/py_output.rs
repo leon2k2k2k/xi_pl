@@ -8,10 +8,7 @@ use std::{
 use xi_core::judgment::{Judgment, JudgmentKind};
 use xi_uuid::VarUuid;
 
-use crate::{
-    js_backend::js_output::to_js_app_wo_await,
-    py_backend::py_prim::{PyModule, PyModuleItem, PyPrim},
-};
+use crate::py_backend::py_prim::{PyModule, PyModuleItem, PyPrim};
 
 #[derive(Clone, Debug)]
 pub struct Mod(pub Value);

@@ -14,7 +14,7 @@ use xi_kernel::front_to_back::{front_to_js_back, front_to_py_back};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli_info = CliInfo::get_inputs(false);
     let str = CliInfo::aplite_to_backend_source_code(&cli_info);
-    println!("{}", str);
+    // println!("{}", str);
     match &cli_info.back_end {
         BackEnd::Js => xi_runtimes::js_runtime::js_runtime::run_js_from_string(str).await?,
         BackEnd::Py => {
@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli_info = CliInfo::get_inputs(true);
     let str = CliInfo::aplite_to_backend_source_code(&cli_info);
-    println!("{}", str);
+    // println!("{}", str);
     match &cli_info.back_end {
         BackEnd::Js => xi_runtimes::js_runtime::js_runtime::run_js_from_string(str).await?,
         BackEnd::Py => {
@@ -114,12 +114,12 @@ impl CliInfo {
                     true => {
                         let js_string =
                             module_with_server_to_js_string(js_module, main_id, 5000, 8080);
-                        println!("{}", &js_string);
+                        // println!("{}", &js_string);
                         js_string
                     }
                     false => {
                         let js_string = module_to_js_string(js_module, main_id);
-                        println!("{}", &js_string);
+                        // println!("{}", &js_string);
                         js_string
                     }
                 }

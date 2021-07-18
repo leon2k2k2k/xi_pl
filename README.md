@@ -10,4 +10,4 @@ This is currently a cargo workspace, with the following crates inside:
 - xi-runtimes - Takes strings from xi-backends and runs them.
 - xi-kernels - Functions from Judgment to Judgment
 - xi-uuid - A utility crate to generate unique numbers.
-
+- xi-k8s - a kubernetes library/backend for Aplite.

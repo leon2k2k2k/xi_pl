@@ -54,7 +54,7 @@ pub fn module_to_js_module(
     // if their origin == server_name, then module_item_to... it, and serialize it,
     // else if trasnport == server_name, then deseraliaze it.
     // else just ignore it.
-    dbg!(&module.module_items);
+    // dbg!(&module.module_items);
     for (var_index, module_item) in &module.module_items {
         if Some("js".into()) == module_item.transport_info().origin {
             let swc_module_item =

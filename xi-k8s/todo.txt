@@ -25,9 +25,17 @@ Part III. Frontend
       val 5!
   }
    """
+
+   
 py.ap:
 export x = 5
 export id = lambda|T : Type, t : T| t 
+
+js.ap:
+transport py "http://whateveritlistensat" {
+    x : Int,
+
+}
 
 
 

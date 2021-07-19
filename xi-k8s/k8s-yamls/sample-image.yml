@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: py-sample
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: py-sample
+  template:
+    metadata:
+      labels:
+        name: py-sample
+    spec:
+      containers:
+      - name: py-sample
+        image: sample-image:latest
+        imagePullPolicy: Never
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: py-service
+spec:
+  type: NodePort
+  selector:
+    name: py-sample
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30001

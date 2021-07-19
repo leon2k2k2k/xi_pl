@@ -67,10 +67,10 @@ pub fn front_to_js_back(modules: ModuleAndImports) -> JsModule {
         js_module_items.insert(var_index, js_module_item);
     }
 
-    dbg!(JsModule {
+    JsModule {
         str_to_index: module.str_to_index,
         module_items: js_module_items,
-    })
+    }
 }
 pub fn transport_info_front_to_py_back(
     transport_info: xi_frontend::resolve::TransportInfo,

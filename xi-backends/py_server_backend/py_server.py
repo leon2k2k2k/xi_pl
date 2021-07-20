@@ -6,43 +6,6 @@ from aiohttp import web
 import json
 
 
-###########################
-# encoding types as Python dict objects.
-def u():
-    return {"kind": "U", "value": "U"}
-
-
-def prim(x):
-    return {"kind": "prim", "value": x}
-
-
-def pi(left, right, var_id):
-    return {"kind": "pi", "left": left, "right": right, "var_id": var_id}
-
-
-def freevar(index):
-    return {"kind": "free_var", "index": index}
-
-
-def instantiate(sexpr, expr, var_index):
-    if sexpr["kind"] == "prim":
-        return sexpr
-    elif sexpr["kind"] == "U":
-        return sexpr
-    elif sexpr["kind"] == "pi":
-        return pi(
-            instantiate(sexpr["left"], expr, var_index),
-            instantiate(sexpr["right"], expr, var_index),
-            sexpr["var_id"],
-        )
-    elif sexpr["kind"] == "free_var":
-        print("this is sexpr ", sexpr, " and var_index", var_index)
-        if sexpr["index"] == var_index:
-            return expr
-        else:
-            return sexpr
-
-
 def promise_resolve(x):
     async def helper():
         return x

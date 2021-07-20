@@ -1,0 +1,6 @@
+js-py:
+
+1. the aplite_to_js function that takes an normal js function and 
+turn it into an aplite function uses the old way to represent types in js.
+
+2. right now we can't transport types.

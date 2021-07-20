@@ -1,0 +1,16 @@
+
+ffi "./some_file.js" {
+    UnitType : Type,
+// unit : UnitType,
+//    int_to_string : Int -> String,
+   console_output: String -> IO UnitType,
+//  console_input: IO String,
+}
+
+let print_hello = console_output("hello")
+
+let main = {
+    do print_hello!
+    do print_hello!
+    val 5!
+}

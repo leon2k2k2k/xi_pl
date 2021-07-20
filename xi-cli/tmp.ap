@@ -1,0 +1,12 @@
+@py ffi "runtime.py"{
+   UnitType : Type,
+//   unit : UnitType,
+//    int_to_string : Int -> String,
+   console_output: String -> IO UnitType,
+//  console_input: IO String,
+}
+
+let main = {
+    do console_output("hello")!
+    val 5!
+}

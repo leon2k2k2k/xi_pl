@@ -1,7 +1,3 @@
-# this is a sample python backend that we are putting as a image
-
-##############################
-# this is the runtime stuff.
 import json
 from aiohttp import web
 import aiohttp
@@ -17,6 +13,52 @@ def promise_resolve(x):
     return helper
 
 
+###########################
+# encoding types as Python dict objects.
+def u():
+    return {"kind": "U", "value": "U"}
+
+
+def prim(x):
+    return {"kind": "prim", "value": x}
+
+
+def pi(left, right, var_id):
+    return {"kind": "pi", "left": left, "right": right, "var_id": var_id}
+
+
+def freevar(index):
+    return {"kind": "free_var", "index": index}
+
+
+def app(left, right):
+    return {"kind": "app", "left": left, "right": right}
+
+
+def instantiate(sexpr, expr, var_index):
+    if sexpr["kind"] == "prim":
+        return sexpr
+    elif sexpr["kind"] == "U":
+        return sexpr
+    elif sexpr["kind"] == "pi":
+        return pi(
+            instantiate(sexpr["left"], expr, var_index),
+            instantiate(sexpr["right"], expr, var_index),
+            sexpr["var_id"],
+        )
+    elif sexpr["kind"] == "free_var":
+        print("this is sexpr ", sexpr, " and var_index", var_index)
+        if sexpr["index"] == var_index:
+            return expr
+        else:
+            return sexpr
+    elif sexpr["kind"] == "app":
+        return app(
+            instantiate(sexpr["left"], expr, var_index),
+            instantiate(sexpr["right"], expr, var_index),
+        )
+
+
 class Runtime(types.ModuleType):
     def __getattr__(self, s):
         if s == "__path__":
@@ -26,9 +68,6 @@ class Runtime(types.ModuleType):
 
 runtime = Runtime("runtime")
 sys.modules["runtime"] = runtime
-
-UnitType = promise_resolve("UnitType")
-unit = promise_resolve("unit")
 
 
 async def int_to_string():
@@ -176,47 +215,16 @@ async def console_input():
     return input_helper
 
 
-###############################
-# this is the server code.
+def promise_resolve(x):
+    async def helper():
+        return x
 
+    return helper
+
+
+##################################
+# SERVER CODE
 # I shove it here because only the server-back needs it.
-
-
-###########################
-# encoding types as Python dict objects.
-def u():
-    return {"kind": "U", "value": "U"}
-
-
-def prim(x):
-    return {"kind": "prim", "value": x}
-
-
-def pi(left, right, var_id):
-    return {"kind": "pi", "left": left, "right": right, "var_id": var_id}
-
-
-def freevar(index):
-    return {"kind": "free_var", "index": index}
-
-
-def instantiate(sexpr, expr, var_index):
-    if sexpr["kind"] == "prim":
-        return sexpr
-    elif sexpr["kind"] == "U":
-        return sexpr
-    elif sexpr["kind"] == "pi":
-        return pi(
-            instantiate(sexpr["left"], expr, var_index),
-            instantiate(sexpr["right"], expr, var_index),
-            sexpr["var_id"],
-        )
-    elif sexpr["kind"] == "free_var":
-        print("this is sexpr ", sexpr, " and var_index", var_index)
-        if sexpr["index"] == var_index:
-            return expr
-        else:
-            return sexpr
 
 
 def promise_resolve(x):
@@ -270,27 +278,15 @@ class Server:
             raise ValueError("type_ should not be freevar")
         elif type_["kind"] == "U":
             return value
+        elif type_["kind"] == "app":
+            functor = type_["left"]
+            applied_type = type_["right"]
+            if functor["value"] == "IO":
+                return self.register_new(value)
+            else:
+                raise ValueError("{} is not IO and not implemented", functor)
         else:
             raise ValueError("type_ not understood")
-
-    # def serialize(self, value, type_):
-    #     if type_["kind"] == "Int":
-    #         return self.register_new(value)
-    #     # only doing Int right now.
-    #     elif type_["kind"] == "Str":
-    #         return self.register_new(value)
-    #     else:
-    #         arg_type = type_["kind"]["left"]
-    #         return_type = type_["kind"]["right"]
-    #         # I am missing a bunch of awaits
-
-    #         async def new_func(s):
-    #             x = await self.deserialize(s, arg_type)
-    #             return self.serialize(await (await value())(x), return_type)
-
-    #         print("alskdjflaksjflaksj")
-    #         return_value = promise_resolve(new_func)
-    #         return self.register_new(return_value)
 
     def register_new(self, value: any):
         current_register_id = self.register_id
@@ -357,6 +353,31 @@ class Server:
                 )
 
             return new_func
+        elif type_["kind"] == "app":
+            functor = type_["left"]
+            applied_type = type_["right"]
+            if functor["kind"] == "prim":
+                if functor["value"] == "IO":
+                    # to use using like print_hello : IO UnitType, on the local side
+                    # one will call
+                    # await (await print_hello())()
+                    # , and this should send a request to the
+                    # other side.
+
+                    # this tells me that I need to return a function that is wraped in Promise.resolve (() => ...)
+                    async def new_func():
+                        request = {
+                            "remote_ident": value,
+                            "IO": True,
+                        }
+                        await self.post(request)
+                        return None
+
+                    return new_func
+                else:
+                    raise ValueError("{} is not IO", functor["value"])
+            else:
+                ValueError("{} is not prim", functor["kind"])
 
     # async def deserialize(self, value, type_):
     #     if type_["kind"] == "Int":
@@ -404,9 +425,6 @@ class Server:
         # methods: "POST", json = "{js_ident: ??, value: ??}",
         # the value part is optional.
 
-        async def handle_get(request):
-            return web.Response(text="hello you send a get request")
-
         async def handle_post(request):
             # serialized_data = request.json
             # data = json.loads(serialized_data)
@@ -431,14 +449,22 @@ class Server:
                             print(type(ans))
                             return web.Response(text=json.dumps(ans))
                         else:
-                            return web.Response(text=json.dumps(await result_ident()))
+                            if "IO" in dict:
+                                print("hello!!! I received an IO request")
+                                return web.Response(
+                                    text=json.dumps(await (await result_ident())())
+                                )
+                            else:
+
+                                return web.Response(
+                                    text=json.dumps(await result_ident())
+                                )
                     else:
                         raise "ident not found"
 
         app.add_routes(
             [
                 web.post("/", handle_post),
-                web.get("/", handle_get),
             ]
         )
 
@@ -464,8 +490,20 @@ async def main():
     #     var_311 = promise_resolve(5)
     #     server.register_top_level(var_311, "var_311", prim("Int"))
 
-    var_1 = promise_resolve(py_operator.main)
-    server.register_top_level(var_1, "var_1", prim("Int"))
+    # AsyncFn() -> (AsyncFn() -> Int)
+
+    async def create_deployment():
+        async def create_deployment_helper():
+            py_operator.main()
+            return 5
+
+        return create_deployment_helper
+
+    #    how to use it
+    #    await (await create_deployment())()
+    IO_UnitType = app(prim("IO"), prim("UnitType"))
+
+    server.register_top_level(create_deployment, "create_deployment", IO_UnitType)
 
 
 loop.run_until_complete(main())

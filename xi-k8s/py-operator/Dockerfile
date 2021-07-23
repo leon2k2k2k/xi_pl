@@ -5,4 +5,4 @@ WORKDIR /app
 COPY requirement.txt requirement.txt 
 RUN pip3 install -r requirement.txt
 COPY . . 
-CMD ["python3", "operator.py"]
+CMD ["python3", "server.py"]

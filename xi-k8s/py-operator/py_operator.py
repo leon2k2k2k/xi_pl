@@ -57,10 +57,9 @@ def create_deployment(api, deployment):
 
 
 def main():
-
-    config.load_kube_config()
+    # config.load_kube_config()
     # do this when running the code inside the cluster
-    # config.load_incluster_config()
+    config.load_incluster_config()
     apps_v1 = client.AppsV1Api()
     deployment = create_deployment_object()
     create_deployment(apps_v1, deployment)

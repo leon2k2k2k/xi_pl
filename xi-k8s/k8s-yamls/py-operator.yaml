@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: py-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: py-operator
+  template:
+    metadata:
+      labels:
+        name: py-operator
+    spec:
+      containers:
+      - name: py-operator
+        image: py-operator:latest
+        imagePullPolicy: Never
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: py-service
+spec:
+  type: NodePort
+  selector:
+    name: py-operator
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30001

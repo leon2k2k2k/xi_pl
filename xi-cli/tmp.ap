@@ -6,7 +6,10 @@
 //  console_input: IO String,
 }
 
+let print_hello = console_output("hello")
+
 let main = {
-    do console_output("hello")!
+    // do console_output("hello")!
+    do print_hello!
     val 5!
 }

@@ -80,11 +80,12 @@ pub enum StmtKind {
     // Do(Expr),
     Val(Expr),
     Ffi(String, Vec<(Var, Expr)>),
+    Remote(String, Vec<(Var, Expr)>),
+
     Import(String, Vec<Var>),
     Enum(Var, Option<Binders>, Var, Vec<(Var, Vec<Expr>)>),
     Struct(Var, Option<Binders>, Vec<(Var, Expr)>),
     // Fn(Ident, Binders, Option<Expr>, Expr), // Expr should be a stmt_expr.
-    // Import(Var),
     // Error(StmtError)
 }
 // #[derive(Clone, Debug)]
@@ -386,11 +387,27 @@ impl Context {
                         .text()
                         .into();
                     let dict = &children[1];
-                    let result = self.parse_ffi_dict(&dict, expr_or_mod);
+                    let result = self.parse_ffi_or_trans_dict(&dict, expr_or_mod);
 
                     StmtKind::Ffi(file_name, result)
                 } else {
                     panic!("the length of ffi_stmt should be 2")
+                }
+            }
+            SyntaxKind::REMOTE_STMT => {
+                if children.len() == 2 {
+                    let remote_address = children[0]
+                        .first_token()
+                        .unwrap()
+                        .next_token()
+                        .unwrap()
+                        .text()
+                        .into();
+                    let dict = &children[1];
+                    let result = self.parse_ffi_or_trans_dict(&dict, expr_or_mod);
+                    StmtKind::Remote(remote_address, result)
+                } else {
+                    panic!("the length of transport_stmt should be 2")
                 }
             }
             SyntaxKind::WITH_STMT => {
@@ -484,7 +501,11 @@ impl Context {
         Stmt(stmt_kind, TransportInfo::none(), node.text_range())
     }
 
-    fn parse_ffi_dict(&mut self, node: &SyntaxNode, expr_or_mod: ExprOrModule) -> Vec<(Var, Expr)> {
+    fn parse_ffi_or_trans_dict(
+        &mut self,
+        node: &SyntaxNode,
+        expr_or_mod: ExprOrModule,
+    ) -> Vec<(Var, Expr)> {
         let children = nonextra_children(node).collect::<Vec<_>>();
         assert!(node.kind() == SyntaxKind::DICT_EXPR);
         let mut components = vec![];

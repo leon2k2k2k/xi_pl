@@ -15,6 +15,7 @@ pub enum JsPrim {
     StringElem(String),
     NumberElem(String),
     Ffi(String, String),
+    Remote(String, String),
     Var(VarUuid),
 }
 
@@ -29,6 +30,7 @@ impl Primitive for JsPrim {
             NumberElem(_) => Some(Judgment::prim_wo_prim_type(NumberType, None)),
             Ffi(_, _) => None,
             Var(_) => None,
+            Remote(_, _) => None,
         }
     }
 }
@@ -59,6 +61,7 @@ impl JsPrim {
                 to_js_ident(format!("ffi{}", var.index()))
             }
             JsPrim::Var(index) => Expr::Ident(make_var_name(index)),
+            JsPrim::Remote(_, _) => unimplemented!("do this next"),
         }
     }
 }

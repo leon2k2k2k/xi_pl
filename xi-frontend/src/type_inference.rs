@@ -551,6 +551,7 @@ pub enum UiPrim {
     NumberElem(String),
     Binary(UiBinaryOp),
     Ffi(String, String),
+    Remote(String, String),
     Global(VarUuid),
     ConsoleOutput,
     ConsoleInput,
@@ -614,6 +615,7 @@ impl Primitive for UiPrim {
             ConsoleInput => Some(term!([IOMonad][StringType])),
             UnitType => Some(term!(U)),
             Unit => Some(term!([UnitType])),
+            Remote(_, _) => None,
         }
     }
 }

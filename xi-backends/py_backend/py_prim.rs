@@ -16,6 +16,7 @@ pub enum PyPrim {
     StringElem(String),
     NumberElem(String),
     Ffi(String, String),
+    Remote(String, String),
     Var(VarUuid),
 }
 
@@ -30,12 +31,17 @@ impl Primitive for PyPrim {
             NumberElem(_) => Some(Judgment::prim_wo_prim_type(NumberType, None)),
             Ffi(_, _) => None,
             Var(_) => None,
+            Remote(_, _) => None,
         }
     }
 }
 
 impl PyPrim {
-    pub fn to_py_prim(&self, ffi: &mut BTreeMap<(String, String), VarUuid>) -> Expr {
+    pub fn to_py_prim(
+        &self,
+        ffi: &mut BTreeMap<(String, String), VarUuid>,
+        remote: &mut BTreeMap<(String, String), VarUuid>,
+    ) -> Expr {
         match self {
             PyPrim::StringType => {
                 promise_resolve(to_py_app(to_py_ident("prim"), vec![to_py_str("Str")]))
@@ -57,6 +63,19 @@ impl PyPrim {
 
                 to_py_ident(format!("ffi{}", var.index()))
             }
+            PyPrim::Remote(remote_address, remote_name) => {
+                let var = match remote.get(&(remote_address.clone(), remote_name.clone())) {
+                    Some(var) => *var,
+                    None => {
+                        let var = VarUuid::new();
+                        remote.insert((remote_address.clone(), remote_address.clone()), var);
+                        var
+                    }
+                };
+
+                to_py_ident(format!("remote{}", var.index()))
+            }
+
             PyPrim::Var(index) => to_py_ident1(make_var_name(index)),
         }
     }

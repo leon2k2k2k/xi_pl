@@ -24,21 +24,30 @@ pub struct Arguments(pub Value);
 
 pub fn judgment_to_mod(
     ffi_functions: &mut BTreeMap<(String, String), VarUuid>,
+    remote_functions: &mut BTreeMap<(String, String), VarUuid>,
     judgment: &Judgment<PyPrim>,
 ) -> (Vec<Stmt>, Expr) {
-    let (func_defs, main_py) = to_py(&judgment, BTreeMap::new(), ffi_functions, true);
+    let (func_defs, main_py) = to_py(
+        &judgment,
+        BTreeMap::new(),
+        ffi_functions,
+        remote_functions,
+        true,
+    );
 
     (func_defs, main_py)
 }
 
 pub fn module_item_to_stmt(
     ffi_functions: &mut BTreeMap<(String, String), VarUuid>,
+    remote_functions: &mut BTreeMap<(String, String), VarUuid>,
     module_item: &PyModuleItem,
     var_index: &VarUuid,
 ) -> Vec<Stmt> {
     match module_item {
         PyModuleItem::Define(define_item) => {
-            let (func_defs, expr) = judgment_to_mod(ffi_functions, &define_item.impl_);
+            let (func_defs, expr) =
+                judgment_to_mod(ffi_functions, remote_functions, &define_item.impl_);
 
             let var_name = to_py_ident1(make_var_name(var_index));
 
@@ -56,9 +65,14 @@ pub fn module_item_to_stmt(
 pub fn module_to_python_module(module: PyModule, main_id: Option<VarUuid>) -> Mod {
     let mut body = vec![];
     let mut ffi_functions = BTreeMap::new();
-
+    let mut remote_functions = BTreeMap::new();
     for (var_index, module_item) in &module.module_items {
-        let module_items = module_item_to_stmt(&mut ffi_functions, module_item, var_index);
+        let module_items = module_item_to_stmt(
+            &mut ffi_functions,
+            &mut remote_functions,
+            module_item,
+            var_index,
+        );
         body.extend(module_items);
     }
 
@@ -191,11 +205,12 @@ pub fn to_py(
     judgment: &Judgment<PyPrim>,
     ctx: BTreeMap<&VarUuid, Identifier>,
     ffi: &mut BTreeMap<(String, String), VarUuid>,
+    remote: &mut BTreeMap<(String, String), VarUuid>,
     in_type: bool,
 ) -> (Vec<Stmt>, Expr) {
     match &*judgment.tree {
         JudgmentKind::Type => (vec![], promise_resolve(to_py_app(to_py_ident("u"), vec![]))),
-        JudgmentKind::Prim(t, _prim_type) => (vec![], PyPrim::to_py_prim(&t, ffi)),
+        JudgmentKind::Prim(t, _prim_type) => (vec![], PyPrim::to_py_prim(&t, ffi, remote)),
         JudgmentKind::FreeVar(var_index, _var_type) => {
             // we represent freevar as a dict object when it is part of a type
             if in_type == true {
@@ -219,12 +234,13 @@ pub fn to_py(
             let (index, return_type) = return_type.clone().unbind();
             let var_name = make_var_name(&index);
             let args = vec![
-                to_py_await2(to_py(arg_type, ctx.clone(), ffi, true).1),
+                to_py_await2(to_py(arg_type, ctx.clone(), ffi, remote, true).1),
                 to_py_await2(
                     to_py(
                         &return_type,
                         add_to_ctx(ctx, &index, &var_name.clone()),
                         ffi,
+                        remote,
                         true,
                     )
                     .1,
@@ -237,8 +253,13 @@ pub fn to_py(
             let (index, expr) = &sexpr.clone().unbind();
             let var_name = make_var_name(index);
 
-            let (sub_func_defs, sub_expr) =
-                to_py(&expr, add_to_ctx(ctx, index, &var_name.clone()), ffi, false);
+            let (sub_func_defs, sub_expr) = to_py(
+                &expr,
+                add_to_ctx(ctx, index, &var_name.clone()),
+                ffi,
+                remote,
+                false,
+            );
 
             let mut func_body = sub_func_defs.into_iter().map(|x| x.0).collect::<Vec<_>>();
             func_body.push(json!({"ast_type": "Return", "value": sub_expr.0}));
@@ -257,8 +278,9 @@ pub fn to_py(
             unreachable!("we use unbind so should never see a BoundVar")
         }
         JudgmentKind::App(func, arg) => {
-            let (sub_func_defs_func, sub_expr_func) = to_py(&*func, ctx.clone(), ffi, in_type);
-            let (sub_func_defs_arg, sub_expr_arg) = to_py(&*arg, ctx.clone(), ffi, in_type);
+            let (sub_func_defs_func, sub_expr_func) =
+                to_py(&*func, ctx.clone(), ffi, remote, in_type);
+            let (sub_func_defs_arg, sub_expr_arg) = to_py(&*arg, ctx.clone(), ffi, remote, in_type);
 
             let mut result_func_defs = sub_func_defs_func;
             result_func_defs.extend(sub_func_defs_arg);

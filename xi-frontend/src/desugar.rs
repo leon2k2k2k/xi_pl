@@ -316,6 +316,25 @@ impl Context {
                 }
                 result
             }
+            StmtKind::Remote(remote_address, vars) => {
+                // This is the same as the ffi, but its prim(Transport(...))
+                let rest = self.desugar_stmt_vec(stmt_rest);
+
+                let mut result = rest;
+
+                let mut vars = vars.clone();
+
+                vars.reverse();
+
+                for (var, expr) in vars {
+                    let func =
+                        Judg_ment::lam(Some(self.desugar_expr(&expr)), result.bind(var.index));
+
+                    let ffi = Judg_ment::prim(UiPrim::Remote(remote_address.clone(), var.name));
+                    result = Judg_ment::app(func, ffi)
+                }
+                result
+            }
             StmtKind::Enum(_, _, _, _) => {
                 unimplemented!()
             }
@@ -487,6 +506,38 @@ impl Context {
                 }
                 mod_ule_items
             }
+            StmtKind::Remote(remote_address, result) => {
+                let mut mod_ule_items = vec![];
+                // we construct a module_let_stmt with an remote_runc declared inside
+                // for every remote function
+                for (remote_var, remote_type) in result {
+                    let var = Var {
+                        index: remote_var.clone().index,
+                        name: remote_var.clone().name,
+                        span: new_span(),
+                        local_or_global: LocalOrGlobal::Local,
+                    };
+                    let rest_kind: StmtKind =
+                        StmtKind::Val(Expr(Box::new(ExprKind::Var(var)), new_span()));
+                    let rest = Stmt(rest_kind, module_stmt.1.clone(), new_span());
+                    let remote_stmt_kind = StmtKind::Remote(
+                        remote_address.clone(),
+                        vec![(remote_var.clone(), remote_type)],
+                    );
+                    let remote_stmt = Stmt(remote_stmt_kind, module_stmt.1.clone(), new_span());
+                    let stmts = vec![remote_stmt, rest];
+                    let mod_ule_item = Mod_uleItem {
+                        var: remote_var,
+                        impl_: self.desugar_stmt_vec(&stmts),
+                        expected_type: None,
+                        transport_info: module_stmt.1.clone(),
+                        with_list: BTreeSet::new(),
+                    };
+                    mod_ule_items.push(mod_ule_item)
+                }
+                mod_ule_items
+            }
+
             StmtKind::Enum(var_binder, binders, self_var, variants) => {
                 let mut mod_ule_items = vec![];
 

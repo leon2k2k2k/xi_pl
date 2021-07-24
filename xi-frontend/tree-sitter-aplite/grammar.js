@@ -53,7 +53,7 @@ module.exports = grammar({
         $.val_stmt,
         $.fn_stmt,
         $.import_stmt,
-        $.transport_stmt,
+        $.remote_stmt,
         $.ffi_stmt,
         $.if_stmt,
         $.with_stmt,
@@ -77,7 +77,7 @@ module.exports = grammar({
 
     import_components: ($) => seq("{", separated($.ident, ","), "}"),
 
-    transport_stmt: ($) => seq("transport", $.string_expr, $.dict_expr),
+    remote_stmt: ($) => seq("remote", $.string_expr, $.dict_expr),
 
     // transport_components: ($) => seq("{", separated($.ident, ","), "}"),
 

@@ -1,0 +1,17 @@
+@py ffi "runtime.py"{
+   UnitType : Type,
+//   unit : UnitType,
+//    int_to_string : Int -> String,
+   console_output: String -> IO UnitType,
+//  console_input: IO String,
+}
+
+
+@py remote "localhost:8080" {
+    create_deployment: IO UnitType
+}
+
+@py let main = {
+    do create_deployment!
+    val 5!
+}

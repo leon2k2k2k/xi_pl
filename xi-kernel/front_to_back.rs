@@ -165,6 +165,11 @@ pub fn ui_to_js_judgment(front: Judgment<UiPrim>) -> Judgment<JsPrim> {
                 UiPrim::Global(index) => {
                     Judgment::prim(JsPrim::Var(index), define_prim(prim_type), None)
                 }
+                UiPrim::Remote(remote_address, remote_name) => Judgment::prim(
+                    JsPrim::Remote(remote_address, remote_name),
+                    define_prim(prim_type),
+                    None,
+                ),
             }
         },
     ))
@@ -245,6 +250,11 @@ pub fn ui_to_py_judgment(front: Judgment<UiPrim>) -> Judgment<PyPrim> {
                 UiPrim::Global(index) => {
                     Judgment::prim(PyPrim::Var(index), define_prim(prim_type), None)
                 }
+                UiPrim::Remote(remote_address, remote_name) => Judgment::prim(
+                    PyPrim::Remote(remote_address, remote_name),
+                    define_prim(prim_type),
+                    None,
+                ),
             }
         },
     ))

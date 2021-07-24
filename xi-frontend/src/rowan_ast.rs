@@ -26,6 +26,7 @@ pub enum SyntaxKind {
     FN_STMT,
     IMPORT_STMT,
     FFI_STMT,
+    REMOTE_STMT,
     IF_STMT,
     WITH_STMT,
     ENUM_STMT,

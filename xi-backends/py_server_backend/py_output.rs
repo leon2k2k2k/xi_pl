@@ -20,12 +20,17 @@ pub fn module_to_py_mod(
 ) -> Mod {
     let mut body = vec![];
     let mut ffi_functions = BTreeMap::new();
-
+    let mut remote_functions = BTreeMap::new();
     for (var_index, module_item) in &module.module_items {
-        dbg!(&module_item.transport_info());
+        // dbg!(&module_item.transport_info());
         if Some("py".into()) == module_item.transport_info().origin {
             dbg!("hello!!!");
-            let module_items = module_item_to_stmt(&mut ffi_functions, module_item, var_index);
+            let module_items = module_item_to_stmt(
+                &mut ffi_functions,
+                &mut remote_functions,
+                module_item,
+                var_index,
+            );
             body.extend(module_items);
 
             // check that if it needs to be transported somewhere:
@@ -39,6 +44,13 @@ pub fn module_to_py_mod(
             let deregister_stmt = deregister_top_level(var_index.clone(), module_item.type_());
             body.push(deregister_stmt);
         }
+    }
+
+    // remote are getting added here:
+    // remote_{varuuid} = server.deregister...
+    for ((remote_address, function_name), index) in remote_functions {
+        let deregister_stmt = deregister_remote(index, function_name);
+        body.push(deregister_stmt)
     }
 
     let mut ffi_imports = vec![];
@@ -161,7 +173,16 @@ pub fn module_with_server_to_py_string(
 // write out the generated registration code:
 // server.register_top_level(var_[], "var_[]", json_kind(type_))
 pub fn register_top_level(index: VarUuid, type_: Judgment<PyPrim>) -> Stmt {
-    let json_var_type_ = to_py_await2(to_py(&type_, BTreeMap::new(), &mut BTreeMap::new(), true).1);
+    let json_var_type_ = to_py_await2(
+        to_py(
+            &type_,
+            BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            true,
+        )
+        .1,
+    );
     let server_reg_top_level =
         to_py_member(to_py_ident("server"), to_py_ident("register_top_level"));
     let expr = to_py_app(
@@ -183,12 +204,23 @@ pub fn deregister_top_level(index: VarUuid, type_: Judgment<PyPrim>) -> Stmt {
         to_py_member(to_py_ident("server"), to_py_ident("deregister_top_level")),
         vec![
             to_py_str(format!("var_{}", index.index())),
-            to_py_await2(to_py(&type_, BTreeMap::new(), &mut BTreeMap::new(), true).1),
+            to_py_await2(
+                to_py(
+                    &type_,
+                    BTreeMap::new(),
+                    &mut BTreeMap::new(),
+                    &mut BTreeMap::new(),
+                    true,
+                )
+                .1,
+            ),
         ],
     ));
     let value = to_py_app(to_py_ident("promise_resolve"), vec![await_expr]);
     to_py_assign(vec![to_py_ident(format!("var_{}", index.index()))], value)
 }
+
+pub fn deregister_remote(index: VarUuid, )
 // pub fn type_to_json(type_: Judgment<PyPrim>) -> Expr {
 //     match *type_.tree {
 //         xi_core::judgment::JudgmentKind::Pi(arg_type, return_type) => {

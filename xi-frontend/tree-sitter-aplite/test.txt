@@ -1,6 +1,9 @@
-@ js transport py fn add5 | x: Int| -> Int {
-    val x + 5
+transport "localhost:8080" {
+    UnitType : Type,
+    create_nginx_deployemnt : IO UnitType
 }
 
-
-// @py let ten = add5 (5)
+let main = {
+    do create_nginx_deployemnt!
+    val 5!
+}

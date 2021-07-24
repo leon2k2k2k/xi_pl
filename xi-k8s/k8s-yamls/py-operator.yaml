@@ -16,6 +16,7 @@ spec:
       - name: py-operator
         image: py-operator:latest
         imagePullPolicy: Never
+      serviceAccountName: py-operator
 ---
 apiVersion: v1
 kind: Service
@@ -29,3 +30,10 @@ spec:
   - port: 8080
     targetPort: 8080
     nodePort: 30001
+---
+# we also need a service account for the operator
+apiVersion: v1
+kind: ServiceAccount
+metadata: 
+  name: py-operator
+

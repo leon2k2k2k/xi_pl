@@ -219,8 +219,12 @@ pub fn deregister_top_level(index: VarUuid, type_: Judgment<PyPrim>) -> Stmt {
     let value = to_py_app(to_py_ident("promise_resolve"), vec![await_expr]);
     to_py_assign(vec![to_py_ident(format!("var_{}", index.index()))], value)
 }
+// given a name of the remote function, this deregisters
 
-pub fn deregister_remote(index: VarUuid, )
+pub fn deregister_remote(index: VarUuid, function_name: String) {
+    todo!()
+}
+
 // pub fn type_to_json(type_: Judgment<PyPrim>) -> Expr {
 //     match *type_.tree {
 //         xi_core::judgment::JudgmentKind::Pi(arg_type, return_type) => {

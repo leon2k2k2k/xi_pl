@@ -20,32 +20,14 @@ Need to add in the transport syntax.
 2. Change the frontend so that transport and import are more similiar. 
    More importantly, we can transport from another "library" which is really a service that we can talk to.
    The syntax should be 
-   """
-   transport k8s "http://localhost:31094" {
-       k8s: Type -> Type
-       create_nginx_deployment: k8s UnitType
-   }
-
-  let main = {
-      create_nginx_deployemnt
-      val 5!
-  }
-   """
-
-   
-py.ap:
-export x = 5
-export id = lambda|T : Type, t : T| t 
-
-js.ap:
-transport py "http://whateveritlistensat" {
-    x : Int,
-
-}
-
-
-
-
 3. Make everything work!!!
 
 That will be pretty cool to do!
+
+Questions:
+I want to do remote in a "good way". The main question is how do we 
+transport types around (not terms in a given type). Because if we transport a 
+type around, then how do we know how to transport a term of the type?
+An example of this is we have a monad k8s, how do we use it?
+Another example is Configmap: Type, how do we something of this type, 
+when this type is defined remotely.

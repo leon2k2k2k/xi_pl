@@ -55,4 +55,8 @@ Now we can remote "import" functions on the k8s-library by writting remote statm
 remote "localhost:8080" {
     create_deployment: k8s UnitType
 }
+let main = {
+    do create_deployment!
+    val ()!
+}
 ```

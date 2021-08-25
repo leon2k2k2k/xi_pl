@@ -7,7 +7,7 @@ pub const PY_RUNTIME_FILE: &str = "_aplite_python_runtime";
 
 pub fn run_py_from_string(source_code: &str) -> Result<(), std::io::Error> {
     let runtime_code = include_str!("runtime.py");
-
+    
     let actual_source_code = format!("{}\n\n{}", runtime_code, source_code);
     eprintln!("{}", &actual_source_code);
 

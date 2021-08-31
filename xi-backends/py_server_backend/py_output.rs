@@ -221,7 +221,7 @@ pub fn deregister_top_level(index: VarUuid, type_: Judgment<PyPrim>) -> Stmt {
 }
 // given a name of the remote function, this deregisters
 
-pub fn deregister_remote(index: VarUuid, function_name: String) {
+pub fn deregister_remote(index: VarUuid, function_name: String) -> Stmt {
     todo!()
 }
 

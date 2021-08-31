@@ -21,6 +21,6 @@ url = "2.2"
 
 # deno = {path = "../../deno"}
 
-deno = { git = "https://github.com/leon2k2k2k/deno", branch = "main" }
-deno_core = { git = "https://github.com/leon2k2k2k/deno", branch = "main" }
-deno_runtime = { git = "https://github.com/leon2k2k2k/deno", branch = "main" }
+deno = { git = "https://github.com/aplite-lang/deno", tag = "v1.13.2-fork" }
+deno_core = { git = "https://github.com/aplite-lang/deno", tag = "v1.13.2-fork" }
+deno_runtime = { git = "https://github.com/aplite-lang/deno", tag = "v1.13.2-fork" }

@@ -6,6 +6,7 @@ use deno::file_fetcher::File;
 use deno::media_type::MediaType;
 use deno::program_state::ProgramState;
 use deno_core::error::AnyError;
+use deno_core::located_script_name;
 use deno_core::resolve_url_or_path;
 use deno_runtime::permissions::Permissions;
 
@@ -17,7 +18,7 @@ pub async fn run_js_from_string(source_code: String) -> Result<(), AnyError> {
     let main_module = resolve_url_or_path("./$deno$eval.js").unwrap();
     let permissions = Permissions::from_options(&flags.clone().into());
     let program_state = ProgramState::build(flags.clone()).await?;
-    let mut worker = create_main_worker(&program_state, main_module.clone(), permissions, false);
+    let mut worker = create_main_worker(&program_state, main_module.clone(), permissions, None);
 
     let main_module_file = File {
         local: main_module.clone().to_file_path().unwrap(),
@@ -45,9 +46,16 @@ pub async fn run_js_from_string(source_code: String) -> Result<(), AnyError> {
         .insert_cached(runtime_module_file);
 
     worker.execute_module(&main_module).await?;
-    worker.execute("window.dispatchEvent(new Event('load'))")?;
+    worker.execute_script(
+        &located_script_name!(),
+        "window.dispatchEvent(new Event('load'))",
+    )?;
     worker.run_event_loop(false).await?;
-    worker.execute("window.dispatchEvent(new Event('unload'))")?;
+    worker.execute_script(
+        &located_script_name!(),
+        "window.dispatchEvent(new Event('unload'))",
+    )?;
+
     Ok(())
 }
 

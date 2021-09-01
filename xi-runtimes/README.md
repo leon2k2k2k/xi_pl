@@ -6,4 +6,4 @@ Aplite currently has two runtimes: Js (Javascript) and Py (Python).
 We use Deno as our js-runtime. 
 
 ## Py-runtime
-We uses the standard Python runtime.
+We uses the standard Python runtime. The python runtime need astor and aiohttp packages. 

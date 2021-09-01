@@ -320,9 +320,9 @@ checksum = "c4872d67bab6358e59559027aa3b9157c53d9358c51423c17554809a8858e0f8"
 
 [[package]]
 name = "cc"
-version = "1.0.69"
+version = "1.0.70"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e70cc2f62c6ce1868963827bd677764c62d07c3d9a3e1fb1177ee1a9ab199eb2"
+checksum = "d26a6ce4b6a484fa3edb70f7efa6fc430fd2b87285fe8b84304fd0936faa0dc0"
 dependencies = [
  "jobserver",
 ]
@@ -595,7 +595,7 @@ dependencies = [
 [[package]]
 name = "deno"
 version = "1.13.2"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "atty",
  "base64 0.13.0",
@@ -651,7 +651,7 @@ dependencies = [
  "shell-escape",
  "sourcemap",
  "swc_bundler",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecmascript",
  "tempfile",
  "termcolor",
@@ -688,7 +688,7 @@ dependencies = [
 [[package]]
 name = "deno_broadcast_channel"
 version = "0.10.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "async-trait",
  "deno_core",
@@ -699,7 +699,7 @@ dependencies = [
 [[package]]
 name = "deno_console"
 version = "0.16.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "deno_core",
 ]
@@ -707,7 +707,7 @@ dependencies = [
 [[package]]
 name = "deno_core"
 version = "0.98.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "anyhow",
  "futures",
@@ -727,7 +727,7 @@ dependencies = [
 [[package]]
 name = "deno_crypto"
 version = "0.30.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "deno_core",
  "deno_web",
@@ -754,7 +754,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecmascript",
  "termcolor",
 ]
@@ -762,7 +762,7 @@ dependencies = [
 [[package]]
 name = "deno_fetch"
 version = "0.39.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "bytes",
  "data-url",
@@ -781,7 +781,7 @@ dependencies = [
 [[package]]
 name = "deno_ffi"
 version = "0.3.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "deno-libffi",
  "deno_core",
@@ -792,7 +792,7 @@ dependencies = [
 [[package]]
 name = "deno_http"
 version = "0.7.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "base64 0.13.0",
  "bytes",
@@ -821,14 +821,14 @@ dependencies = [
  "serde",
  "serde_json",
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecmascript",
 ]
 
 [[package]]
 name = "deno_net"
 version = "0.7.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "deno_core",
  "deno_tls",
@@ -843,7 +843,7 @@ dependencies = [
 [[package]]
 name = "deno_runtime"
 version = "0.24.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "atty",
  "deno_broadcast_channel",
@@ -889,7 +889,7 @@ dependencies = [
 [[package]]
 name = "deno_timers"
 version = "0.14.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "deno_core",
  "tokio",
@@ -898,7 +898,7 @@ dependencies = [
 [[package]]
 name = "deno_tls"
 version = "0.3.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "deno_core",
  "lazy_static",
@@ -913,7 +913,7 @@ dependencies = [
 [[package]]
 name = "deno_url"
 version = "0.16.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "deno_core",
  "idna",
@@ -925,7 +925,7 @@ dependencies = [
 [[package]]
 name = "deno_web"
 version = "0.47.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "async-trait",
  "base64 0.13.0",
@@ -939,7 +939,7 @@ dependencies = [
 [[package]]
 name = "deno_webgpu"
 version = "0.17.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "deno_core",
  "serde",
@@ -951,7 +951,7 @@ dependencies = [
 [[package]]
 name = "deno_webidl"
 version = "0.16.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "deno_core",
 ]
@@ -959,7 +959,7 @@ dependencies = [
 [[package]]
 name = "deno_websocket"
 version = "0.21.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "deno_core",
  "deno_tls",
@@ -974,7 +974,7 @@ dependencies = [
 [[package]]
 name = "deno_webstorage"
 version = "0.11.0"
-source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#8d7537941509f1e01059050d6cc136f6fdd3a70f"
+source = "git+https://github.com/aplite-lang/deno?tag=v1.13.2-fork#ae8539239a32d9ef57f7c4d7c26154be29f360ff"
 dependencies = [
  "deno_core",
  "deno_web",
@@ -1125,7 +1125,7 @@ dependencies = [
  "dprint-swc-ecma-ast-view",
  "fnv",
  "serde",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecmascript",
 ]
 
@@ -1139,7 +1139,7 @@ dependencies = [
  "fnv",
  "num-bigint",
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecmascript",
 ]
 
@@ -3876,7 +3876,7 @@ dependencies = [
  "relative-path",
  "retain_mut",
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecma_ast 0.49.5",
  "swc_ecma_codegen 0.66.3",
  "swc_ecma_loader",
@@ -3911,9 +3911,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "0.11.8"
+version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "042a1efcb6b394d2e06f6118f1811ea7fbcff317c69e4d5c131f5fcf9766dd6b"
+checksum = "0a873d7284ebc53a9051f41068dc2cb979e399a4a1fab25d9c0dee9f8db4d1f5"
 dependencies = [
  "ahash 0.7.4",
  "ast_node",
@@ -3959,7 +3959,7 @@ dependencies = [
  "serde",
  "string_enum",
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
 ]
 
 [[package]]
@@ -3988,7 +3988,7 @@ dependencies = [
  "num-bigint",
  "sourcemap",
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecma_ast 0.49.5",
  "swc_ecma_codegen_macros",
  "swc_ecma_parser 0.66.6",
@@ -4014,7 +4014,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f04ff0de9a70fa06a23e85fddd2dc077fe840905635e9ecc6211169cdf6717d"
 dependencies = [
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecma_ast 0.49.5",
  "swc_ecma_visit 0.35.2",
 ]
@@ -4027,7 +4027,7 @@ checksum = "b05e3b054b690e610384fc8f5d244182cbd62691423755ca1c4b05cb0bfa6b46"
 dependencies = [
  "anyhow",
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecma_ast 0.49.5",
  "swc_ecma_visit 0.35.2",
 ]
@@ -4067,7 +4067,7 @@ dependencies = [
  "serde",
  "smallvec",
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecma_ast 0.49.5",
  "swc_ecma_visit 0.35.2",
  "unicode-xid 0.2.2",
@@ -4080,7 +4080,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f53f948b9fb8a315b1e0d5f121b8c88786feb11b7f01f8406c16301e0ad2227"
 dependencies = [
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecma_ast 0.49.5",
  "swc_ecma_parser 0.66.6",
  "swc_ecma_transforms_base",
@@ -4105,7 +4105,7 @@ dependencies = [
  "scoped-tls",
  "smallvec",
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecma_ast 0.49.5",
  "swc_ecma_parser 0.66.6",
  "swc_ecma_utils",
@@ -4119,7 +4119,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32671ce21128abec95aae6dbb7aa03f6bc117de0ff3b3cb70022480f18fd17a9"
 dependencies = [
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecma_ast 0.49.5",
  "swc_ecma_transforms_base",
  "swc_ecma_utils",
@@ -4140,7 +4140,7 @@ dependencies = [
  "retain_mut",
  "serde_json",
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecma_ast 0.49.5",
  "swc_ecma_parser 0.66.6",
  "swc_ecma_transforms_base",
@@ -4159,7 +4159,7 @@ dependencies = [
  "serde",
  "smallvec",
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecma_ast 0.49.5",
  "swc_ecma_parser 0.66.6",
  "swc_ecma_transforms_base",
@@ -4183,7 +4183,7 @@ dependencies = [
  "sha-1",
  "string_enum",
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecma_ast 0.49.5",
  "swc_ecma_parser 0.66.6",
  "swc_ecma_transforms_base",
@@ -4200,7 +4200,7 @@ dependencies = [
  "fxhash",
  "serde",
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecma_ast 0.49.5",
  "swc_ecma_parser 0.66.6",
  "swc_ecma_transforms_base",
@@ -4217,7 +4217,7 @@ dependencies = [
  "once_cell",
  "scoped-tls",
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecma_ast 0.49.5",
  "swc_ecma_visit 0.35.2",
  "unicode-xid 0.2.2",
@@ -4244,7 +4244,7 @@ checksum = "d51ce688b7c984d0325261edb3ced4195790c7ac76982e269d2114ec04e3ae7c"
 dependencies = [
  "num-bigint",
  "swc_atoms",
- "swc_common 0.11.8",
+ "swc_common 0.11.9",
  "swc_ecma_ast 0.49.5",
  "swc_visit",
 ]
@@ -4457,9 +4457,9 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "tokio"
-version = "1.10.1"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92036be488bb6594459f2e03b60e42df6f937fe6ca5c5ffdcb539c6b84dc40f5"
+checksum = "b4efe6fc2395938c8155973d7be49fe8d03a843726e285e100a8a383cc0154ce"
 dependencies = [
  "autocfg 1.0.1",
  "bytes",

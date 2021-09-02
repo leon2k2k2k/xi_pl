@@ -25,9 +25,11 @@ Need to add in the transport syntax.
 That will be pretty cool to do!
 
 Questions:
-I want to do remote in a "good way". The main question is how do we 
-transport types around (not terms in a given type). Because if we transport a 
-type around, then how do we know how to transport a term of the type?
-An example of this is we have a monad k8s, how do we use it?
-Another example is Configmap: Type, how do we something of this type, 
-when this type is defined remotely.
+How do we transport a type T: Type that is only defined remotely? I think that this 
+is the right way to do things, types should be able to be transported just as terms.
+Here's an example: 
+Deployment : Type should be an object remotely defined on the k8s library. 
+In our language, for the frontend (for all purposes), they are treated the same as any other object 
+in the context. However, then say we have nginx_deploment : Deployment another term that is 
+defined on the k8s library, then the question is how do we transport that term? On the client side,
+how do we know how to get that term?

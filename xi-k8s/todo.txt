@@ -1,5 +1,10 @@
 Steps to make a basic aplite-k8s operator:
 
+
+
+
+
+
 Part I. practice with k8s and Docker
 1. Learn how to wrap a backend in docker, then put it on k8s and communicate with it.
 2. Do able to do js-py with one of the backend (py) on the server.
@@ -33,3 +38,5 @@ In our language, for the frontend (for all purposes), they are treated the same 
 in the context. However, then say we have nginx_deploment : Deployment another term that is 
 defined on the k8s library, then the question is how do we transport that term? On the client side,
 how do we know how to get that term?
+
+For the client, all we know is that there is an abstract term aka an id number, so I guess we need to first

@@ -34,7 +34,6 @@ def freevar(index):
 def app(left, right):
     return {"kind": "app", "left": left, "right": right}
 
-
 def instantiate(sexpr, expr, var_index):
     if sexpr["kind"] == "prim":
         return sexpr

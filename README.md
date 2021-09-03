@@ -1,4 +1,4 @@
-# Xi programming language
+# Aplite programming language
 
 This is a prototype for Aplite, which will eventually become a good programming language.
 
@@ -11,3 +11,4 @@ This is currently a cargo workspace, with the following crates inside:
 - xi-kernels - Functions from Judgment to Judgment
 - xi-uuid - A utility crate to generate unique numbers.
 - xi-k8s - a kubernetes library/backend for Aplite.
+

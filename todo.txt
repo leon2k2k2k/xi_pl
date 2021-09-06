@@ -13,8 +13,6 @@ server-backend:
 3. transport enum structs.
 
 
-
-
 todo list:
 1. Output:
     a. do some tests: console_input testing,

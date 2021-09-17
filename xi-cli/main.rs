@@ -42,13 +42,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-// this one prints the output js/py source code.
-
+// this one complies to javascript and runs the function named "main" in the file
 #[cfg(all(not(feature = "run-with-server"), not(feature = "run-no-server")))]
-fn main() {
-    let cli_info = CliInfo::get_inputs(false);
-    let _str = CliInfo::aplite_to_backend_source_code(&cli_info);
-    // println!("{}", str);
+#[tokio::main]
+async fn main() {
+    let input = std::env::args().collect::<Vec<_>>();
+    let source_code = std::fs::read_to_string(&input[1]).unwrap();
+    let main_func = "main";
+    let module_and_imports = ui_to_module(&source_code);
+
+    let main_id = *module_and_imports
+        .module
+        .str_to_index
+        .get(main_func)
+        .expect("main not found");
+
+    let js_module = front_to_js_back(module_and_imports);
+    let js_string = module_to_js_string(js_module, Some(main_id));
+    xi_runtimes::js_runtime::js_runtime::run_js_from_string(js_string)
+        .await
+        .unwrap();
 }
 #[derive(Clone, Debug)]
 pub enum BackEnd {

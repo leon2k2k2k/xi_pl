@@ -12,7 +12,7 @@ server-backend:
 2. transport dependent types.
 3. transport enum structs.
 
-
+4
 todo list:
 1. Output:
     a. do some tests: console_input testing,
@@ -24,10 +24,6 @@ todo list:
     b. Inductive types (enum and structs).
     c. Standard features: if, while, arithmetics (int), strings.
     d. REPL.
-
-3. Prettify:
-    a. define the bracket thing.
-    b. change variable name according to metadata.
 
 4. term_macro:
     a. default T, S.
